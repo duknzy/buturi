@@ -8,107 +8,43 @@
     
     <script>
         window.MathJax = {
-            tex: {
-                inlineMath: [['$', '$'], ['\\(', '\\)']],
-                displayMath: [['$$', '$$'], ['\\[', '\\]']]
-            },
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
             chtml: { displayAlign: 'left' }
         };
     </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 
     <style>
-        .squircle-tile {
-            border: 1px solid var(--accent-cyan);
-            box-shadow: 4px 4px 0px rgba(0, 243, 255, 0.1);
-        }
-
-        .workspace-container {
-            max-width: 1500px; margin: 0 auto;
-            display: flex; flex-direction: column; gap: 1.5rem;
-            height: calc(100vh - 3rem);
-        }
-
-        header {
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid #1a2a35; padding-bottom: 1rem;
-        }
-
-        .bento-grid {
-            display: grid; grid-template-columns: repeat(12, 1fr);
-            grid-template-rows: minmax(0, 1fr) auto; gap: 1.5rem; flex-grow: 1;
-        }
-
+        .squircle-tile { border: 1px solid var(--accent-cyan); box-shadow: 4px 4px 0px rgba(0, 243, 255, 0.1); }
+        .workspace-container { max-width: 1500px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; height: calc(100vh - 3rem); }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1a2a35; padding-bottom: 1rem; }
+        .bento-grid { display: grid; grid-template-columns: repeat(12, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 1.5rem; flex-grow: 1; }
         .main-question-tile  { grid-column: span 8; grid-row: span 1; display: flex; flex-direction: column; }
         .ai-sidebar-tile      { grid-column: span 4; grid-row: span 2; }
         .answer-formula-tile { grid-column: span 8; grid-row: span 1; }
-
         .badge-ai { background: transparent; color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
         .question-text { font-size: var(--fs-lg); font-weight: 800; line-height: 1.4; }
-
-        .physics-figure-box {
-            width: 100%; height: 260px; background: #020204;
-            border: 1px dashed #1a2a35; border-radius: 16px;
-            margin: 1rem 0; position: relative;
-            display: flex; align-items: center; justify-content: center; overflow: hidden;
-            flex-grow: 1; /* スペースをいっぱいに使う */
-        }
-        .vector-diagram {
-            width: 200px; height: 120px; border-bottom: 2px solid var(--text-muted);
-            position: relative; transform: rotate(-15deg);
-        }
-        .vector-diagram::after {
-            content: ''; position: absolute; bottom: 0; left: 40px; width: 40px; height: 40px;
-            border: 2px solid var(--accent-magenta); transform: rotate(45deg);
-        }
-        .vector-arrow {
-            position: absolute; bottom: 0; left: 0; width: 120px; height: 2px;
-            background: var(--accent-cyan); transform: rotate(45deg); transform-origin: left bottom;
-        }
+        .physics-figure-box { width: 100%; height: 260px; background: #020204; border: 1px dashed #1a2a35; border-radius: 16px; margin: 1rem 0; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-grow: 1; }
+        .vector-diagram { width: 200px; height: 120px; border-bottom: 2px solid var(--text-muted); position: relative; transform: rotate(-15deg); }
+        .vector-diagram::after { content: ''; position: absolute; bottom: 0; left: 40px; width: 40px; height: 40px; border: 2px solid var(--accent-magenta); transform: rotate(45deg); }
+        .vector-arrow { position: absolute; bottom: 0; left: 0; width: 120px; height: 2px; background: var(--accent-cyan); transform: rotate(45deg); transform-origin: left bottom; }
         .vector-arrow::after { content: '▶'; position: absolute; right: -4px; top: -6px; font-size: 8px; color: var(--accent-cyan); }
-
-        .glass-sidebar {
-            background: var(--card-bg-glass); backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(0, 243, 255, 0.25);
-        }
-        .chat-history {
-            flex-grow: 1; overflow-y: auto; margin: 1rem 0;
-            display: flex; flex-direction: column; gap: 1rem; padding-right: 0.5rem;
-        }
+        .glass-sidebar { background: var(--card-bg-glass); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(0, 243, 255, 0.25); }
+        .chat-history { flex-grow: 1; overflow-y: auto; margin: 1rem 0; display: flex; flex-direction: column; gap: 1rem; padding-right: 0.5rem; }
         .chat-bubble { padding: 0.8rem 1rem; border-radius: 16px; font-size: var(--fs-md); line-height: 1.4; max-width: 90%; }
         .bubble-ai { background: rgba(26, 26, 40, 0.5); border-left: 3px solid var(--accent-cyan); color: var(--text-bright-muted); align-self: flex-start; }
         .bubble-user { background: rgba(255, 0, 127, 0.1); border-right: 3px solid var(--accent-magenta); color: var(--text-main); align-self: flex-end; }
-
         .chat-input-wrapper { display: flex; gap: 0.5rem; border-top: 1px solid #1a2a35; padding-top: 1rem; }
         .chat-input { flex-grow: 1; background: #000; border: 1px solid #222; padding: 0.6rem 1rem; color: #fff; border-radius: 10px; }
-
-        .self-check-container {
-            display: flex; flex-direction: column; gap: 1rem; width: 100%; margin-top: 0.5rem;
-        }
+        .self-check-container { display: flex; flex-direction: column; gap: 1rem; width: 100%; margin-top: 0.5rem; }
         .reveal-btn-area { display: flex; width: 100%; }
-        .reveal-zone {
-            display: none; flex-direction: column; gap: 1rem; width: 100%;
-            background: rgba(255,255,255,0.02); padding: 1.2rem; border-radius: 16px;
-            border: 1px dashed #222; margin-top: 0.5rem;
-        }
-        .model-answer-text {
-            font-size: var(--fs-lg); color: var(--accent-cyan); font-weight: bold; margin-bottom: 0.5rem;
-        }
+        .reveal-zone { display: none; flex-direction: column; gap: 1rem; width: 100%; background: rgba(255,255,255,0.02); padding: 1.2rem; border-radius: 16px; border: 1px dashed #222; margin-top: 0.5rem; }
+        .model-answer-text { font-size: var(--fs-lg); color: var(--accent-cyan); font-weight: bold; margin-bottom: 0.5rem; }
         .judgment-buttons { display: flex; gap: 1.5rem; width: 100%; }
         .btn-correct { background: var(--accent-cyan) !important; box-shadow: 4px 4px 0px #008b94 !important; flex: 1; height: 54px; font-size: 1.1rem; }
         .btn-incorrect { background: var(--accent-magenta) !important; color: #000 !important; box-shadow: 4px 4px 0px #9e004f !important; flex: 1; height: 54px; font-size: 1.1rem; }
-
-        #neon-canvas {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            pointer-events: none; z-index: 99999; display: block;
-        }
-
-        @media (max-width: 1100px) {
-            .workspace-container { height: auto; }
-            .bento-grid { grid-template-rows: auto; }
-            .main-question-tile, .answer-formula-tile, .ai-sidebar-tile { grid-column: span 12; }
-            .ai-sidebar-tile { height: 400px; }
-        }
+        #neon-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 99999; display: block; }
+        @media (max-width: 1100px) { .workspace-container { height: auto; } .bento-grid { grid-template-rows: auto; } .main-question-tile, .answer-formula-tile, .ai-sidebar-tile { grid-column: span 12; } .ai-sidebar-tile { height: 400px; } }
     </style>
 </head>
 <body>
@@ -132,7 +68,7 @@
             <section class="squircle-tile main-question-tile">
                 <div class="tile-header-group">
                     <span class="badge badge-physics" id="question-badge">読み込み中...</span>
-                    <h2 class="question-text" id="question-text-display">問題データを読み込んでいます...</h2>
+                    <h2 class="question-text" id="question-text-display">問題データをロードしています...</h2>
                 </div>
                 
                 <div class="physics-figure-box" id="figure-box">
@@ -140,7 +76,7 @@
                 </div>
 
                 <div style="color: var(--text-bright-muted); font-size: var(--fs-sm); margin-top: 0.5rem;" id="hint-text-display">
-                    ヒント：床から見た静止座標系か、台と一緒に動く加速座標系か、視点を統一しましょう。
+                    ロード中...
                 </div>
             </section>
 
@@ -152,7 +88,7 @@
 
                 <div class="chat-history">
                     <div class="chat-bubble bubble-ai" id="initial-ai-bubble">
-                        どこで迷っていますか？まずは問題文の条件を整理してみましょう。
+                        生徒のログインを確認しています...
                     </div>
                 </div>
 
@@ -169,18 +105,14 @@
 
                 <div class="self-check-container">
                     <div class="reveal-btn-area" id="reveal-btn-wrap">
-                        <button type="button" class="tactile-btn" id="show-answer-btn" style="width:100%; height:54px; font-size:1.1rem;">
-                            👁 模範解答を表示して答え合わせする
+                        <button type="button" class="tactile-btn" id="show-answer-btn" style="width:100%; height:54px; font-size:1.1rem;" disabled>
+                            🔒 ログイン後に答え合わせ可能
                         </button>
                     </div>
 
                     <div class="reveal-zone" id="answer-reveal-zone">
                         <div style="font-size:0.8rem; color:var(--text-muted); font-weight:800; margin-bottom:0.2rem;">MODEL ANSWER</div>
                         <div class="model-answer-text" id="target-model-answer"></div>
-                        
-                        <div style="font-size:0.85rem; color:var(--text-bright-muted); font-weight:700; margin-bottom:0.4rem;">
-                            自分のノートの解答と合っていましたか？判定を選択してください：
-                        </div>
                         <div class="judgment-buttons">
                             <button type="button" class="tactile-btn btn-incorrect" id="btn-judge-wrong">❌ 間違えた（再挑戦）</button>
                             <button type="button" class="tactile-btn btn-correct" id="btn-judge-right">🎉 合ってた（克服！）</button>
@@ -191,276 +123,192 @@
         </main>
     </div>
 
-   <script>
-        const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
-        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        
+   <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+        // ⚠️ 2. ここをindex.htmlと完全に同じConfigに書き換えてください
+        const firebaseConfig = {
+  apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY",
+  authDomain: "buturi-2449e.firebaseapp.com",
+  projectId: "buturi-2449e",
+  storageBucket: "buturi-2449e.firebasestorage.app",
+  messagingSenderId: "976306696124",
+  appId: "1:976306696124:web:e455c1953544bff5c345b9",
+  measurementId: "G-3PGVL2LCJH"
+};
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const database = getDatabase(app);
+
         const urlParams = new URLSearchParams(window.location.search);
         const PROBLEM_ID = urlParams.get('id') || "P-2026-X12";
 
-        const SYSTEM_INSTRUCTION_BASE = `
-        あなたは「ソクラテス式問答法」を用いる、物静かだが核心を突く高校生向けのAIチューターです。
-        最終的な正解（数式や数値）は絶対に教えず、小さな問いかけで生徒を自力での解決へ導いてください。
-        1回の発言につき、質問は「1つ」に絞ってください。
+        const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
         
-        【重要】変数や数式（例: m, M, g, sinθ, Nなど）をメッセージに含めるときは、必ず前後に $ をつけて「$m$」や「$\\sin\\theta$」のようにLaTeX形式の数式として出力してください。
-
-        返談は必ず以下のJSONフォーマットの形式で出力してください。他の説明文などは一切含めないでください。
-        {
-          "ai_response": "生徒へ返すヒントメッセージ（数式には $ $ を使用すること）",
-          "current_step_label": "現在のステップ名",
-          "student_understanding_rate": 0から100の整数
-        }
+        const SYSTEM_INSTRUCTION_BASE = `
+        あなたは「ソクラテス式問答法」を用いるAIチューターです。正解は教えず、小さな問いかけを1つ返してください。数式は前後に $ をつけること。
         `;
 
         let chatHistory = [];
         let currentProblemData = {};
+        let loginUid = null;
 
         const defaultPhysicsData = {
             id: "P-2026-X12",
             title: "傾きの角 $\\theta$ のなめらかな斜面を持つ質量 $M$ の台が、水平な床の上に置かれている。この斜面上に質量 $m$ の小球を載せ、静かに手を放した。台が床から受ける垂直抗力 $N$ を表せ。",
             short_title: "非慣性系における慣性力と物体の運動方程式の構築",
-            subject: "物理",
-            field: "力学",
-            errorCount: 5,
-            lastAttemptAt: new Date().toISOString(),
-            lastResult: false,
+            subject: "物理", field: "力学", errorCount: 5, lastResult: false,
             answerFormula: "$$N = \\frac{(M + m)g}{M + m \\sin^2\\theta}$$"
         };
 
-        function loadSessionData() {
-            let allData = {};
-            try {
-                allData = JSON.parse(localStorage.getItem("remind_app_problems")) || {};
-            } catch(e) { allData = {}; }
-
-            if (PROBLEM_ID === "P-2026-X12") {
-                if (!allData[PROBLEM_ID]) {
-                    allData[PROBLEM_ID] = defaultPhysicsData;
-                    localStorage.setItem("remind_app_problems", JSON.stringify(allData));
-                }
-                currentProblemData = allData[PROBLEM_ID];
+        // 認証状態の検知
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                loginUid = user.uid;
+                // ログインが確認できたらクラウドから特定のIDの問題データを引っ張る
+                loadCloudProblemSession(user.uid);
             } else {
-                currentProblemData = allData[PROBLEM_ID] || {
-                    title: "指定された問題が見つかりません。", subject: "エラー", field: "不明", errorCount: 0
-                };
+                alert("セッションが切れました。ダッシュボードからログインし直してください。");
+                location.href = "index.html";
             }
+        });
 
-            document.getElementById("problem-id-display").textContent = `PROBLEM ID: ${currentProblemData.id || "CUSTOM"}`;
-            document.getElementById("question-text-display").textContent = currentProblemData.title;
+        function loadCloudProblemSession(uid) {
+            const probRef = ref(database, 'users/' + uid + '/problems/' + PROBLEM_ID);
             
-            const ansDisplay = document.getElementById("target-model-answer");
-            if (currentProblemData.answerFormula) {
-                ansDisplay.textContent = currentProblemData.answerFormula;
-            } else {
-                ansDisplay.textContent = "この問題の模範解答データがありません。";
-            }
-
-            const badge = document.getElementById("question-badge");
-            badge.textContent = `${currentProblemData.subject} // ${currentProblemData.field} // 誤答回数: ${String(currentProblemData.errorCount).padStart(2, '0')}`;
-            
-            const figBox = document.getElementById("figure-box");
-            if (currentProblemData.imageData) {
-                // ★UX劇的改善：写真がある問題の時は、重複する文字起こしテキストを完全消去！
-                document.getElementById("question-text-display").style.display = "none";
+            // クラウドから問題データを一度だけ（またはリアルタイムに）ロード
+            onValue(probRef, (snapshot) => {
+                let data = snapshot.val();
                 
-                // 写真ボックスの縦幅を広げてプリントをガッツリ読みやすくする
-                figBox.style.display = "flex";
-                figBox.style.height = "380px"; 
-                figBox.innerHTML = `<img src="${currentProblemData.imageData}" style="width:100%; height:100%; object-fit:contain; border-radius:12px;">`;
-                
-                document.getElementById("hint-text-display").textContent = currentProblemData.trap_description || "AIチューターと一緒に弱点を分析していこう。";
-                document.getElementById("initial-ai-bubble").textContent = `新しく登録された「${currentProblemData.field}」の問題ですね。撮影された写真をもとに考えていきましょう！`;
-            } else if (PROBLEM_ID !== "P-2026-X12") {
-                figBox.style.display = "none";
-                document.getElementById("hint-text-display").textContent = currentProblemData.trap_description || "AIチューターと一緒に弱点を分析していこう。";
-            }
-
-            chatHistory = [
-                {
-                    "role": "user",
-                    "parts": [{ "text": `【問題文】 ${currentProblemData.title}` }]
-                },
-                {
-                    "role": "model",
-                    "parts": [{ "text": `{"ai_response": "問題を確認しました。どこで迷っていますか？まずは図を描いて働く力 $m$ や $N$ を整理してみましょう。", "current_step_label": "ステップ1: 状況の整理", "student_understanding_rate": 20}` }]
+                // 基準問題で、まだクラウドに箱がない場合は初期オブジェクトをセット
+                if (!data && PROBLEM_ID === "P-2026-X12") {
+                    data = defaultPhysicsData;
+                    set(probRef, defaultPhysicsData);
                 }
-            ];
 
-            setTimeout(() => {
+                currentProblemData = data || { title: "エラー", subject: "不明", field: "不明", errorCount: 0 };
+
+                // 画面テキスト一斉書き換え
+                document.getElementById("problem-id-display").textContent = `PROBLEM ID: ${currentProblemData.id || "CUSTOM"}`;
+                document.getElementById("question-text-display").textContent = currentProblemData.title;
+                document.getElementById("target-model-answer").textContent = currentProblemData.answerFormula || "解答データなし";
+                
+                const badge = document.getElementById("question-badge");
+                badge.textContent = `${currentProblemData.subject} // ${currentProblemData.field} // 誤答回数: ${String(currentProblemData.errorCount).padStart(2, '0')}`;
+                
+                const figBox = document.getElementById("figure-box");
+                if (currentProblemData.imageData) {
+                    document.getElementById("question-text-display").style.display = "none";
+                    figBox.style.display = "flex"; figBox.style.height = "380px"; 
+                    figBox.innerHTML = `<img src="${currentProblemData.imageData}" style="width:100%; height:100%; object-fit:contain; border-radius:12px;">`;
+                    document.getElementById("hint-text-display").textContent = currentProblemData.trap_description || "弱点分析中...";
+                    document.getElementById("initial-ai-bubble").textContent = "クラウドから写真をロードしました。セッションを開始できます！";
+                } else {
+                    document.getElementById("question-text-display").style.display = "block";
+                    document.getElementById("hint-text-display").textContent = "床から見た静止座標系か、台と一緒に動く加速座標系か、視点を統一しましょう。";
+                    document.getElementById("initial-ai-bubble").textContent = "どこで迷っていますか？まずは図を描いて働く力を整理してみましょう。";
+                }
+
+                // 採点ボタンを有効化
+                const showAnsBtn = document.getElementById("show-answer-btn");
+                showAnsBtn.textContent = "👁 模範解答を表示して答え合わせする";
+                showAnsBtn.disabled = false;
+
+                // 初回のみチャットヒストリー構築
+                if (chatHistory.length === 0) {
+                    chatHistory = [
+                        { "role": "user", "parts": [{ "text": `【問題文】 ${currentProblemData.title}` }] },
+                        { "role": "model", "parts": [{ "text": `{"ai_response": "問題を確認しました。", "current_step_label": "ステップ1: 状況の整理", "student_understanding_rate": 20}` }] }
+                    ];
+                }
                 if (window.MathJax) MathJax.typesetPromise();
-            }, 100);
+            }, { onlyOnce: true });
         }
 
-        function processSelfJudgment(isCorrect) {
-            let allData = {};
-            try { allData = JSON.parse(localStorage.getItem("remind_app_problems")) || {}; } catch(e) { allData = {}; }
-
-            let currentProblem = allData[PROBLEM_ID] || currentProblemData;
+        // ★クラウドへの判定書き戻し
+        async function processSelfJudgment(isCorrect) {
+            if (!loginUid) return;
+            const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
 
             if (isCorrect) {
                 triggerNeonExplosion(); 
-                setTimeout(() => {
-                    alert("🎉 克服おめでとうございます！！素晴らしい思考スキル（HOTS）です！");
-                }, 200);
-                currentProblem.lastResult = true;
-                currentProblem.errorCount = 0; 
+                setTimeout(() => { alert("🎉 克服おめでとうございます！！素晴らしい！"); }, 200);
+                currentProblemData.lastResult = true;
+                currentProblemData.errorCount = 0; 
             } else {
-                alert("❌ 記録しました。悔しさをバネに、右側のAIチューターに次のステップを聞いてみよう！");
-                currentProblem.lastResult = false;
-                currentProblem.errorCount = Number(currentProblem.errorCount || 1) + 1;
+                alert("❌ クラウドに記録しました。AIと一緒に考え直そう！");
+                currentProblemData.lastResult = false;
+                currentProblemData.errorCount = Number(currentProblemData.errorCount || 1) + 1;
             }
 
-            currentProblem.lastAttemptAt = new Date().toISOString();
-            allData[PROBLEM_ID] = currentProblem;
-            try { localStorage.setItem("remind_app_problems", JSON.stringify(allData)); } catch(e) {}
+            currentProblemData.lastAttemptAt = new Date().toISOString();
             
+            // Firebaseへプッシュ上書き！
+            await set(probRef, currentProblemData);
+
             document.getElementById("answer-reveal-zone").style.display = "none";
             document.getElementById("reveal-btn-wrap").style.display = "flex";
-            loadSessionData();
+            loadCloudProblemSession(loginUid);
         }
 
+        // --- Geminiチャット送信 ---
         async function sendMessageToGemini(studentMessage) {
             const statusBadge = document.getElementById("ai-status");
             statusBadge.textContent = "AI TUTOR // THINKING...";
             statusBadge.style.color = "var(--accent-magenta)";
-
             chatHistory.push({ "role": "user", "parts": [{ "text": studentMessage }] });
-
-            const requestBody = {
-                "contents": chatHistory,
-                "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION_BASE }] },
-                "generationConfig": { "responseMimeType": "application/json", "temperature": 0.7 }
-            };
 
             try {
                 const response = await fetch(GEMINI_API_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(requestBody)
+                    body: JSON.stringify({
+                        "contents": chatHistory, "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION_BASE }] },
+                        "generationConfig": { "responseMimeType": "application/json", "temperature": 0.7 }
+                    })
                 });
-
-                if (!response.ok) throw new Error(`API error: ${response.status}`);
-
                 const data = await response.json();
                 const rawJsonText = data.candidates[0].content.parts[0].text;
-
                 chatHistory.push({ "role": "model", "parts": [{ "text": rawJsonText }] });
-
-                const parsedResult = JSON.parse(rawJsonText);
-                updateChatUI(studentMessage, parsedResult);
-
-            } catch (error) {
-                console.error("Error:", error);
-                alert("Geminiとの通信に失敗しました。");
-            } finally {
-                statusBadge.textContent = "AI TUTOR // ACTIVE";
-                statusBadge.style.color = "var(--accent-cyan)";
-            }
+                updateChatUI(studentMessage, JSON.parse(rawJsonText));
+            } catch (error) { alert("Gemini通信失敗"); }
+            finally { statusBadge.textContent = "AI TUTOR // ACTIVE"; statusBadge.style.color = "var(--accent-cyan)"; }
         }
 
         function updateChatUI(userText, aiJson) {
             const chatHistoryArea = document.querySelector(".chat-history");
             const stepLabel = document.getElementById("current-step");
-
-            const userBubble = document.createElement("div");
-            userBubble.className = "chat-bubble bubble-user";
-            userBubble.textContent = userText;
-            chatHistoryArea.appendChild(userBubble);
-
-            const aiBubble = document.createElement("div");
-            aiBubble.className = "chat-bubble bubble-ai";
-            aiBubble.textContent = aiJson.ai_response;
-            chatHistoryArea.appendChild(aiBubble);
-
-            if (aiJson.current_step_label) {
-                stepLabel.textContent = aiJson.current_step_label;
-            }
+            const uBubble = document.createElement("div"); uBubble.className = "chat-bubble bubble-user"; uBubble.textContent = userText; chatHistoryArea.appendChild(uBubble);
+            const aBubble = document.createElement("div"); aBubble.className = "chat-bubble bubble-ai"; aBubble.textContent = aiJson.ai_response; chatHistoryArea.appendChild(aBubble);
+            if (aiJson.current_step_label) stepLabel.textContent = aiJson.current_step_label;
             chatHistoryArea.scrollTop = chatHistoryArea.scrollHeight;
-
-            if (window.MathJax) { MathJax.typesetPromise(); }
+            if (window.MathJax) MathJax.typesetPromise();
         }
 
-        // --- 花火エフェクト ---
-        const canvas = document.getElementById("neon-canvas");
-        const ctx = canvas.getContext("2d");
-        let particles = [];
-
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        window.addEventListener("resize", resizeCanvas);
-        resizeCanvas();
-
-        class Particle {
-            constructor(x, y, color) {
-                this.x = x; this.y = y;
-                this.size = Math.random() * 4 + 2;
-                this.speedX = Math.random() * 12 - 6;
-                this.speedY = Math.random() * -15 - 5;
-                this.gravity = 0.3; this.color = color; this.alpha = 1;
-                this.decay = Math.random() * 0.015 + 0.01;
-            }
-            update() { this.speedY += this.gravity; this.x += this.speedX; this.y += this.speedY; this.alpha -= this.decay; }
-            draw() {
-                ctx.save(); ctx.globalAlpha = this.alpha; ctx.shadowBlur = 15; ctx.shadowColor = this.color;
-                ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-            }
-        }
-
-        function triggerNeonExplosion() {
-            const colors = ["#00f3ff", "#ff007f", "#fff500"];
-            const startX = canvas.width / 2;
-            const startY = canvas.height * 0.8;
-            for (let i = 0; i < 150; i++) {
-                const color = colors[Math.floor(Math.random() * colors.length)];
-                particles.push(new Particle(startX, startY, color));
-            }
-            animateParticles();
-        }
-
-        function animateParticles() {
-            if (particles.length === 0) { ctx.clearRect(0, 0, canvas.width, canvas.height); return; }
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            for (let i = particles.length - 1; i >= 0; i--) {
-                particles[i].update(); particles[i].draw();
-                if (particles[i].alpha <= 0) particles.splice(i, 1);
-            }
-            requestAnimationFrame(animateParticles);
-        }
+        // --- 花火エフェクトとイベント結合 ---
+        const canvas = document.getElementById("neon-canvas"); const ctx = canvas.getContext("2d"); let particles = [];
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener("resize", resizeCanvas); resizeCanvas();
+        class Particle { constructor(x, y, color) { this.x = x; this.y = y; this.size = Math.random() * 4 + 2; this.speedX = Math.random() * 12 - 6; this.speedY = Math.random() * -15 - 5; this.gravity = 0.3; this.color = color; this.alpha = 1; this.decay = Math.random() * 0.015 + 0.01; } update() { this.speedY += this.gravity; this.x += this.speedX; this.y += this.speedY; this.alpha -= this.decay; } draw() { ctx.save(); ctx.globalAlpha = this.alpha; ctx.shadowBlur = 15; ctx.shadowColor = this.color; ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); ctx.restore(); } }
+        function triggerNeonExplosion() { const colors = ["#00f3ff", "#ff007f", "#fff500"]; const startX = canvas.width / 2, startY = canvas.height * 0.8; for (let i = 0; i < 150; i++) particles.push(new Particle(startX, startY, colors[Math.floor(Math.random() * colors.length)])); animateParticles(); }
+        function animateParticles() { if (particles.length === 0) { ctx.clearRect(0, 0, canvas.width, canvas.height); return; } ctx.clearRect(0, 0, canvas.width, canvas.height); for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].alpha <= 0) particles.splice(i, 1); } requestAnimationFrame(animateParticles); }
 
         document.addEventListener("DOMContentLoaded", () => {
-            loadSessionData();
-
             const sendBtn = document.querySelector(".chat-input-wrapper button");
             const inputField = document.querySelector(".chat-input");
-            
             const showAnswerBtn = document.getElementById("show-answer-btn");
             const revealWrap = document.getElementById("reveal-btn-wrap");
             const revealZone = document.getElementById("answer-reveal-zone");
-            
-            const btnRight = document.getElementById("btn-judge-right");
-            const btnWrong = document.getElementById("btn-judge-wrong");
 
-            const handleSend = () => {
-                const text = inputField.value.trim();
-                if (!text) return;
-                inputField.value = "";
-                sendMessageToGemini(text);
-            };
-            sendBtn.addEventListener("click", handleSend);
-            inputField.addEventListener("keypress", (e) => { if (e.key === "Enter") handleSend(); });
-
-            showAnswerBtn.addEventListener("click", () => {
-                revealWrap.style.display = "none";
-                revealZone.style.display = "flex";
-                if (window.MathJax) MathJax.typesetPromise();
-            });
-
-            btnRight.addEventListener("click", () => { processSelfJudgment(true); });
-            btnWrong.addEventListener("click", () => { processSelfJudgment(false); });
+            sendBtn.addEventListener("click", () => { const t = inputField.value.trim(); if (t) { inputField.value = ""; sendMessageToGemini(t); } });
+            showAnswerBtn.addEventListener("click", () => { revealWrap.style.display = "none"; revealZone.style.display = "flex"; if (window.MathJax) MathJax.typesetPromise(); });
+            document.getElementById("btn-judge-right").addEventListener("click", () => processSelfJudgment(true));
+            document.getElementById("btn-judge-wrong").addEventListener("click", () => processSelfJudgment(false));
         });
-    </script>
+   </script>
 </body>
 </html>

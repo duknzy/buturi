@@ -6,138 +6,45 @@
     <title>RETROGRADE // 誤答克服ダッシュボード</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .squircle-card {
-            border: 1px solid #22222a;
-            box-shadow: 4px 4px 0px #22222a;
-        }
-        .squircle-card:hover {
-            transform: translate(-2px, -2px);
-            border-color: #3a3a4a;
-            box-shadow: 6px 6px 0px #3a3a4a;
-        }
-        .glass-card {
-            background: var(--card-bg-glass);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .dashboard-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            flex-direction: column;
-            gap: 2rem;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            border-bottom: 1px solid #22222a;
-            padding-bottom: 1.5rem;
-        }
-
-        .logo {
-            font-size: var(--fs-xl);
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: -2px;
-            line-height: 0.9;
-            background: linear-gradient(90deg, var(--text-main) 70%, var(--accent-cyan));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .bento-grid {
-            display: grid;
-            grid-template-columns: repeat(12, 1fr);
-            grid-auto-rows: minmax(170px, auto);
-            gap: 1.5rem;
-            grid-auto-flow: row dense;
-        }
-
+        .squircle-card { border: 1px solid #22222a; box-shadow: 4px 4px 0px #22222a; }
+        .squircle-card:hover { transform: translate(-2px, -2px); border-color: #3a3a4a; box-shadow: 6px 6px 0px #3a3a4a; }
+        .glass-card { background: var(--card-bg-glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .dashboard-container { max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 2rem; }
+        header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #22222a; padding-bottom: 1.5rem; }
+        .logo { font-size: var(--fs-xl); font-weight: 900; text-transform: uppercase; letter-spacing: -2px; line-height: 0.9; background: linear-gradient(90deg, var(--text-main) 70%, var(--accent-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .bento-grid { display: grid; grid-template-columns: repeat(12, 1fr); grid-auto-rows: minmax(170px, auto); gap: 1.5rem; grid-auto-flow: row dense; }
         .size-critical { grid-column: span 8; grid-row: span 2; } 
         .size-high     { grid-column: span 4; grid-row: span 2; }     
         .size-medium   { grid-column: span 6; grid-row: span 1; }   
-        .size-small    { grid-column: span 4; grid-row: span 1; }    
         .size-mini     { grid-column: span 2; grid-row: span 1; display: flex; flex-direction: column; justify-content: center; }     
-
-        .card-title {
-            font-weight: 800;
-            line-height: 1.25;
-            letter-spacing: -0.5px;
-            margin: 0;
-        }
+        .card-title { font-weight: 800; line-height: 1.25; letter-spacing: -0.5px; margin: 0; }
         .size-critical .card-title { font-size: var(--fs-lg); }
         .size-high .card-title     { font-size: calc(var(--fs-lg) * 0.85); }
         .size-medium .card-title   { font-size: clamp(1.15rem, 1.8vw, 1.4rem); }
-
-        .card-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 1.5rem;
-            padding-top: 0.5rem;
-            color: var(--text-bright-muted);
-            font-size: var(--fs-sm);
-        }
-
+        .card-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: 0.5rem; color: var(--text-bright-muted); font-size: var(--fs-sm); }
         .error-count { font-size: var(--fs-md); font-weight: 900; }
         .critical-text { color: var(--accent-magenta); }
         .warning-text { color: var(--accent-cyan); }
-
         .mini-label { font-size: 0.75rem; font-weight: 800; margin-bottom: 0.2rem; }
         .mini-value { font-size: clamp(2rem, 4vw, 2.8rem); font-weight: 900; line-height: 1; }
         .mini-sub   { font-size: 0.75rem; color: var(--text-bright-muted); font-weight: 600; margin-top: 0.2rem; }
-
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.7);
-            display: none; align-items: center; justify-content: center;
-            z-index: 10000;
-        }
-        .modal-content {
-            width: 90%; max-width: 600px;
-            border: 1px solid var(--accent-cyan);
-            box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
-        }
-        .modal-textarea {
-            width: 100%; height: 100px; background: #000; border: 1px solid #222;
-            color: #fff; padding: 1rem; border-radius: 12px; font-size: 1rem; margin-top: 0.5rem;
-            resize: none;
-        }
-        .modal-textarea:focus {
-            outline: none; border-color: var(--accent-cyan);
-            box-shadow: 0 0 10px rgba(0,243,255,0.3);
-        }
-
-        .image-upload-zone {
-            display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-            width: 100%; padding: 0.8rem; margin: 0.8rem 0;
-            border: 1px dashed rgba(0, 243, 255, 0.4); border-radius: 12px;
-            background: rgba(0, 243, 255, 0.02); cursor: pointer;
-            font-size: 0.9rem; font-weight: 700; color: var(--accent-cyan);
-            transition: background 0.2s;
-        }
-        .image-upload-zone:hover { background: rgba(0, 243, 255, 0.08); }
-        .preview-box {
-            width: 100%; max-height: 120px; border-radius: 8px; overflow: hidden;
-            display: none; border: 1px solid #222; margin-bottom: 0.8rem;
-        }
+        
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 10000; }
+        .modal-content { width: 90%; max-width: 600px; border: 1px solid var(--accent-cyan); box-shadow: 0 0 30px rgba(0, 243, 255, 0.2); }
+        .modal-textarea { width: 100%; height: 100px; background: #000; border: 1px solid #222; color: #fff; padding: 1rem; border-radius: 12px; font-size: 1rem; margin-top: 0.5rem; resize: none; }
+        .image-upload-zone { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 0.8rem; margin: 0.8rem 0; border: 1px dashed rgba(0, 243, 255, 0.4); border-radius: 12px; background: rgba(0, 243, 255, 0.02); cursor: pointer; font-size: 0.9rem; font-weight: 700; color: var(--accent-cyan); }
+        .preview-box { width: 100%; max-height: 120px; border-radius: 8px; overflow: hidden; display: none; border: 1px solid #222; margin-bottom: 0.8rem; }
         .preview-box img { width: 100%; height: 100%; object-fit: contain; background: #020205; }
+        
+        /* 認証状態用のスタイル */
+        .auth-status-container { display: flex; align-items: center; gap: 1rem; }
+        .user-profile { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; font-weight: 700; }
+        .user-avatar { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--accent-cyan); }
+        #logout-btn { background: transparent; border: 1px solid #222; color: var(--text-muted); font-size: 0.8rem; padding: 0.3rem 0.6rem; border-radius: 8px; cursor: pointer; }
+        #logout-btn:hover { border-color: var(--accent-magenta); color: var(--accent-magenta); }
+        .login-overlay-box { grid-column: span 12; padding: 4rem; text-align: center; background: rgba(5,5,8,0.6); border: 1px dashed #22222a; border-radius: 16px; }
 
-        @media (max-width: 1024px) {
-            .size-critical { grid-column: span 12; }
-            .size-high, .size-medium { grid-column: span 6; }
-            .size-mini { grid-column: span 3; }
-        }
-        @media (max-width: 640px) {
-            .bento-grid { grid-template-columns: 1fr; grid-auto-rows: auto; }
-            .size-critical, .size-high, .size-medium, .size-mini { grid-column: span 1; grid-row: auto; }
-            header { flex-direction: column; align-items: flex-start; gap: 1rem; }
-        }
+        @media (max-width: 1024px) { .size-critical { grid-column: span 12; } .size-high, .size-medium { grid-column: span 6; } .size-mini { grid-column: span 3; } }
     </style>
 </head>
 <body>
@@ -146,19 +53,27 @@
         <header>
             <div>
                 <h1 class="logo">RE:MIND</h1>
-                <p style="color: var(--text-muted); margin-top: 0.5rem; font-weight: 600;">高校数学・物理 誤答解析システム</p>
+                <p style="color: var(--text-muted); margin-top: 0.5rem; font-weight: 600;">高校数学・物理 クラウド誤答解析システム</p>
             </div>
-            <div style="display: flex; gap: 1rem; align-items: center;">
-                <button type="button" class="tactile-btn" id="open-modal-btn" style="background: var(--accent-magenta); box-shadow: 3px 3px 0px #9e004f;">
+            <div class="auth-status-container">
+                <button type="button" class="tactile-btn" id="open-modal-btn" style="background: var(--accent-magenta); box-shadow: 3px 3px 0px #9e004f; display:none;">
                     ＋ 誤答問題を登録
                 </button>
-                <div style="font-weight: 800; border: 1px solid #22222a; padding: 0.5rem 1rem; border-radius: 12px;" class="glass-card">
-                    STATUS: <span style="color: var(--accent-cyan);">READY</span>
+                <div id="auth-panel" style="font-weight: 800; border: 1px solid #22222a; padding: 0.5rem 1rem; border-radius: 12px;" class="glass-card">
+                    LOADING...
                 </div>
             </div>
         </header>
 
-        <main class="bento-grid" id="grid-main-wrapper">
+        <div id="login-required-notice" class="login-overlay-box" style="display: none;">
+            <h2 style="font-size: 1.5rem; font-weight: 900; color: var(--accent-cyan); margin-bottom: 1rem;">CLOUD SYNC // クラウド同期未接続</h2>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">どの端末からでも誤答ノートを自動同期して復習するために、Googleアカウントでログインしてください。</p>
+            <button type="button" class="tactile-btn" id="main-login-btn" style="padding: 1rem 2rem; font-size: 1.1rem; background:var(--accent-cyan); box-shadow: 4px 4px 0px #008b94;">
+                Googleアカウントでサインイン
+            </button>
+        </div>
+
+        <main class="bento-grid" id="main-dashboard-grid" style="display: none;">
             <div class="squircle-card size-critical" id="card-P-2026-X12" onclick="location.href='problem.html?id=P-2026-X12'" style="border-left: 4px solid var(--accent-magenta); cursor: pointer;">
                 <div class="card-content-top">
                     <span class="badge badge-physics">物理 // 力学</span>
@@ -166,7 +81,7 @@
                     <p style="color: var(--text-muted); line-height: 1.4;">遠心力とコリオリの力が絡む、回転座標系から見た小球の運動で立式ミスが多発しています。</p>
                 </div>
                 <div class="card-meta">
-                    <div>前回挑戦: 22時間前</div>
+                    <div>状況: 同期中</div>
                     <div class="error-count critical-text">誤答回数: <span class="num-display">--</span></div>
                 </div>
             </div>
@@ -209,9 +124,9 @@
     <div class="modal-overlay" id="add-problem-modal">
         <div class="squircle-tile modal-content glass-card">
             <div class="tile-header-group">
-                <span class="badge badge-alert">NEW PROBLEM // AUTO ANSWER</span>
+                <span class="badge badge-alert">NEW PROBLEM // CLOUD STORAGE</span>
                 <h3 style="font-size: 1.3rem; font-weight: 800;">間違えた問題の登録解析</h3>
-                <p style="color: var(--text-muted); font-size: 0.85rem;">写真をアップロードすると、Geminiが自動で『答えの数式』まで生成します。</p>
+                <p style="color: var(--text-muted); font-size: 0.85rem;">写真をアップロードすると、Geminiが自動で『答えの数式』まで生成しクラウドへ保存します。</p>
             </div>
 
             <label for="problem-image-input" class="image-upload-zone">
@@ -232,116 +147,169 @@
         </div>
     </div>
 
-   <script>
+   <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getDatabase, ref, set, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+        // ⚠️ 1. ここをご自身のFirebase設定に丸ごと書き換えてください
+        const firebaseConfig = {
+  apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY",
+  authDomain: "buturi-2449e.firebaseapp.com",
+  projectId: "buturi-2449e",
+  storageBucket: "buturi-2449e.firebasestorage.app",
+  messagingSenderId: "976306696124",
+  appId: "1:976306696124:web:e455c1953544bff5c345b9",
+  measurementId: "G-3PGVL2LCJH"
+};
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const database = getDatabase(app);
+        const provider = new GoogleAuthProvider();
+
         const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
         const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
         const BASE_PROBLEM_ID = "P-2026-X12";
 
         const SYSTEM_INSTRUCTION = `
-        あなたは高校数学・物理の「誤答分析エキスパートAI」です。
-        提出された問題（画像またはテキスト）を深く分析してください。
-        
+        あなたは高校数学・物理の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
         出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
         {
           "subject": "物理" または "数学",
-          "field": "分野名（例: 力学、電磁気、ベクトル、数列など）",
-          "short_title": "問題の要約タイトル（15文字〜25文字程度）",
+          "field": "分野名",
+          "short_title": "問題の要約タイトル",
           "extracted_text": "読み取った正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと",
-          "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文（50文字程度）",
-          "model_answer": "この問題の最終的な正しい答えと、簡潔な解説。数式や変数（例: m, v, gなど）を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること（120文字〜180文字程度）"
+          "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
+          "model_answer": "この問題の最終的な正しい答えと、簡潔な解説。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること"
         }
         `;
 
+        let currentUser = null;
         let selectedImageBase64 = null;
         let selectedImageMimeType = null;
 
-        function syncDashboardData() {
-            let allData = {};
-            try { allData = JSON.parse(localStorage.getItem("remind_app_problems")) || {}; } catch(e) { allData = {}; }
+        // --- ログイン状態の監視 ---
+        onAuthStateChanged(auth, (user) => {
+            const authPanel = document.getElementById("auth-panel");
+            const registerBtn = document.getElementById("open-modal-btn");
+            const loginNotice = document.getElementById("login-required-notice");
+            const mainGrid = document.getElementById("main-dashboard-grid");
 
-            // 1. 基準物理問題の数値を反映
-            let physicsData = allData[BASE_PROBLEM_ID];
-            let physicsCount = (physicsData && typeof physicsData.errorCount === 'number') ? physicsData.errorCount : 5;
-            
-            const physicsDisplay = document.querySelector("#card-P-2026-X12 .num-display");
-            if (physicsDisplay) physicsDisplay.textContent = String(physicsCount).padStart(2, '0');
-
-            const dynamicArea = document.getElementById("dynamic-cards-area");
-            dynamicArea.innerHTML = "";
-
-            let dynamicTotalCount = 0;
-
-            Object.keys(allData).forEach(id => {
-                if (id === BASE_PROBLEM_ID) return;
-                
-                let p = allData[id];
-                dynamicTotalCount += Number(p.errorCount || 1);
-                let badgeClass = p.subject.includes("物理") ? "badge-physics" : "badge-math";
-
-                let cardHtml = `
-                    <div class="squircle-card size-medium" onclick="location.href='problem.html?id=${p.id}'" style="border-color: var(--accent-cyan); border-left: 4px solid var(--accent-cyan); cursor: pointer;">
-                        <div class="card-content-top">
-                            <span class="badge ${badgeClass}">${p.subject} // ${p.field}</span>
-                            <h2 class="card-title">${p.short_title}</h2>
-                            <p style="color: var(--text-muted); line-height: 1.4; font-size:0.9rem;">${p.trap_description}</p>
-                        </div>
-                        <div class="card-meta">
-                            <div>登録日時: 直近</div>
-                            <div class="error-count warning-text">誤答回数: <span class="num-display">${String(p.errorCount).padStart(2, '0')}</span></div>
-                        </div>
+            if (user) {
+                currentUser = user;
+                // ログイン済みのUI
+                authPanel.innerHTML = `
+                    <div class="user-profile">
+                        <img src="${user.photoURL}" class="user-avatar">
+                        <span>${user.displayName}</span>
+                        <button id="logout-btn">ログアウト</button>
                     </div>
                 `;
-                dynamicArea.insertAdjacentHTML("beforeend", cardHtml);
+                document.getElementById("logout-btn").addEventListener("click", () => signOut(auth));
+                
+                registerBtn.style.display = "block";
+                loginNotice.style.display = "none";
+                mainGrid.style.display = "grid";
+
+                // Firebaseからリアルタイムデータを取得して同期開始！
+                listenToCloudData(user.uid);
+
+            } else {
+                currentUser = null;
+                // 未ログインのUI
+                authPanel.innerHTML = `<span style="color:var(--accent-magenta); cursor:pointer;" id="header-login-btn">SIGN IN</span>`;
+                document.getElementById("header-login-btn").addEventListener("click", doLogin);
+                
+                registerBtn.style.display = "none";
+                loginNotice.style.display = "block";
+                mainGrid.style.display = "none";
+            }
+        });
+
+        function doLogin() {
+            signInWithPopup(auth, provider).catch(e => console.error("Login failed:", e));
+        }
+        document.getElementById("main-login-btn").addEventListener("click", doLogin);
+
+        // --- Firebaseクラウドからのリアルタイムデータ同期 ---
+        function listenToCloudData(uid) {
+            const userProblemsRef = ref(database, 'users/' + uid + '/problems');
+            
+            // クラウドのデータが更新されるたびに、この中身が全自動かつ超高速で実行されます（リロード不要！）
+            onValue(userProblemsRef, (snapshot) => {
+                const allData = snapshot.val() || {};
+                
+                // 1. 基準物理問題の誤答数
+                let physicsData = allData[BASE_PROBLEM_ID];
+                let physicsCount = (physicsData && typeof physicsData.errorCount === 'number') ? physicsData.errorCount : 5;
+                const physicsDisplay = document.querySelector("#card-P-2026-X12 .num-display");
+                if (physicsDisplay) physicsDisplay.textContent = String(physicsCount).padStart(2, '0');
+
+                // 2. カスタム問題の動的カード生成
+                const dynamicArea = document.getElementById("dynamic-cards-area");
+                dynamicArea.innerHTML = "";
+                let dynamicTotalCount = 0;
+
+                Object.keys(allData).forEach(id => {
+                    if (id === BASE_PROBLEM_ID) return;
+                    let p = allData[id];
+                    dynamicTotalCount += Number(p.errorCount || 1);
+                    let badgeClass = p.subject.includes("物理") ? "badge-physics" : "badge-math";
+
+                    let cardHtml = `
+                        <div class="squircle-card size-medium" onclick="location.href='problem.html?id=${p.id}'" style="border-color: var(--accent-cyan); border-left: 4px solid var(--accent-cyan); cursor: pointer;">
+                            <div class="card-content-top">
+                                <span class="badge ${badgeClass}">${p.subject} // ${p.field}</span>
+                                <h2 class="card-title">${p.short_title}</h2>
+                                <p style="color: var(--text-muted); line-height: 1.4; font-size:0.9rem;">${p.trap_description}</p>
+                            </div>
+                            <div class="card-meta">
+                                <div>ステータス: 同期中</div>
+                                <div class="error-count warning-text">誤答回数: <span class="num-display">${String(p.errorCount).padStart(2, '0')}</span></div>
+                            </div>
+                        </div>
+                    `;
+                    dynamicArea.insertAdjacentHTML("beforeend", cardHtml);
+                });
+
+                // 3. トータル数の計算
+                let totalSum = physicsCount + dynamicTotalCount;
+                const totalDisplay = document.getElementById("total-errors-display");
+                if (totalDisplay) totalDisplay.textContent = String(totalSum).padStart(2, '0');
             });
-
-            // ★修正：固定ダミーの数値を完全排除。最初の問題 ＋ 自分が追加した問題の数だけで純粋に計算！
-            let totalSum = physicsCount + dynamicTotalCount;
-
-            const totalDisplay = document.getElementById("total-errors-display");
-            if (totalDisplay) totalDisplay.textContent = String(totalSum).padStart(2, '0');
         }
 
+        // --- AI自動解析 ＆ クラウドへプッシュ登録 ---
         async function analyzeAndAddProblem(userRawText) {
+            if (!currentUser) return;
             const submitBtn = document.getElementById("analyze-submit-btn");
-            submitBtn.textContent = "AIが答えを計算中...";
+            submitBtn.textContent = "AIが答えを計算＆クラウド保存中...";
             submitBtn.disabled = true;
 
-            let parts = [];
-            let promptText = "提出されたデータを解析し、最終的な『正しい答え（model_answer）』も含めて指定のJSONで返してください。";
-            if (userRawText) promptText += `\nユーザーの入力メモ: ${userRawText}`;
-            parts.push({ "text": promptText });
-
+            let parts = [{ "text": "提出されたデータを解析し、最終的な『正しい答え（model_answer）』も含めて指定のJSONで返してください。" }];
+            if (userRawText) parts[0].text += `\nユーザーの入力メモ: ${userRawText}`;
             if (selectedImageBase64 && selectedImageMimeType) {
-                parts.push({
-                    "inlineData": {
-                        "mimeType": selectedImageMimeType,
-                        "data": selectedImageBase64
-                    }
-                });
+                parts.push({ "inlineData": { "mimeType": selectedImageMimeType, "data": selectedImageBase64 } });
             }
-
-            const requestBody = {
-                "contents": [{ "parts": parts }],
-                "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION }] },
-                "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
-            };
 
             try {
                 const response = await fetch(GEMINI_API_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(requestBody)
+                    body: JSON.stringify({
+                        "contents": [{ "parts": parts }],
+                        "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION }] },
+                        "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
+                    })
                 });
 
-                if (!response.ok) throw new Error("API通信に失敗しました。");
-
                 const data = await response.json();
-                const rawJsonText = data.candidates[0].content.parts[0].text;
-                const aiResult = JSON.parse(rawJsonText);
+                const aiResult = JSON.parse(data.candidates[0].content.parts[0].text);
 
-                let newId = "CUSTOM_" + Date.now();
-                
-                let newProblem = {
+                // Firebase用の新しい一意のID（キー）を生成
+                const newId = "CUSTOM_" + Date.now();
+                const newProblem = {
                     id: newId,
                     title: aiResult.extracted_text || userRawText, 
                     short_title: aiResult.short_title,
@@ -355,30 +323,27 @@
                     answerFormula: aiResult.model_answer 
                 };
 
-                let allData = JSON.parse(localStorage.getItem("remind_app_problems")) || {};
-                allData[newId] = newProblem;
-                localStorage.setItem("remind_app_problems", JSON.stringify(allData));
+                // ★LocalStorageの代わりにFirebaseのRealtime Databaseへ瞬時に送信！
+                await set(ref(database, 'users/' + currentUser.uid + '/problems/' + newId), newProblem);
 
+                // UIのリセット
                 document.getElementById("add-problem-modal").style.display = "none";
                 document.getElementById("problem-text-input").value = "";
                 document.getElementById("problem-image-input").value = "";
                 document.getElementById("image-preview-container").style.display = "none";
                 selectedImageBase64 = null;
 
-                syncDashboardData();
-
             } catch (error) {
                 console.error(error);
-                alert("AIの画像解析・解答生成に失敗しました。");
+                alert("AIの解析、またはクラウドへの保存に失敗しました。");
             } finally {
                 submitBtn.textContent = "AI自動解析を実行";
                 submitBtn.disabled = false;
             }
         }
 
+        // --- モーダル開閉と画像圧縮イベントの結合 ---
         document.addEventListener("DOMContentLoaded", () => {
-            syncDashboardData();
-
             const modal = document.getElementById("add-problem-modal");
             const openBtn = document.getElementById("open-modal-btn");
             const closeBtn = document.getElementById("close-modal-btn");
@@ -389,43 +354,25 @@
             const previewTarget = document.getElementById("img-preview-target");
 
             openBtn.addEventListener("click", () => modal.style.display = "flex");
-            closeBtn.addEventListener("click", () => {
-                modal.style.display = "none";
-                imageInput.value = "";
-                previewContainer.style.display = "none";
-                selectedImageBase64 = null;
-            });
+            closeBtn.addEventListener("click", () => { modal.style.display = "none"; imageInput.value = ""; previewContainer.style.display = "none"; selectedImageBase64 = null; });
 
             imageInput.addEventListener("change", function(e) {
                 const file = e.target.files[0];
                 if (!file) return;
-
                 selectedImageMimeType = "image/jpeg"; 
                 const reader = new FileReader();
                 reader.onload = function(evt) {
                     const img = new Image();
                     img.onload = function() {
                         const canvas = document.createElement("canvas");
-                        const max_size = 800; 
-                        let width = img.width;
-                        let height = img.height;
-
-                        if (width > height) {
-                            if (width > max_size) { height *= max_size / width; width = max_size; }
-                        } else {
-                            if (height > max_size) { width *= max_size / height; height = max_size; }
-                        }
-
-                        canvas.width = width;
-                        canvas.height = height;
-                        const ctx = canvas.getContext("2d");
-                        ctx.drawImage(img, 0, 0, width, height);
-
+                        const max_size = 800; let width = img.width, height = img.height;
+                        if (width > height) { if (width > max_size) { height *= max_size / width; width = max_size; } }
+                        else { if (height > max_size) { width *= max_size / height; height = max_size; } }
+                        canvas.width = width; canvas.height = height;
+                        const ctx = canvas.getContext("2d"); ctx.drawImage(img, 0, 0, width, height);
                         const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.6); 
-                        
                         selectedImageBase64 = compressedDataUrl.split(',')[1];
-                        previewTarget.src = compressedDataUrl;
-                        previewContainer.style.display = "block";
+                        previewTarget.src = compressedDataUrl; previewContainer.style.display = "block";
                     };
                     img.src = evt.target.result;
                 };
@@ -434,13 +381,10 @@
 
             submitBtn.addEventListener("click", () => {
                 const text = textInput.value.trim();
-                if (!text && !selectedImageBase64) {
-                    alert("写真を選択するかテキストを入力してください。");
-                    return;
-                }
+                if (!text && !selectedImageBase64) { alert("写真を選択するかメモを入力してください。"); return; }
                 analyzeAndAddProblem(text);
             });
         });
-    </script>
+   </script>
 </body>
 </html>
