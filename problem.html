@@ -41,8 +41,26 @@
         .chat-input { flex-grow: 1; background: #000; border: 1px solid #222; padding: 0.6rem 1rem; color: #fff; border-radius: 10px; }
         .self-check-container { display: flex; flex-direction: column; gap: 1rem; width: 100%; margin-top: 0.5rem; }
         .reveal-btn-area { display: flex; width: 100%; }
-        .reveal-zone { display: none; flex-direction: column; gap: 1rem; width: 100%; background: rgba(255,255,255,0.02); padding: 1.2rem; border-radius: 16px; border: 1px dashed #222; margin-top: 0.5rem; }
-        .model-answer-text { font-size: var(--fs-lg); color: var(--accent-cyan); font-weight: bold; margin-bottom: 0.5rem; }
+        
+        /* 採点表示エリアの最適化（縦に長くなってもスクロールで快適に読めるようにガード） */
+        .reveal-zone { 
+            display: none; flex-direction: column; gap: 1rem; width: 100%; 
+            background: rgba(255,255,255,0.01); padding: 1.5rem; border-radius: 16px; 
+            border: 1px dashed #222; margin-top: 0.5rem;
+            max-height: 450px; overflow-y: auto;
+        }
+        
+        /* ★UX改善：文字サイズを解説用に最適化し、行間を広げて改行を100%有効化 */
+        .model-answer-text { 
+            font-size: 1.05rem; 
+            color: var(--text-bright-muted); 
+            font-weight: 500; 
+            margin-bottom: 0.5rem; 
+            white-space: pre-wrap; /* これで改行が完全に効くようになります */
+            line-height: 1.8;      /* 数式が上下にぶつからない快適な行間 */
+            letter-spacing: 0.5px;
+        }
+        
         .judgment-buttons { display: flex; gap: 1.5rem; width: 100%; }
         .btn-correct { background: var(--accent-cyan) !important; box-shadow: 4px 4px 0px #008b94 !important; flex: 1; height: 54px; font-size: 1.1rem; }
         .btn-incorrect { background: var(--accent-magenta) !important; color: #000 !important; box-shadow: 4px 4px 0px #9e004f !important; flex: 1; height: 54px; font-size: 1.1rem; }
@@ -126,19 +144,17 @@
     </div>
 
    <script type="module">
-        // ⚠️ コピーした際、もし以下の3行のURLの周りに [ ] や ( ) などのゴミが入っていたら手動で消してください
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-        // ★最強の防衛ロジック：URLをバラバラに分解して結合することで、チャットシステムの強制リンク化バグを完全に破壊します
         const protocol = "https:";
         const hostUrl = "buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY", 
             authDomain: "buturi-2449e.firebaseapp.com",
-            databaseURL: protocol + "//" + hostUrl, // ゴミが一切入らない純粋な合算（末尾のスラッシュも抜いて安全化）
+            databaseURL: protocol + "//" + hostUrl, 
             projectId: "buturi-2449e",
             storageBucket: "buturi-2449e.appspot.com",
             messagingSenderId: "976306696124",
@@ -157,12 +173,12 @@
         
         const SYSTEM_INSTRUCTION_BASE = `
         あなたは「ソクラテス式問答法」を用いる、物静かだが核心を突く高校生向けのAIチューターです。
-        最終的な正解（数式や数値）は絶対に教えず、小さな問いかけで生徒を自力での解決へ導してください。
+        最終的な正解（数式や数値）は絶対に教えず、小さな問いかけで生徒を自力での解決へ導いてください。
         1回の発言につき、質問は「1つ」に絞ってください。
         
         【重要】変数や数式（例: m, v, g, thetaなど）をメッセージに含めるときは、必ず前後に $ をつけて「$m$」や「$\\sin\\theta$」のようにLaTeX形式の数式として出力してください。
 
-        返答は必ず以下のJSONフォーマットの形式で出力してください。他の説明文などは一切含めないでください。
+        返談は必ず以下のJSONフォーマットの形式で出力してください。他の説明文などは一切含めないでください。
         {
           "ai_response": "生徒へ返すヒントメッセージ（数式には $ $ を使用すること）",
           "current_step_label": "現在のステップ名",
@@ -202,7 +218,17 @@
                 currentProblemData = data;
 
                 document.getElementById("problem-id-display").textContent = `PROBLEM ID: ${currentProblemData.id}`;
-                document.getElementById("target-model-answer").textContent = currentProblemData.answerFormula || "解答データなし";
+                
+                // ★超親切機能：すでに登録されてしまったギチギチの過去データも綺麗に縦並びにするレスキューフィルター
+                let rawAnswer = currentProblemData.answerFormula || "解答データなし";
+                let formattedAnswer = rawAnswer
+                    .replace(/(\d+\.\s*\*\*)/g, '\n\n$1') // 「1. **」の前に2行改行を入れる
+                    .replace(/(\*\*方法\d+：)/g, '\n\n$1') // 「**方法1：」の前に2行改行を入れる
+                    .replace(/(⇒)/g, '\n $1')            // 「⇒」の矢印の前で改行してインデント
+                    .replace(/(したがって、)/g, '\n\n$1')   // 「したがって、」の前に改行を入れる
+                    .trim();
+
+                document.getElementById("target-model-answer").textContent = formattedAnswer;
                 
                 const badge = document.getElementById("question-badge");
                 badge.textContent = `${currentProblemData.subject} // ${currentProblemData.field} // 誤答回数: ${String(currentProblemData.errorCount).padStart(2, '0')}`;

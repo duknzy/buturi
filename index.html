@@ -240,7 +240,7 @@
         const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
         const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
-        const SYSTEM_INSTRUCTION = `
+       const SYSTEM_INSTRUCTION = `
         あなたは高校数学・物理の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
         出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
         {
@@ -249,7 +249,7 @@
           "short_title": "問題の要約タイトル",
           "extracted_text": "読み取った正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと",
           "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
-          "model_answer": "この問題の最終的な正しい答えと、簡潔な解説。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること"
+          "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
         }
         `;
 
