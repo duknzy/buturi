@@ -39,7 +39,7 @@
             grid-template-rows: minmax(0, 1fr) auto; gap: 1.5rem; flex-grow: 1;
         }
 
-        .main-question-tile  { grid-column: span 8; grid-row: span 1; }
+        .main-question-tile  { grid-column: span 8; grid-row: span 1; display: flex; flex-direction: column; }
         .ai-sidebar-tile      { grid-column: span 4; grid-row: span 2; }
         .answer-formula-tile { grid-column: span 8; grid-row: span 1; }
 
@@ -51,6 +51,7 @@
             border: 1px dashed #1a2a35; border-radius: 16px;
             margin: 1rem 0; position: relative;
             display: flex; align-items: center; justify-content: center; overflow: hidden;
+            flex-grow: 1; /* スペースをいっぱいに使う */
         }
         .vector-diagram {
             width: 200px; height: 120px; border-bottom: 2px solid var(--text-muted);
@@ -81,20 +82,38 @@
         .chat-input-wrapper { display: flex; gap: 0.5rem; border-top: 1px solid #1a2a35; padding-top: 1rem; }
         .chat-input { flex-grow: 1; background: #000; border: 1px solid #222; padding: 0.6rem 1rem; color: #fff; border-radius: 10px; }
 
-        .formula-input-container { display: flex; gap: 1rem; width: 100%; align-items: center; margin-top: 1rem; }
-        .formula-input-field {
-            flex-grow: 1; background-color: #000; border: 2px solid #22222a; border-radius: 16px;
-            padding: 1.2rem; font-family: monospace; font-size: var(--fs-lg); font-weight: bold;
-            color: var(--accent-cyan); letter-spacing: 1px;
-            transition: border-color 250ms ease, box-shadow 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
+        .self-check-container {
+            display: flex; flex-direction: column; gap: 1rem; width: 100%; margin-top: 0.5rem;
         }
-        .formula-input-field:focus {
-            outline: none; border-color: var(--accent-cyan);
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.6), inset 0 0 10px rgba(0, 243, 255, 0.2);
+        .reveal-btn-area { display: flex; width: 100%; }
+        .reveal-zone {
+            display: none; flex-direction: column; gap: 1rem; width: 100%;
+            background: rgba(255,255,255,0.02); padding: 1.2rem; border-radius: 16px;
+            border: 1px dashed #222; margin-top: 0.5rem;
+        }
+        .model-answer-text {
+            font-size: var(--fs-lg); color: var(--accent-cyan); font-weight: bold; margin-bottom: 0.5rem;
+        }
+        .judgment-buttons { display: flex; gap: 1.5rem; width: 100%; }
+        .btn-correct { background: var(--accent-cyan) !important; box-shadow: 4px 4px 0px #008b94 !important; flex: 1; height: 54px; font-size: 1.1rem; }
+        .btn-incorrect { background: var(--accent-magenta) !important; color: #000 !important; box-shadow: 4px 4px 0px #9e004f !important; flex: 1; height: 54px; font-size: 1.1rem; }
+
+        #neon-canvas {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none; z-index: 99999; display: block;
+        }
+
+        @media (max-width: 1100px) {
+            .workspace-container { height: auto; }
+            .bento-grid { grid-template-rows: auto; }
+            .main-question-tile, .answer-formula-tile, .ai-sidebar-tile { grid-column: span 12; }
+            .ai-sidebar-tile { height: 400px; }
         }
     </style>
 </head>
 <body>
+
+    <canvas id="neon-canvas"></canvas>
 
     <div class="workspace-container">
         <header>
@@ -120,7 +139,7 @@
                     <div class="vector-diagram"><div class="vector-arrow"></div></div>
                 </div>
 
-                <div style="color: var(--text-bright-muted); font-size: var(--fs-sm);" id="hint-text-display">
+                <div style="color: var(--text-bright-muted); font-size: var(--fs-sm); margin-top: 0.5rem;" id="hint-text-display">
                     ヒント：床から見た静止座標系か、台と一緒に動く加速座標系か、視点を統一しましょう。
                 </div>
             </section>
@@ -145,12 +164,28 @@
 
             <section class="squircle-tile answer-formula-tile">
                 <div class="tile-header-group">
-                    <h3 style="font-size: var(--fs-md); font-weight: 900;">YOUR ANSWER // 数式入力</h3>
+                    <h3 style="font-size: var(--fs-md); font-weight: 900;">ANSWER CHECK // 自己採点</h3>
                 </div>
 
-                <div class="formula-input-container">
-                    <input type="text" class="formula-input-field" placeholder="解答を入力してください" value="">
-                    <button type="button" class="tactile-btn" id="submit-answer-btn" style="height: 54px; font-size: 1.1rem;">解答を確定する</button>
+                <div class="self-check-container">
+                    <div class="reveal-btn-area" id="reveal-btn-wrap">
+                        <button type="button" class="tactile-btn" id="show-answer-btn" style="width:100%; height:54px; font-size:1.1rem;">
+                            👁 模範解答を表示して答え合わせする
+                        </button>
+                    </div>
+
+                    <div class="reveal-zone" id="answer-reveal-zone">
+                        <div style="font-size:0.8rem; color:var(--text-muted); font-weight:800; margin-bottom:0.2rem;">MODEL ANSWER</div>
+                        <div class="model-answer-text" id="target-model-answer"></div>
+                        
+                        <div style="font-size:0.85rem; color:var(--text-bright-muted); font-weight:700; margin-bottom:0.4rem;">
+                            自分のノートの解答と合っていましたか？判定を選択してください：
+                        </div>
+                        <div class="judgment-buttons">
+                            <button type="button" class="tactile-btn btn-incorrect" id="btn-judge-wrong">❌ 間違えた（再挑戦）</button>
+                            <button type="button" class="tactile-btn btn-correct" id="btn-judge-right">🎉 合ってた（克服！）</button>
+                        </div>
+                    </div>
                 </div>
             </section>
         </main>
@@ -189,7 +224,8 @@
             field: "力学",
             errorCount: 5,
             lastAttemptAt: new Date().toISOString(),
-            lastResult: false
+            lastResult: false,
+            answerFormula: "$$N = \\frac{(M + m)g}{M + m \\sin^2\\theta}$$"
         };
 
         function loadSessionData() {
@@ -213,18 +249,29 @@
             document.getElementById("problem-id-display").textContent = `PROBLEM ID: ${currentProblemData.id || "CUSTOM"}`;
             document.getElementById("question-text-display").textContent = currentProblemData.title;
             
+            const ansDisplay = document.getElementById("target-model-answer");
+            if (currentProblemData.answerFormula) {
+                ansDisplay.textContent = currentProblemData.answerFormula;
+            } else {
+                ansDisplay.textContent = "この問題の模範解答データがありません。";
+            }
+
             const badge = document.getElementById("question-badge");
             badge.textContent = `${currentProblemData.subject} // ${currentProblemData.field} // 誤答回数: ${String(currentProblemData.errorCount).padStart(2, '0')}`;
             
-            // ★超重要：もしカスタム問題に写真データ(imageData)があれば、ダミー図形の代わりに撮影写真をそのままはめ込む！
             const figBox = document.getElementById("figure-box");
             if (currentProblemData.imageData) {
+                // ★UX劇的改善：写真がある問題の時は、重複する文字起こしテキストを完全消去！
+                document.getElementById("question-text-display").style.display = "none";
+                
+                // 写真ボックスの縦幅を広げてプリントをガッツリ読みやすくする
                 figBox.style.display = "flex";
+                figBox.style.height = "380px"; 
                 figBox.innerHTML = `<img src="${currentProblemData.imageData}" style="width:100%; height:100%; object-fit:contain; border-radius:12px;">`;
+                
                 document.getElementById("hint-text-display").textContent = currentProblemData.trap_description || "AIチューターと一緒に弱点を分析していこう。";
                 document.getElementById("initial-ai-bubble").textContent = `新しく登録された「${currentProblemData.field}」の問題ですね。撮影された写真をもとに考えていきましょう！`;
             } else if (PROBLEM_ID !== "P-2026-X12") {
-                // 画像がないカスタム問題の場合は非表示にする
                 figBox.style.display = "none";
                 document.getElementById("hint-text-display").textContent = currentProblemData.trap_description || "AIチューターと一緒に弱点を分析していこう。";
             }
@@ -245,26 +292,21 @@
             }, 100);
         }
 
-        function submitAnswer(studentAnswer) {
+        function processSelfJudgment(isCorrect) {
             let allData = {};
             try { allData = JSON.parse(localStorage.getItem("remind_app_problems")) || {}; } catch(e) { allData = {}; }
 
             let currentProblem = allData[PROBLEM_ID] || currentProblemData;
-            const cleanedAnswer = studentAnswer.replace(/\s+/g, "");
-
-            let isCorrect = false;
-            if (PROBLEM_ID === "P-2026-X12") {
-                if (cleanedAnswer.includes("(M+m)g") && (cleanedAnswer.includes("sin") || cleanedAnswer.includes("θ"))) {
-                    isCorrect = true;
-                }
-            }
 
             if (isCorrect) {
-                alert("🎉 正解です！素晴らしい！誤答を克服しました。");
+                triggerNeonExplosion(); 
+                setTimeout(() => {
+                    alert("🎉 克服おめでとうございます！！素晴らしい思考スキル（HOTS）です！");
+                }, 200);
                 currentProblem.lastResult = true;
                 currentProblem.errorCount = 0; 
             } else {
-                alert("❌ 記録しました。右側のAIチューターにヒントをもらいながらもう一度考えてみよう！");
+                alert("❌ 記録しました。悔しさをバネに、右側のAIチューターに次のステップを聞いてみよう！");
                 currentProblem.lastResult = false;
                 currentProblem.errorCount = Number(currentProblem.errorCount || 1) + 1;
             }
@@ -272,6 +314,9 @@
             currentProblem.lastAttemptAt = new Date().toISOString();
             allData[PROBLEM_ID] = currentProblem;
             try { localStorage.setItem("remind_app_problems", JSON.stringify(allData)); } catch(e) {}
+            
+            document.getElementById("answer-reveal-zone").style.display = "none";
+            document.getElementById("reveal-btn-wrap").style.display = "flex";
             loadSessionData();
         }
 
@@ -336,13 +381,67 @@
             if (window.MathJax) { MathJax.typesetPromise(); }
         }
 
+        // --- 花火エフェクト ---
+        const canvas = document.getElementById("neon-canvas");
+        const ctx = canvas.getContext("2d");
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x; this.y = y;
+                this.size = Math.random() * 4 + 2;
+                this.speedX = Math.random() * 12 - 6;
+                this.speedY = Math.random() * -15 - 5;
+                this.gravity = 0.3; this.color = color; this.alpha = 1;
+                this.decay = Math.random() * 0.015 + 0.01;
+            }
+            update() { this.speedY += this.gravity; this.x += this.speedX; this.y += this.speedY; this.alpha -= this.decay; }
+            draw() {
+                ctx.save(); ctx.globalAlpha = this.alpha; ctx.shadowBlur = 15; ctx.shadowColor = this.color;
+                ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+            }
+        }
+
+        function triggerNeonExplosion() {
+            const colors = ["#00f3ff", "#ff007f", "#fff500"];
+            const startX = canvas.width / 2;
+            const startY = canvas.height * 0.8;
+            for (let i = 0; i < 150; i++) {
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                particles.push(new Particle(startX, startY, color));
+            }
+            animateParticles();
+        }
+
+        function animateParticles() {
+            if (particles.length === 0) { ctx.clearRect(0, 0, canvas.width, canvas.height); return; }
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update(); particles[i].draw();
+                if (particles[i].alpha <= 0) particles.splice(i, 1);
+            }
+            requestAnimationFrame(animateParticles);
+        }
+
         document.addEventListener("DOMContentLoaded", () => {
             loadSessionData();
 
             const sendBtn = document.querySelector(".chat-input-wrapper button");
             const inputField = document.querySelector(".chat-input");
-            const formulaInput = document.querySelector(".formula-input-field");
-            const submitBtn = document.getElementById("submit-answer-btn");
+            
+            const showAnswerBtn = document.getElementById("show-answer-btn");
+            const revealWrap = document.getElementById("reveal-btn-wrap");
+            const revealZone = document.getElementById("answer-reveal-zone");
+            
+            const btnRight = document.getElementById("btn-judge-right");
+            const btnWrong = document.getElementById("btn-judge-wrong");
 
             const handleSend = () => {
                 const text = inputField.value.trim();
@@ -350,15 +449,17 @@
                 inputField.value = "";
                 sendMessageToGemini(text);
             };
-
             sendBtn.addEventListener("click", handleSend);
-            inputField.addEventListener("keypress", (e) => {
-                if (e.key === "Enter") handleSend();
+            inputField.addEventListener("keypress", (e) => { if (e.key === "Enter") handleSend(); });
+
+            showAnswerBtn.addEventListener("click", () => {
+                revealWrap.style.display = "none";
+                revealZone.style.display = "flex";
+                if (window.MathJax) MathJax.typesetPromise();
             });
 
-            submitBtn.addEventListener("click", () => {
-                submitAnswer(formulaInput.value.trim());
-            });
+            btnRight.addEventListener("click", () => { processSelfJudgment(true); });
+            btnWrong.addEventListener("click", () => { processSelfJudgment(false); });
         });
     </script>
 </body>

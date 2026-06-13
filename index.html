@@ -72,7 +72,6 @@
         .size-critical .card-title { font-size: var(--fs-lg); }
         .size-high .card-title     { font-size: calc(var(--fs-lg) * 0.85); }
         .size-medium .card-title   { font-size: clamp(1.15rem, 1.8vw, 1.4rem); }
-        .size-small .card-title    { font-size: clamp(1.05rem, 1.5vw, 1.2rem); }
 
         .card-meta {
             display: flex;
@@ -131,8 +130,13 @@
 
         @media (max-width: 1024px) {
             .size-critical { grid-column: span 12; }
-            .size-high, .size-medium, .size-small { grid-column: span 6; }
+            .size-high, .size-medium { grid-column: span 6; }
             .size-mini { grid-column: span 3; }
+        }
+        @media (max-width: 640px) {
+            .bento-grid { grid-template-columns: 1fr; grid-auto-rows: auto; }
+            .size-critical, .size-high, .size-medium, .size-mini { grid-column: span 1; grid-row: auto; }
+            header { flex-direction: column; align-items: flex-start; gap: 1rem; }
         }
     </style>
 </head>
@@ -174,7 +178,7 @@
                 </div>
                 <div style="margin: 0.8rem 0 0 0; width: 100%;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem; font-size: var(--fs-sm);">
-                        <span>微分積分（数学Ⅲ）</span><span>85%</span>
+                        <span>総復習達成率</span><span>85%</span>
                     </div>
                     <div style="width: 100%; height: 6px; background: #111; border-radius: 3px; overflow: hidden; border: 1px solid #22222a;">
                         <div style="width: 85%; height: 100%; background: var(--accent-cyan);"></div>
@@ -187,50 +191,6 @@
             </div>
 
             <div id="dynamic-cards-area" style="display: contents;"></div>
-
-            <div class="squircle-card size-medium" id="card-M-001">
-                <div class="card-content-top">
-                    <span class="badge badge-math">数学Ⅲ // 微積</span>
-                    <h2 class="card-title">定積分によって定義される関数と極値の判定</h2>
-                </div>
-                <div class="card-meta">
-                    <div>前回挑戦: 2日前</div>
-                    <div class="error-count warning-text">誤答回数: <span class="num-display">03</span></div>
-                </div>
-            </div>
-
-            <div class="squircle-card size-medium" id="card-P-002">
-                <div class="card-content-top">
-                    <span class="badge badge-physics">物理 // 電磁気</span>
-                    <h2 class="card-title">自己インダクタンスを含む自己誘導回路の過渡現象</h2>
-                </div>
-                <div class="card-meta">
-                    <div>前回挑戦: 3日前</div>
-                    <div class="error-count warning-text">誤答回数: <span class="num-display">03</span></div>
-                </div>
-            </div>
-
-            <div class="squircle-card size-small" id="card-M-002">
-                <div class="card-content-top">
-                    <span class="badge badge-math">数学B // ベクトル</span>
-                    <h2 class="card-title">空間ベクトルにおける平面の方程式と点との距離</h2>
-                </div>
-                <div class="card-meta">
-                    <div>前回挑戦: 5日前</div>
-                    <div class="error-count">誤答回数: <span class="num-display">02</span></div>
-                </div>
-            </div>
-
-            <div class="squircle-card size-small" id="card-M-003">
-                <div class="card-content-top">
-                    <span class="badge badge-math">数学A // 確率</span>
-                    <h2 class="card-title">条件付き確率と原因の確率（ベイズの定理の応用）</h2>
-                </div>
-                <div class="card-meta">
-                    <div>前回挑戦: 1週間前</div>
-                    <div class="error-count">誤答回数: <span class="num-display">02</span></div>
-                </div>
-            </div>
 
             <div class="squircle-card size-mini" style="background: linear-gradient(135deg, #050508, #150015); border-color: rgba(255, 0, 127, 0.2);">
                 <div class="mini-label" style="color: var(--accent-magenta);">TOTAL ERRORS</div>
@@ -249,9 +209,9 @@
     <div class="modal-overlay" id="add-problem-modal">
         <div class="squircle-tile modal-content glass-card">
             <div class="tile-header-group">
-                <span class="badge badge-alert">NEW PROBLEM // MULTIMODAL</span>
+                <span class="badge badge-alert">NEW PROBLEM // AUTO ANSWER</span>
                 <h3 style="font-size: 1.3rem; font-weight: 800;">間違えた問題の登録解析</h3>
-                <p style="color: var(--text-muted); font-size: 0.85rem;">問題の写真をアップロードするか、テキストを入力してください。</p>
+                <p style="color: var(--text-muted); font-size: 0.85rem;">写真をアップロードすると、Geminiが自動で『答えの数式』まで生成します。</p>
             </div>
 
             <label for="problem-image-input" class="image-upload-zone">
@@ -279,16 +239,16 @@
 
         const SYSTEM_INSTRUCTION = `
         あなたは高校数学・物理の「誤答分析エキスパートAI」です。
-        提出された問題文テキスト、または問題の画像（写真）を解析してください。
-        画像が提出された場合は、そこに写っている問題文の文字を完全に読み取ってテキスト化してください。
+        提出された問題（画像またはテキスト）を深く分析してください。
         
         出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
         {
           "subject": "物理" または "数学",
           "field": "分野名（例: 力学、電磁気、ベクトル、数列など）",
           "short_title": "問題の要約タイトル（15文字〜25文字程度）",
-          "extracted_text": "読み取った、または提供された正確な問題文の全文",
-          "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文（50文字程度）"
+          "extracted_text": "読み取った正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと",
+          "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文（50文字程度）",
+          "model_answer": "この問題の最終的な正しい答えと、簡潔な解説。数式や変数（例: m, v, gなど）を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること（120文字〜180文字程度）"
         }
         `;
 
@@ -299,6 +259,7 @@
             let allData = {};
             try { allData = JSON.parse(localStorage.getItem("remind_app_problems")) || {}; } catch(e) { allData = {}; }
 
+            // 1. 基準物理問題の数値を反映
             let physicsData = allData[BASE_PROBLEM_ID];
             let physicsCount = (physicsData && typeof physicsData.errorCount === 'number') ? physicsData.errorCount : 5;
             
@@ -333,8 +294,8 @@
                 dynamicArea.insertAdjacentHTML("beforeend", cardHtml);
             });
 
-            let m001 = 3, p002 = 3, m002 = 2, m003 = 2;
-            let totalSum = physicsCount + m001 + p002 + m002 + m003 + dynamicTotalCount;
+            // ★修正：固定ダミーの数値を完全排除。最初の問題 ＋ 自分が追加した問題の数だけで純粋に計算！
+            let totalSum = physicsCount + dynamicTotalCount;
 
             const totalDisplay = document.getElementById("total-errors-display");
             if (totalDisplay) totalDisplay.textContent = String(totalSum).padStart(2, '0');
@@ -342,11 +303,11 @@
 
         async function analyzeAndAddProblem(userRawText) {
             const submitBtn = document.getElementById("analyze-submit-btn");
-            submitBtn.textContent = "AIが画像を分析中...";
+            submitBtn.textContent = "AIが答えを計算中...";
             submitBtn.disabled = true;
 
             let parts = [];
-            let promptText = "提出されたデータ（画像またはテキスト）を解析し、指定のJSONで返してください。";
+            let promptText = "提出されたデータを解析し、最終的な『正しい答え（model_answer）』も含めて指定のJSONで返してください。";
             if (userRawText) promptText += `\nユーザーの入力メモ: ${userRawText}`;
             parts.push({ "text": promptText });
 
@@ -362,7 +323,7 @@
             const requestBody = {
                 "contents": [{ "parts": parts }],
                 "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION }] },
-                "generationConfig": { "responseMimeType": "application/json", "temperature": 0.4 }
+                "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
             };
 
             try {
@@ -380,7 +341,6 @@
 
                 let newId = "CUSTOM_" + Date.now();
                 
-                // ★修正点：撮影した生写真を「imageData」としてオブジェクトに一緒に保存する
                 let newProblem = {
                     id: newId,
                     title: aiResult.extracted_text || userRawText, 
@@ -391,7 +351,8 @@
                     errorCount: 1,
                     lastAttemptAt: new Date().toISOString(),
                     lastResult: false,
-                    imageData: selectedImageBase64 ? `data:${selectedImageMimeType};base64,${selectedImageBase64}` : null
+                    imageData: selectedImageBase64 ? `data:${selectedImageMimeType};base64,${selectedImageBase64}` : null,
+                    answerFormula: aiResult.model_answer 
                 };
 
                 let allData = JSON.parse(localStorage.getItem("remind_app_problems")) || {};
@@ -408,7 +369,7 @@
 
             } catch (error) {
                 console.error(error);
-                alert("AIの画像解析に失敗しました。");
+                alert("AIの画像解析・解答生成に失敗しました。");
             } finally {
                 submitBtn.textContent = "AI自動解析を実行";
                 submitBtn.disabled = false;
@@ -439,12 +400,34 @@
                 const file = e.target.files[0];
                 if (!file) return;
 
-                selectedImageMimeType = file.type;
+                selectedImageMimeType = "image/jpeg"; 
                 const reader = new FileReader();
                 reader.onload = function(evt) {
-                    selectedImageBase64 = evt.target.result.split(',')[1];
-                    previewTarget.src = evt.target.result;
-                    previewContainer.style.display = "block";
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement("canvas");
+                        const max_size = 800; 
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > max_size) { height *= max_size / width; width = max_size; }
+                        } else {
+                            if (height > max_size) { width *= max_size / height; height = max_size; }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext("2d");
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.6); 
+                        
+                        selectedImageBase64 = compressedDataUrl.split(',')[1];
+                        previewTarget.src = compressedDataUrl;
+                        previewContainer.style.display = "block";
+                    };
+                    img.src = evt.target.result;
                 };
                 reader.readAsDataURL(file);
             });
