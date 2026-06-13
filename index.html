@@ -93,6 +93,29 @@
         .mini-value { font-size: clamp(2rem, 4vw, 2.8rem); font-weight: 900; line-height: 1; }
         .mini-sub   { font-size: 0.75rem; color: var(--text-bright-muted); font-weight: 600; margin-top: 0.2rem; }
 
+        /* ★追加：問題登録用モーダル（ポップアップ）のスタイル */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.7);
+            display: none; align-items: center; justify-content: center;
+            z-index: 10000;
+        }
+        .modal-content {
+            width: 90%; max-width: 600px;
+            border: 1px solid var(--accent-cyan);
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+        }
+        .modal-textarea {
+            width: 100%; height: 150px; background: #000; border: 1px solid #222;
+            color: #fff; padding: 1rem; border-radius: 12px; font-size: 1rem; margin: 1rem 0;
+            resize: none;
+        }
+        .modal-textarea:focus {
+            outline: none; border-color: var(--accent-cyan);
+            box-shadow: 0 0 10px rgba(0,243,255,0.3);
+        }
+
         @media (max-width: 1024px) {
             .size-critical { grid-column: span 12; }
             .size-high, .size-medium, .size-small { grid-column: span 6; }
@@ -113,12 +136,18 @@
                 <h1 class="logo">RE:MIND</h1>
                 <p style="color: var(--text-muted); margin-top: 0.5rem; font-weight: 600;">高校数学・物理 誤答解析システム</p>
             </div>
-            <div style="font-weight: 800; border: 1px solid #22222a; padding: 0.5rem 1rem; border-radius: 12px;" class="glass-card">
-                STATUS: <span style="color: var(--accent-cyan);">READY</span>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <button type="button" class="tactile-btn" id="open-modal-btn" style="background: var(--accent-magenta); box-shadow: 3px 3px 0px #9e004f;">
+                    ＋ 誤答問題を登録
+                </button>
+                <div style="font-weight: 800; border: 1px solid #22222a; padding: 0.5rem 1rem; border-radius: 12px;" class="glass-card">
+                    STATUS: <span style="color: var(--accent-cyan);">READY</span>
+                </div>
             </div>
         </header>
 
-        <main class="bento-grid">
+        <main class="bento-grid" id="grid-main-wrapper">
+            
             <div class="squircle-card size-critical" id="card-P-2026-X12" onclick="location.href='problem.html'" style="border-left: 4px solid var(--accent-magenta); cursor: pointer;">
                 <div class="card-content-top">
                     <span class="badge badge-physics">物理 // 力学</span>
@@ -149,6 +178,8 @@
                     <span style="color: var(--text-muted);">データ更新: 本日</span>
                 </div>
             </div>
+
+            <div id="dynamic-cards-area" style="display: contents;"></div>
 
             <div class="squircle-card size-medium" id="card-M-001">
                 <div class="card-content-top">
@@ -208,62 +239,178 @@
         </main>
     </div>
 
-    <script>
-        const PROBLEM_ID = "P-2026-X12";
+    <div class="modal-overlay" id="add-problem-modal">
+        <div class="squircle-tile modal-content glass-card">
+            <div class="tile-header-group">
+                <span class="badge badge-alert">NEW PROBLEM</span>
+                <h3 style="font-size: 1.3rem; font-weight: 800;">間違えた問題の登録解析</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem;">問題文を入力してください。Geminiが『科目・分野・罠』を自動解析します。</p>
+            </div>
+            <textarea class="modal-textarea" id="problem-text-input" placeholder="例：長さを L の軽い糸の下一端に質量 m の小球をつけ、最下点から..."></textarea>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; width: 100%;">
+                <button type="button" class="tactile-btn tactile-btn-secondary" id="close-modal-btn">キャンセル</button>
+                <button type="button" class="tactile-btn" id="analyze-submit-btn">AI自動解析を実行</button>
+            </div>
+        </div>
+    </div>
 
-        // 全体の数値を同期するメインシステム
+    <script>
+        // 1. ⚠️ここにあなたのGemini APIキーを貼り付けてください
+        const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
+        
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const BASE_PROBLEM_ID = "P-2026-X12";
+
+        // 新規問題分析用のシステムプロンプト
+        const SYSTEM_INSTRUCTION = `
+        あなたは高校数学・物理の「誤答分析エキスパートAI」です。
+        ユーザーから送られた不完全な問題文を分析し、高校生が最も陥りやすい「誤答のボトルネック」や「罠」を綺麗にまとめて抽出してください。
+        
+        出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
+        {
+          "subject": "物理" または "数学",
+          "field": "分野名（例: 力学、波動、ベクトル、数列など）",
+          "short_title": "問題の要約タイトル（15文字〜25文字程度）",
+          "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文（50文字程度）"
+        }
+        `;
+
+        // 画面全体の数値を同期・レンダリングする関数
         function syncDashboardData() {
             let allData = {};
             try {
-                let raw = localStorage.getItem("remind_app_problems");
-                allData = raw ? JSON.parse(raw) : {};
-            } catch(e) {
-                allData = {};
-            }
+                allData = JSON.parse(localStorage.getItem("remind_app_problems")) || {};
+            } catch(e) { allData = {}; }
 
-            // 1. 物理（力学）のデータをLocalStorageから取得（無ければ初期値5）
-            let physicsData = allData[PROBLEM_ID];
+            // 1. 固定の物理問題の数値を反映
+            let physicsData = allData[BASE_PROBLEM_ID];
             let physicsCount = (physicsData && typeof physicsData.errorCount === 'number') ? physicsData.errorCount : 5;
-
-            // 画面の物理カードの数値を書き換え
+            
             const physicsDisplay = document.querySelector("#card-P-2026-X12 .num-display");
-            if (physicsDisplay) {
-                physicsDisplay.textContent = String(physicsCount).padStart(2, '0');
-            }
+            if (physicsDisplay) physicsDisplay.textContent = String(physicsCount).padStart(2, '0');
 
-            // 2. 他のモックカードの数値を集計用に取得
-            let m001 = 3; // 数学Ⅲ
-            let p002 = 3; // 物理電磁気
-            let m002 = 2; // 数学B
-            let m003 = 2; // 数学A
+            // 2. 動的に追加されたカスタム問題をLocalStorageから読み込んでHTMLを生成
+            const dynamicArea = document.getElementById("dynamic-cards-area");
+            dynamicArea.innerHTML = ""; // 一旦クリア
 
-            // 3. 全問題の合計誤答数をリアルタイムで純粋に合算して算出（15から連動スタート！）
-            let totalSum = physicsCount + m001 + p002 + m002 + m003;
+            let dynamicTotalCount = 0;
 
-            // トータル数の表示を書き換え
+            Object.keys(allData).forEach(id => {
+                if (id === BASE_PROBLEM_ID) return; // 固定問題はスキップ
+                
+                let p = allData[id];
+                dynamicTotalCount += Number(p.errorCount || 1);
+
+                // バッジのスタイルクラスを決定
+                let badgeClass = p.subject.includes("物理") ? "badge-physics" : "badge-math";
+
+                // 新しいベントー・タイルのHTMLを生成
+                let cardHtml = `
+                    <div class="squircle-card size-medium" style="border-color: var(--accent-cyan); border-left: 4px solid var(--accent-cyan);">
+                        <div class="card-content-top">
+                            <span class="badge ${badgeClass}">${p.subject} // ${p.field}</span>
+                            <h2 class="card-title">${p.short_title}</h2>
+                            <p style="color: var(--text-muted); line-height: 1.4; font-size:0.9rem;">${p.trap_description}</p>
+                        </div>
+                        <div class="card-meta">
+                            <div>登録日時: 直近</div>
+                            <div class="error-count warning-text">誤答回数: <span class="num-display">${String(p.errorCount).padStart(2, '0')}</span></div>
+                        </div>
+                    </div>
+                `;
+                dynamicArea.insertAdjacentHTML("beforeend", cardHtml);
+            });
+
+            // 3. 全体の合計誤答数を計算して表示
+            let m001 = 3, p002 = 3, m002 = 2, m003 = 2; // モックの定数
+            let totalSum = physicsCount + m001 + p002 + m002 + m003 + dynamicTotalCount;
+
             const totalDisplay = document.getElementById("total-errors-display");
-            if (totalDisplay) {
-                totalDisplay.textContent = String(totalSum).padStart(2, '0');
-            }
+            if (totalDisplay) totalDisplay.textContent = String(totalSum).padStart(2, '0');
+        }
 
-            // 【2026年タクタイル・ブルータリズム思想の連動】
-            // もし誤答数がもの凄く増えて「8回以上」になったら、お仕置きとして自動的にタイルを最大サイズ（size-critical）に固定拡大する
-            const physicsCardElement = document.getElementById("card-P-2026-X12");
-            if (physicsCardElement) {
-                if (physicsCount >= 8) {
-                    physicsCardElement.className = "squircle-card size-critical";
-                } else if (physicsCount >= 5) {
-                    physicsCardElement.className = "squircle-card size-critical"; // 通常の警戒サイズ
-                } else if (physicsCount > 0) {
-                    physicsCardElement.className = "squircle-card size-medium"; // 減ってきたら縮む
-                } else {
-                    physicsCardElement.className = "squircle-card size-small"; // 克服したら小さくなる
-                }
+        // --- Gemini APIを使って新しい問題を解析・登録する関数 ---
+        async function analyzeAndAddProblem(userRawText) {
+            const submitBtn = document.getElementById("analyze-submit-btn");
+            submitBtn.textContent = "AI分析中...";
+            submitBtn.disabled = true;
+
+            const requestBody = {
+                "contents": [{ "parts": [{ "text": userRawText }] }],
+                "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION }] },
+                "generationConfig": { "responseMimeType": "application/json", "temperature": 0.5 }
+            };
+
+            try {
+                const response = await fetch(GEMINI_API_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) throw new Error("API通信に失敗しました。");
+
+                const data = await response.json();
+                const rawJsonText = data.candidates[0].content.parts[0].text;
+                const aiResult = JSON.parse(rawJsonText);
+
+                // 新しい問題オブジェクトを作成
+                let newId = "CUSTOM_" + Date.now();
+                let newProblem = {
+                    id: newId,
+                    title: userRawText,
+                    short_title: aiResult.short_title,
+                    subject: aiResult.subject,
+                    field: aiResult.field,
+                    trap_description: aiResult.trap_description,
+                    errorCount: 1, // 初期登録時は1回
+                    lastAttemptAt: new Date().toISOString(),
+                    lastResult: false
+                };
+
+                // LocalStorageに保存
+                let allData = JSON.parse(localStorage.getItem("remind_app_problems")) || {};
+                allData[newId] = newProblem;
+                localStorage.setItem("remind_app_problems", JSON.stringify(allData));
+
+                // モーダルを閉じて画面をリフレッシュ
+                document.getElementById("add-problem-modal").style.display = "none";
+                document.getElementById("problem-text-input").value = "";
+                syncDashboardData(); // 即座に再描画！
+
+            } catch (error) {
+                console.error(error);
+                alert("AIの解析に失敗しました。キーの有効性や文字数を確認してください。");
+            } finally {
+                submitBtn.textContent = "AI自動解析を実行";
+                submitBtn.disabled = false;
             }
         }
 
-        // 画面が開かれた瞬間に同期を走らせる
-        document.addEventListener("DOMContentLoaded", syncDashboardData);
+        // --- 画面起動時のイベント設定 ---
+        document.addEventListener("DOMContentLoaded", () => {
+            syncDashboardData();
+
+            const modal = document.getElementById("add-problem-modal");
+            const openBtn = document.getElementById("open-modal-btn");
+            const closeBtn = document.getElementById("close-modal-btn");
+            const submitBtn = document.getElementById("analyze-submit-btn");
+            const textInput = document.getElementById("problem-text-input");
+
+            // モーダルの開閉イベント
+            openBtn.addEventListener("click", () => modal.style.display = "flex");
+            closeBtn.addEventListener("click", () => modal.style.display = "none");
+
+            // AI解析ボタンクリック
+            submitBtn.addEventListener("click", () => {
+                const text = textInput.value.trim();
+                if (!text) {
+                    alert("問題文を入力してください。");
+                    return;
+                }
+                analyzeAndAddProblem(text);
+            });
+        });
     </script>
 </body>
 </html>
