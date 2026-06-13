@@ -12,7 +12,7 @@
             chtml: { displayAlign: 'left' }
         };
     </script>
-    <script id="MathJax-script" async src="[https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js](https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js)"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 
     <style>
         .squircle-tile { border: 1px solid var(--accent-cyan); box-shadow: 4px 4px 0px rgba(0, 243, 255, 0.1); }
@@ -126,14 +126,19 @@
     </div>
 
    <script type="module">
-       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        // ⚠️ コピーした際、もし以下の3行のURLの周りに [ ] や ( ) などのゴミが入っていたら手動で消してください
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+        // ★最強の防衛ロジック：URLをバラバラに分解して結合することで、チャットシステムの強制リンク化バグを完全に破壊します
+        const protocol = "https:";
+        const hostUrl = "buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY", 
             authDomain: "buturi-2449e.firebaseapp.com",
-            databaseURL: "[https://buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app/](https://buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app/)",
+            databaseURL: protocol + "//" + hostUrl, // ゴミが一切入らない純粋な合算（末尾のスラッシュも抜いて安全化）
             projectId: "buturi-2449e",
             storageBucket: "buturi-2449e.appspot.com",
             messagingSenderId: "976306696124",
@@ -152,7 +157,7 @@
         
         const SYSTEM_INSTRUCTION_BASE = `
         あなたは「ソクラテス式問答法」を用いる、物静かだが核心を突く高校生向けのAIチューターです。
-        最終的な正解（数式や数値）は絶対に教えず、小さな問いかけで生徒を自力での解決へ導いてください。
+        最終的な正解（数式や数値）は絶対に教えず、小さな問いかけで生徒を自力での解決へ導してください。
         1回の発言につき、質問は「1つ」に絞ってください。
         
         【重要】変数や数式（例: m, v, g, thetaなど）をメッセージに含めるときは、必ず前後に $ をつけて「$m$」や「$\\sin\\theta$」のようにLaTeX形式の数式として出力してください。
@@ -267,14 +272,12 @@
                 const data = await response.json();
                 let rawJsonText = data.candidates[0].content.parts[0].text;
 
-                // マークダウンの不要なコード囲みを除去
                 rawJsonText = rawJsonText.trim();
                 if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
                 else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
                 if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
                 rawJsonText = rawJsonText.trim();
 
-                // ★超強力：チャット中のAIメッセージに含まれるバックスラッシュ（\theta や \mu 等）も完全に保護
                 const fixJsonEscapes = (str) => {
                     let inString = false; let result = "";
                     for (let i = 0; i < str.length; i++) {
