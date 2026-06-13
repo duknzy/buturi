@@ -66,7 +66,7 @@
             line-height: 1.25;
             letter-spacing: -0.5px;
             margin: 0;
-            font-size: clamp(1.15rem, 1.8vw, 1.4rem);
+            font-size: clamp(1.1rem, 1.6vw, 1.3rem);
         }
 
         .card-meta {
@@ -124,8 +124,44 @@
         #logout-btn:hover { border-color: var(--accent-magenta); color: var(--accent-magenta); }
         .login-overlay-box { grid-column: span 12; padding: 4rem; text-align: center; background: rgba(5,5,8,0.6); border: 1px dashed #22222a; border-radius: 16px; }
 
+        /* ==========================================================================
+           ★ サムネイルプレビュー用の高度なデザインシステム
+           ========================================================================== */
+        .card-inner-layout {
+            display: flex;
+            gap: 1.2rem;
+            width: 100%;
+            height: 100%;
+            align-items: stretch;
+        }
+        .card-thumbnail-wrapper {
+            width: 105px;
+            height: 105px;
+            min-width: 105px;
+            background: #020204;
+            border: 1px dashed rgba(0, 243, 255, 0.25);
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            align-self: center;
+        }
+        .card-thumbnail-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* 写真をオシャレに中央基準で切り抜き表示 */
+        }
+        .card-main-text-zone {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            flex-grow: 1;
+            min-width: 0; /* 長いタイトル時の文字溢れバグを100%防止する防壁 */
+        }
+
         @media (max-width: 1024px) { .size-high, .size-medium { grid-column: span 6; } .size-mini { grid-column: span 3; } }
-        @media (max-width: 640px) { .bento-grid { grid-template-columns: 1fr; grid-auto-rows: auto; } .size-high, .size-medium, .size-mini { grid-column: span 1; grid-row: auto; } header { flex-direction: column; align-items: flex-start; gap: 1rem; } }
+        @media (max-width: 640px) { .bento-grid { grid-template-columns: 1fr; grid-auto-rows: auto; } .size-high, .size-medium, .size-mini { grid-column: span 1; grid-row: auto; } header { flex-direction: column; align-items: flex-start; gap: 1rem; } .card-thumbnail-wrapper { width: 85px; height: 85px; min-width: 85px; } }
     </style>
 </head>
 <body>
@@ -134,7 +170,7 @@
         <header>
             <div>
                 <h1 class="logo">RE:MIND</h1>
-                <p style="color: var(--text-muted); margin-top: 0.5rem; font-weight: 600;">高校数学・物理 クラウド誤答解析システム</p>
+                <p style="color: var(--text-muted); margin-top: 0.5rem; font-weight: 600;">高校数学・物理 クラウンド誤答解析システム</p>
             </div>
             <div class="auth-status-container">
                 <button type="button" class="tactile-btn" id="open-modal-btn" style="background: var(--accent-magenta); box-shadow: 3px 3px 0px #9e004f; display:none;">
@@ -156,7 +192,7 @@
 
         <main class="bento-grid" id="main-dashboard-grid" style="display: none;">
             
-            <div class="squircle-card size-high glass-card" style="border-color: rgba(0, 243, 255, 0.3);">
+            <div class="squircle-card size-high glass-card" style="border-color: rgba(0, 243, 255, 0.3); padding: 1.5rem;">
                 <div class="card-content-top">
                     <span class="badge badge-alert">ANALYTICS</span>
                     <h2 class="card-title" style="color: var(--accent-cyan);">要復習セクション</h2>
@@ -170,7 +206,7 @@
                     </div>
                     <p style="line-height: 1.4; font-size: 0.85rem; color: var(--text-bright-muted); margin-top: 0.8rem;">登録されたすべてのリアル誤答データをクラウド上で安全に同期・解析しています。</p>
                 </div>
-                <div class="card-meta" style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05);">
+                <div class="card-meta" style="margin-top: 1rem; padding-top:0.3rem; border-top: 1px solid rgba(255,255,255,0.05);">
                     <span style="color: var(--text-muted);">データ更新: リアルタイム</span>
                 </div>
             </div>
@@ -220,7 +256,8 @@
    <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"
+        import { getDatabase as realDB, ref as realRef, set as realSet, onValue as realOnValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY", 
@@ -234,13 +271,14 @@
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const database = getDatabase(app);
+        const database = realDB(app);
         const provider = new GoogleAuthProvider();
 
         const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
         const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
-       const SYSTEM_INSTRUCTION = `
+        // 次回以降の自動改行プロンプトも組み込み済み
+        const SYSTEM_INSTRUCTION = `
         あなたは高校数学・物理の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
         出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
         {
@@ -294,9 +332,9 @@
         document.getElementById("main-login-btn").addEventListener("click", doLogin);
 
         function listenToCloudData(uid) {
-            const userProblemsRef = ref(database, 'users/' + uid + '/problems');
+            const userProblemsRef = realRef(database, 'users/' + uid + '/problems');
             
-            onValue(userProblemsRef, (snapshot) => {
+            realOnValue(userProblemsRef, (snapshot) => {
                 const allData = snapshot.val() || {};
                 const dynamicArea = document.getElementById("dynamic-cards-area");
                 dynamicArea.innerHTML = "";
@@ -308,16 +346,30 @@
                     dynamicTotalCount += Number(p.errorCount || 0);
                     let badgeClass = p.subject.includes("物理") ? "badge-physics" : "badge-math";
 
+                    // ★画像がある場合はサムネイルを表示し、無い場合はスマートなアイコン枠を自動生成
+                    let thumbnailHtml = "";
+                    if (p.imageData) {
+                        thumbnailHtml = `<div class="card-thumbnail-wrapper"><img src="${p.imageData}"></div>`;
+                    } else {
+                        thumbnailHtml = `<div class="card-thumbnail-wrapper" style="color:var(--text-muted); font-size:1.6rem; font-weight:normal;">📝</div>`;
+                    }
+
+                    // 2カラム化：タイトルは溢れたら「...」で自動省略、罠解説は2行にきれいに収めるクランプ処理
                     let cardHtml = `
-                        <div class="squircle-card size-medium" onclick="location.href='problem.html?id=${p.id}'" style="border-color: var(--accent-cyan); border-left: 4px solid var(--accent-cyan); cursor: pointer;">
-                            <div class="card-content-top">
-                                <span class="badge ${badgeClass}">${p.subject} // ${p.field}</span>
-                                <h2 class="card-title">${p.short_title}</h2>
-                                <p style="color: var(--text-muted); line-height: 1.4; font-size:0.9rem;">${p.trap_description}</p>
-                            </div>
-                            <div class="card-meta">
-                                <div>ステータス: 同期中</div>
-                                <div class="error-count warning-text">誤答回数: <span class="num-display">${String(p.errorCount).padStart(2, '0')}</span></div>
+                        <div class="squircle-card size-medium" onclick="location.href='problem.html?id=${p.id}'" style="border-color: var(--accent-cyan); border-left: 4px solid var(--accent-cyan); cursor: pointer; padding: 1.1rem 1.4rem;">
+                            <div class="card-inner-layout">
+                                ${thumbnailHtml}
+                                <div class="card-main-text-zone">
+                                    <div class="card-content-top">
+                                        <span class="badge ${badgeClass}" style="margin-bottom: 0.3rem;">${p.subject} // ${p.field}</span>
+                                        <h2 class="card-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.short_title}</h2>
+                                        <p style="color: var(--text-muted); line-height: 1.3; font-size:0.85rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 0.2rem;">${p.trap_description}</p>
+                                    </div>
+                                    <div class="card-meta" style="margin-top: 0.4rem; padding-top: 0.3rem; border-top: 1px solid rgba(255,255,255,0.03);">
+                                        <div style="font-size:0.75rem; color:var(--text-muted);">同期中</div>
+                                        <div class="error-count warning-text" style="font-size:0.95rem;">誤答数: <span class="num-display">${String(p.errorCount).padStart(2, '0')}</span></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     `;
@@ -355,14 +407,12 @@
                 const data = await response.json();
                 let rawJsonText = data.candidates[0].content.parts[0].text;
 
-                // マークダウンの不要なコード囲みを除去
                 rawJsonText = rawJsonText.trim();
                 if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
                 else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
                 if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
                 rawJsonText = rawJsonText.trim();
 
-                // ★超強力：数式コマンド（\frac, \theta, \upsilon等）によるJSONパースエラーを永久に根絶する精密文字列スキャンフィルター
                 const fixJsonEscapes = (str) => {
                     let inString = false; let result = "";
                     for (let i = 0; i < str.length; i++) {
@@ -396,7 +446,7 @@
                     answerFormula: aiResult.model_answer 
                 };
 
-                await set(ref(database, 'users/' + currentUser.uid + '/problems/' + newId), newProblem);
+                await realSet(realRef(database, 'users/' + currentUser.uid + '/problems/' + newId), newProblem);
 
                 document.getElementById("add-problem-modal").style.display = "none";
                 document.getElementById("problem-text-input").value = "";
