@@ -130,15 +130,12 @@
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-        // ⚠️ ここをindex.htmlと完全に同じConfigに書き換えてください
         const firebaseConfig = {
-            // ⚠️ Firebaseコンソールで取得した、あなた本物のAPIキー（AIzaSy... から始まるもの）にしてください
             apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY", 
             authDomain: "buturi-2449e.firebaseapp.com",
             databaseURL: "https://buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app/",
             projectId: "buturi-2449e",
             storageBucket: "buturi-2449e.appspot.com",
-            // ⚠️ 以下の2つも、ご自身のFirebaseのWebアプリ登録画面に表示された数値に書き換えてください
             messagingSenderId: "976306696124",
             appId: "1:976306696124:web:e455c1953544bff5c345b9"
         };
@@ -153,8 +150,20 @@
         const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
         const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
         
+        // ★修正点①：チャット受け取りプログラムの形式に合わせた、厳密なソクラテス指示プロンプトへ復元
         const SYSTEM_INSTRUCTION_BASE = `
-        あなたは「ソクラテス式問答法」を用いるAIチューターです。正解は教えず、小さな問いかけを1つ返してください。数式は前後に $ をつけること。
+        あなたは「ソクラテス式問答法」を用いる、物静かだが核心を突く高校生向けのAIチューターです。
+        最終的な正解（数式や数値）は絶対に教えず、小さな問いかけで生徒を自力での解決へ導いてください。
+        1回の発言につき、質問は「1つ」に絞ってください。
+        
+        【重要】変数や数式（例: m, v, g, thetaなど）をメッセージに含めるときは、必ず前後に $ をつけて「$m$」や「$\\sin\\theta$」のようにLaTeX形式の数式として出力してください。
+
+        返答は必ず以下のJSONフォーマットの形式で出力してください。他の説明文などは一切含めないでください。
+        {
+          "ai_response": "生徒へ返すヒントメッセージ（数式には $ $ を使用すること）",
+          "current_step_label": "現在のステップ名（例: ステップ2: 働く力の列挙 など）",
+          "student_understanding_rate": 0から100の整数
+        }
         `;
 
         let chatHistory = [];
@@ -175,7 +184,6 @@
             }
         });
 
-        // ★ダミー問題を完全排除した100%クラウド読み込みロジック
         function loadCloudProblemSession(uid) {
             const probRef = ref(database, 'users/' + uid + '/problems/' + PROBLEM_ID);
             
@@ -212,7 +220,8 @@
                 if (chatHistory.length === 0) {
                     chatHistory = [
                         { "role": "user", "parts": [{ "text": `【問題文】 ${currentProblemData.title}` }] },
-                        { "role": "model", "parts": [{ "text": `{"ai_response": "問題を確認しました。", "current_step_label": "ステップ1: 状況の整理", "student_understanding_rate": 20}` }] }
+                        // 初期状態でAI側の仕様を狂わせないためのダミー
+                        { "role": "model", "parts": [{ "text": `{"ai_response": "問題を確認しました。どこから考えてみましょうか？", "current_step_label": "ステップ1: 状況の整理", "student_understanding_rate": 20}` }] }
                     ];
                 }
                 if (window.MathJax) MathJax.typesetPromise();
@@ -258,10 +267,17 @@
                     })
                 });
                 const data = await response.json();
-                const rawJsonText = data.candidates[0].content.parts[0].text;
+                let rawJsonText = data.candidates[0].content.parts[0].text;
+
+                // ★修正点②：チャット中のAIメッセージに含まれるバックスラッシュも、完全にクレンジングしてJSONパースエラーを永久回避
+                rawJsonText = rawJsonText.replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
+
                 chatHistory.push({ "role": "model", "parts": [{ "text": rawJsonText }] });
                 updateChatUI(studentMessage, JSON.parse(rawJsonText));
-            } catch (error) { alert("Gemini通信失敗"); }
+            } catch (error) { 
+                console.error(error);
+                alert("Geminiとの通信、またはデータ解析に失敗しました。"); 
+            }
             finally { statusBadge.textContent = "AI TUTOR // ACTIVE"; statusBadge.style.color = "var(--accent-cyan)"; }
         }
 
@@ -290,6 +306,7 @@
             const revealZone = document.getElementById("answer-reveal-zone");
 
             sendBtn.addEventListener("click", () => { const t = inputField.value.trim(); if (t) { inputField.value = ""; sendMessageToGemini(t); } });
+            inputField.addEventListener("keypress", (e) => { if (e.key === "Enter") { const t = inputField.value.trim(); if (t) { inputField.value = ""; sendMessageToGemini(t); } } });
             showAnswerBtn.addEventListener("click", () => { revealWrap.style.display = "none"; revealZone.style.display = "flex"; if (window.MathJax) MathJax.typesetPromise(); });
             document.getElementById("btn-judge-right").addEventListener("click", () => processSelfJudgment(true));
             document.getElementById("btn-judge-wrong").addEventListener("click", () => processSelfJudgment(false));
