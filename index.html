@@ -119,7 +119,7 @@
         </header>
 
         <main class="bento-grid">
-            <div class="squircle-card size-critical" onclick="location.href='problem.html'" style="border-left: 4px solid var(--accent-magenta); cursor: pointer;">
+            <div class="squircle-card size-critical" id="card-P-2026-X12" onclick="location.href='problem.html'" style="border-left: 4px solid var(--accent-magenta); cursor: pointer;">
                 <div class="card-content-top">
                     <span class="badge badge-physics">物理 // 力学</span>
                     <h2 class="card-title">非慣性系における慣性力と物体的運動方程式の構築</h2>
@@ -127,7 +127,7 @@
                 </div>
                 <div class="card-meta">
                     <div>前回挑戦: 22時間前</div>
-                    <div class="error-count critical-text">誤答回数: 05</div>
+                    <div class="error-count critical-text">誤答回数: <span class="num-display">--</span></div>
                 </div>
             </div>
 
@@ -150,53 +150,53 @@
                 </div>
             </div>
 
-            <div class="squircle-card size-medium">
+            <div class="squircle-card size-medium" id="card-M-001">
                 <div class="card-content-top">
                     <span class="badge badge-math">数学Ⅲ // 微積</span>
                     <h2 class="card-title">定積分によって定義される関数と極値の判定</h2>
                 </div>
                 <div class="card-meta">
                     <div>前回挑戦: 2日前</div>
-                    <div class="error-count warning-text">誤答回数: 03</div>
+                    <div class="error-count warning-text">誤答回数: <span class="num-display">03</span></div>
                 </div>
             </div>
 
-            <div class="squircle-card size-medium">
+            <div class="squircle-card size-medium" id="card-P-002">
                 <div class="card-content-top">
                     <span class="badge badge-physics">物理 // 電磁気</span>
                     <h2 class="card-title">自己インダクタンスを含む自己誘導回路の過渡現象</h2>
                 </div>
                 <div class="card-meta">
                     <div>前回挑戦: 3日前</div>
-                    <div class="error-count warning-text">誤答回数: 03</div>
+                    <div class="error-count warning-text">誤答回数: <span class="num-display">03</span></div>
                 </div>
             </div>
 
-            <div class="squircle-card size-small">
+            <div class="squircle-card size-small" id="card-M-002">
                 <div class="card-content-top">
                     <span class="badge badge-math">数学B // ベクトル</span>
                     <h2 class="card-title">空間ベクトルにおける平面の方程式と点との距離</h2>
                 </div>
                 <div class="card-meta">
                     <div>前回挑戦: 5日前</div>
-                    <div class="error-count">誤答回数: 02</div>
+                    <div class="error-count">誤答回数: <span class="num-display">02</span></div>
                 </div>
             </div>
 
-            <div class="squircle-card size-small">
+            <div class="squircle-card size-small" id="card-M-003">
                 <div class="card-content-top">
                     <span class="badge badge-math">数学A // 確率</span>
                     <h2 class="card-title">条件付き確率と原因の確率（ベイズの定理の応用）</h2>
                 </div>
                 <div class="card-meta">
                     <div>前回挑戦: 1週間前</div>
-                    <div class="error-count">誤答回数: 02</div>
+                    <div class="error-count">誤答回数: <span class="num-display">02</span></div>
                 </div>
             </div>
 
             <div class="squircle-card size-mini" style="background: linear-gradient(135deg, #050508, #150015); border-color: rgba(255, 0, 127, 0.2);">
                 <div class="mini-label" style="color: var(--accent-magenta);">TOTAL ERRORS</div>
-                <div class="mini-value" style="color: var(--accent-magenta);">14</div>
+                <div class="mini-value" id="total-errors-display" style="color: var(--accent-magenta);">--</div>
                 <div class="mini-sub">未消化の誤答問題</div>
             </div>
 
@@ -208,5 +208,62 @@
         </main>
     </div>
 
+    <script>
+        const PROBLEM_ID = "P-2026-X12";
+
+        // 全体の数値を同期するメインシステム
+        function syncDashboardData() {
+            let allData = {};
+            try {
+                let raw = localStorage.getItem("remind_app_problems");
+                allData = raw ? JSON.parse(raw) : {};
+            } catch(e) {
+                allData = {};
+            }
+
+            // 1. 物理（力学）のデータをLocalStorageから取得（無ければ初期値5）
+            let physicsData = allData[PROBLEM_ID];
+            let physicsCount = (physicsData && typeof physicsData.errorCount === 'number') ? physicsData.errorCount : 5;
+
+            // 画面の物理カードの数値を書き換え
+            const physicsDisplay = document.querySelector("#card-P-2026-X12 .num-display");
+            if (physicsDisplay) {
+                physicsDisplay.textContent = String(physicsCount).padStart(2, '0');
+            }
+
+            // 2. 他のモックカードの数値を集計用に取得
+            let m001 = 3; // 数学Ⅲ
+            let p002 = 3; // 物理電磁気
+            let m002 = 2; // 数学B
+            let m003 = 2; // 数学A
+
+            // 3. 全問題の合計誤答数をリアルタイムで純粋に合算して算出（15から連動スタート！）
+            let totalSum = physicsCount + m001 + p002 + m002 + m003;
+
+            // トータル数の表示を書き換え
+            const totalDisplay = document.getElementById("total-errors-display");
+            if (totalDisplay) {
+                totalDisplay.textContent = String(totalSum).padStart(2, '0');
+            }
+
+            // 【2026年タクタイル・ブルータリズム思想の連動】
+            // もし誤答数がもの凄く増えて「8回以上」になったら、お仕置きとして自動的にタイルを最大サイズ（size-critical）に固定拡大する
+            const physicsCardElement = document.getElementById("card-P-2026-X12");
+            if (physicsCardElement) {
+                if (physicsCount >= 8) {
+                    physicsCardElement.className = "squircle-card size-critical";
+                } else if (physicsCount >= 5) {
+                    physicsCardElement.className = "squircle-card size-critical"; // 通常の警戒サイズ
+                } else if (physicsCount > 0) {
+                    physicsCardElement.className = "squircle-card size-medium"; // 減ってきたら縮む
+                } else {
+                    physicsCardElement.className = "squircle-card size-small"; // 克服したら小さくなる
+                }
+            }
+        }
+
+        // 画面が開かれた瞬間に同期を走らせる
+        document.addEventListener("DOMContentLoaded", syncDashboardData);
+    </script>
 </body>
 </html>
