@@ -6,35 +6,25 @@
     <title>RETROGRADE // 問題解答セッション</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* 解答画面固有：全タイルをシアン枠線に変更 */
         .squircle-tile {
             border: 1px solid var(--accent-cyan);
             box-shadow: 4px 4px 0px rgba(0, 243, 255, 0.1);
         }
 
         .workspace-container {
-            max-width: 1500px;
-            margin: 0 auto;
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
+            max-width: 1500px; margin: 0 auto;
+            display: flex; flex-direction: column; gap: 1.5rem;
             height: calc(100vh - 3rem);
         }
 
         header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #1a2a35;
-            padding-bottom: 1rem;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #1a2a35; padding-bottom: 1rem;
         }
 
         .bento-grid {
-            display: grid;
-            grid-template-columns: repeat(12, 1fr);
-            grid-template-rows: minmax(0, 1fr) auto;
-            gap: 1.5rem;
-            flex-grow: 1;
+            display: grid; grid-template-columns: repeat(12, 1fr);
+            grid-template-rows: minmax(0, 1fr) auto; gap: 1.5rem; flex-grow: 1;
         }
 
         .main-question-tile  { grid-column: span 8; grid-row: span 1; }
@@ -44,7 +34,6 @@
         .badge-ai { background: transparent; color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
         .question-text { font-size: var(--fs-lg); font-weight: 800; line-height: 1.3; }
 
-        /* 物理幾何学図形 */
         .physics-figure-box {
             width: 100%; height: 220px; background: #020204;
             border: 1px dashed #1a2a35; border-radius: 16px;
@@ -65,17 +54,13 @@
         }
         .vector-arrow::after { content: '▶'; position: absolute; right: -4px; top: -6px; font-size: 8px; color: var(--accent-cyan); }
 
-        /* グラスモーフィズムAIチャット */
         .glass-sidebar {
-            background: var(--card-bg-glass);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border: 1px solid rgba(0, 243, 255, 0.25);
+            background: var(--card-bg-glass); backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(0, 243, 255, 0.25);
         }
         .chat-history {
             flex-grow: 1; overflow-y: auto; margin: 1rem 0;
-            display: flex; flex-direction: column; gap: 1rem;
-            padding-right: 0.5rem;
+            display: flex; flex-direction: column; gap: 1rem; padding-right: 0.5rem;
         }
         .chat-bubble { padding: 0.8rem 1rem; border-radius: 16px; font-size: var(--fs-md); line-height: 1.4; max-width: 90%; }
         .bubble-ai { background: rgba(26, 26, 40, 0.5); border-left: 3px solid var(--accent-cyan); color: var(--text-bright-muted); align-self: flex-start; }
@@ -84,7 +69,6 @@
         .chat-input-wrapper { display: flex; gap: 0.5rem; border-top: 1px solid #1a2a35; padding-top: 1rem; }
         .chat-input { flex-grow: 1; background: #000; border: 1px solid #222; padding: 0.6rem 1rem; color: #fff; border-radius: 10px; }
 
-        /* 数式入力欄・ネオン発光 */
         .formula-input-container { display: flex; gap: 1rem; width: 100%; align-items: center; margin-top: 1rem; }
         .formula-input-field {
             flex-grow: 1; background-color: #000; border: 2px solid #22222a; border-radius: 16px;
@@ -103,11 +87,6 @@
             .main-question-tile, .answer-formula-tile, .ai-sidebar-tile { grid-column: span 12; }
             .ai-sidebar-tile { height: 400px; }
         }
-        @media (max-width: 640px) {
-            body { padding: 0.8rem; }
-            .formula-input-container { flex-direction: column; }
-            .formula-input-container button { width: 100%; }
-        }
     </style>
 </head>
 <body>
@@ -116,7 +95,7 @@
         <header>
             <div style="display: flex; align-items: center; gap: 1rem;">
                 <span style="font-weight: 900; letter-spacing: -1px; color: var(--accent-cyan)">RE:MIND // SESSION</span>
-                <span style="color: var(--text-muted); font-size: var(--fs-sm);">PROBLEM ID: P-2026-X12</span>
+                <span style="color: var(--text-muted); font-size: var(--fs-sm);" id="problem-id-display">PROBLEM ID: --</span>
             </div>
             <div>
                 <button type="button" class="tactile-btn tactile-btn-secondary" onclick="location.href='index.html'">
@@ -128,17 +107,15 @@
         <main class="bento-grid">
             <section class="squircle-tile main-question-tile">
                 <div class="tile-header-group">
-                    <span class="badge badge-physics">物理 // 力学 // 誤答回数: --</span>
-                    <h2 class="question-text">
-                        傾きの角 &theta; のなめらかな斜面を持つ質量 M の台が、水平な床の上に置かれている。この斜面上に質量 m の小球を載せ、静かに手を放した。台が床から受ける垂直抗力 N を表せ。
-                    </h2>
+                    <span class="badge badge-physics" id="question-badge">読み込み中...</span>
+                    <h2 class="question-text" id="question-text-display">問題データを読み込んでいます...</h2>
                 </div>
                 
-                <div class="physics-figure-box">
+                <div class="physics-figure-box" id="figure-box">
                     <div class="vector-diagram"><div class="vector-arrow"></div></div>
                 </div>
 
-                <div style="color: var(--text-bright-muted); font-size: var(--fs-sm);">
+                <div style="color: var(--text-bright-muted); font-size: var(--fs-sm);" id="hint-text-display">
                     ヒント：床から見た静止座標系か、台と一緒に動く加速座標系か、視点を統一しましょう。
                 </div>
             </section>
@@ -150,8 +127,8 @@
                 </div>
 
                 <div class="chat-history">
-                    <div class="chat-bubble bubble-ai">
-                        どこで迷っていますか？まずは「小球が斜面から受ける垂直抗力」を文字で置いて分解してみましょう。
+                    <div class="chat-bubble bubble-ai" id="initial-ai-bubble">
+                        どこで迷っていますか？まずは問題文の条件を整理してみましょう。
                     </div>
                 </div>
 
@@ -167,7 +144,7 @@
                 </div>
 
                 <div class="formula-input-container">
-                    <input type="text" class="formula-input-field" placeholder="N = (M + m)g / (M + m sin^2θ)" value="N = ">
+                    <input type="text" class="formula-input-field" placeholder="解答を入力してください" value="">
                     <button type="button" class="tactile-btn" id="submit-answer-btn" style="height: 54px; font-size: 1.1rem;">解答を確定する</button>
                 </div>
             </section>
@@ -177,36 +154,32 @@
    <script>
         const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
         const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        const PROBLEM_ID = "P-2026-X12";
+        
+        // ★新機能：URLの「?id=xxx」からどの問題が開かれたかを自動で検出する
+        const urlParams = new URLSearchParams(window.location.search);
+        const PROBLEM_ID = urlParams.get('id') || "P-2026-X12"; // 指定がなければ初期の物理問題にする
 
-        const SYSTEM_INSTRUCTION = `
+        const SYSTEM_INSTRUCTION_BASE = `
         あなたは「ソクラテス式問答法」を用いる、物静かだが核心を突く高校生向けのAIチューターです。
         最終的な正解（数式や数値）は絶対に教えず、小さな問いかけで生徒を自力での解決へ導いてください。
-        1回の発言につき、質問は「1つ」方向に絞ってください。
+        1回の発言につき、質問は「1つ」に絞ってください。
 
         返談は必ず以下のJSONフォーマットの形式で出力してください。他の説明文などは一切含めないでください。
         {
           "ai_response": "生徒へ返すヒントメッセージ（1つの問いかけ）",
-          "current_step_label": "現在のステップ名（例: 'ステップ2: 慣性力の定量化'）",
-          "student_understanding_rate": 0から100の整数（生徒の理解度の予測値）
+          "current_step_label": "現在のステップ名（例: 'ステップ2: 摩擦力の公式の確認'）",
+          "student_understanding_rate": 0から100の整数
         }
         `;
 
-        let chatHistory = [
-            {
-                "role": "user",
-                "parts": [{ "text": "【問題文】傾きの角 θ のなめらかな斜面を持つ質量 M の台が、水平な床の上に置かれている。この斜面上に質量 m の小球を載せ、静かに手を放した。台が床から受ける垂直抗力 N を表せ。" }]
-            },
-            {
-                "role": "model",
-                "parts": [{ "text": "{\"ai_response\": \"どこで迷っていますか？まずは『小球が斜面から受ける垂直抗力』を文字で置いて分解してみましょう。\", \"current_step_label\": \"ステップ1: 働く力の洗い出し\", \"student_understanding_rate\": 20}" }]
-            }
-        ];
+        let chatHistory = [];
+        let currentProblemData = {};
 
-        // メモリ上の完全な安全用初期データ
-        let memoryBackupData = {
-            id: PROBLEM_ID,
-            title: "非慣性系における慣性力と物体の運動方程式の構築",
+        // メモリ上の初期問題用バックアップ
+        const defaultPhysicsData = {
+            id: "P-2026-X12",
+            title: "傾きの角 θ のなめらかな斜面を持つ質量 M の台が、水平な床の上に置かれている。この斜面上に質量 m の小球を載せ、静かに手を放した。台が床から受ける垂直抗力 N を表せ。",
+            short_title: "非慣性系における慣性力と物体の運動方程式の構築",
             subject: "物理",
             field: "力学",
             errorCount: 5,
@@ -214,88 +187,88 @@
             lastResult: false
         };
 
-        // --- データの読み込み（型汚染・クラッシュを100%防ぐ最強版） ---
-        function getProblemData() {
+        // --- データの読み込み・画面の初期書き換え ---
+        function loadSessionData() {
+            let allData = {};
             try {
-                let raw = localStorage.getItem("remind_app_problems");
-                let allData = raw ? JSON.parse(raw) : {};
-                
-                // 過去の古いゴミデータが「配列型」などで残っていた場合の型エラーを完全にシャットアウト
-                if (typeof allData !== "object" || allData === null || Array.isArray(allData)) {
-                    allData = {};
-                }
-                
-                // 今回の問題データが存在しない、または壊れている場合は綺麗に初期化
-                if (!allData[PROBLEM_ID] || typeof allData[PROBLEM_ID].errorCount !== "number") {
-                    allData[PROBLEM_ID] = defaultDataCopy();
+                allData = JSON.parse(localStorage.getItem("remind_app_problems")) || {};
+            } catch(e) { allData = {}; }
+
+            // 対象の問題データを取得（無ければ初期物理問題）
+            if (PROBLEM_ID === "P-2026-X12") {
+                if (!allData[PROBLEM_ID]) {
+                    allData[PROBLEM_ID] = defaultPhysicsData;
                     localStorage.setItem("remind_app_problems", JSON.stringify(allData));
                 }
-                
-                memoryBackupData = allData[PROBLEM_ID];
-                return allData[PROBLEM_ID];
-            } catch (e) {
-                console.warn("LocalStorageが無効か制限されています。メモリ上のバックアップを使用します。");
-                return memoryBackupData;
+                currentProblemData = allData[PROBLEM_ID];
+            } else {
+                currentProblemData = allData[PROBLEM_ID] || {
+                    title: "指定された問題が見つかりません。", subject: "エラー", field: "不明", errorCount: 0
+                };
             }
-        }
 
-        function defaultDataCopy() {
-            return JSON.parse(JSON.stringify(memoryBackupData));
-        }
-
-        // --- 画面上の「誤答回数」バッジを書き換える関数 ---
-        function updateErrorBadge() {
-            const data = getProblemData();
-            const badge = document.querySelector(".main-question-tile .badge");
-            if (badge) {
-                badge.textContent = `${data.subject} // ${data.field} // 誤答回数: ${String(data.errorCount).padStart(2, '0')}`;
+            // 1. 画面の各テキストを読み込んだ問題データに書き換える！
+            document.getElementById("problem-id-display").textContent = `PROBLEM ID: ${currentProblemData.id || "CUSTOM"}`;
+            document.getElementById("question-text-display").textContent = currentProblemData.title;
+            
+            const badge = document.getElementById("question-badge");
+            badge.textContent = `${currentProblemData.subject} // ${currentProblemData.field} // 誤答回数: ${String(currentProblemData.errorCount).padStart(2, '0')}`;
+            
+            // 初期の物理問題以外なら、図形ボックスを非表示にしてヒント文を書き換える
+            if (PROBLEM_ID !== "P-2026-X12") {
+                document.getElementById("figure-box").style.display = "none";
+                document.getElementById("hint-text-display").textContent = currentProblemData.trap_description || "AIチューターと一緒に弱点を分析していこう。";
+                document.getElementById("initial-ai-bubble").textContent = `新しく登録された「${currentProblemData.field}」の問題ですね。どこから解き始めましょうか？`;
             }
+
+            // 2. Gemini用の会話履歴の最初のコンテクストをセット
+            chatHistory = [
+                {
+                    "role": "user",
+                    "parts": [{ "text": `【問題文】 ${currentProblemData.title}` }]
+                },
+                {
+                    "role": "model",
+                    "parts": [{ "text": `{"ai_response": "問題を確認しました。どこで迷っていますか？まずは図を描いて働く力を整理してみましょう。", "current_step_label": "ステップ1: 状況の整理", "student_understanding_rate": 20}` }]
+                }
+            ];
         }
 
-        // --- 解答ボタンを押した時に安全に回数を+1する関数 ---
         function submitAnswer(studentAnswer) {
             let allData = {};
             try {
-                let raw = localStorage.getItem("remind_app_problems");
-                allData = raw ? JSON.parse(raw) : {};
-                if (typeof allData !== "object" || allData === null || Array.isArray(allData)) {
-                    allData = {};
-                }
-            } catch(e) {
-                allData = {};
-            }
+                allData = JSON.parse(localStorage.getItem("remind_app_problems")) || {};
+            } catch(e) { allData = {}; }
 
-            if (!allData[PROBLEM_ID]) {
-                allData[PROBLEM_ID] = defaultDataCopy();
-            }
-
-            let currentProblem = allData[PROBLEM_ID];
+            let currentProblem = allData[PROBLEM_ID] || currentProblemData;
             const cleanedAnswer = studentAnswer.replace(/\s+/g, "");
 
-            // 判定
-            if (cleanedAnswer.includes("(M+m)g") && (cleanedAnswer.includes("sin") || cleanedAnswer.includes("θ"))) {
+            // 簡易判定（初期物理問題用、カスタム問題は一律練習モードとしてカウントアップ）
+            let isCorrect = false;
+            if (PROBLEM_ID === "P-2026-X12") {
+                if (cleanedAnswer.includes("(M+m)g") && (cleanedAnswer.includes("sin") || cleanedAnswer.includes("θ"))) {
+                    isCorrect = true;
+                }
+            }
+
+            if (isCorrect) {
                 alert("🎉 正解です！素晴らしい！誤答を克服しました。");
                 currentProblem.lastResult = true;
                 currentProblem.errorCount = 0; 
             } else {
-                alert("❌ 不正解です。右側のAIチューターにヒントをもらいながらもう一度考えてみよう！");
+                alert("❌ 記録しました。右側のAIチューターにヒントをもらいながらもう一度考えてみよう！");
                 currentProblem.lastResult = false;
-                // 型崩れを防ぎ、確実に現在の数値に1を足す
-                currentProblem.errorCount = Number(currentProblem.errorCount || 5) + 1;
+                currentProblem.errorCount = Number(currentProblem.errorCount || 1) + 1;
             }
 
             currentProblem.lastAttemptAt = new Date().toISOString();
             allData[PROBLEM_ID] = currentProblem;
-            memoryBackupData = currentProblem;
             
             try {
                 localStorage.setItem("remind_app_problems", JSON.stringify(allData));
-            } catch(e) {
-                console.error("LocalStorage save failed:", e);
-            }
+            } catch(e) {}
             
-            // 画面を即座に更新
-            updateErrorBadge();
+            loadSessionData(); // バッジの再描画
         }
 
         // --- Gemini API送信関数 ---
@@ -311,11 +284,8 @@
 
             const requestBody = {
                 "contents": chatHistory,
-                "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION }] },
-                "generationConfig": {
-                    "responseMimeType": "application/json",
-                    "temperature": 0.7
-                }
+                "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION_BASE }] },
+                "generationConfig": { "responseMimeType": "application/json", "temperature": 0.7 }
             };
 
             try {
@@ -330,17 +300,14 @@
                 const data = await response.json();
                 const rawJsonText = data.candidates[0].content.parts[0].text;
 
-                chatHistory.push({
-                    "role": "model",
-                    "parts": [{ "text": rawJsonText }]
-                });
+                chatHistory.push({ "role": "model", "parts": [{ "text": rawJsonText }] });
 
                 const parsedResult = JSON.parse(rawJsonText);
                 updateChatUI(studentMessage, parsedResult);
 
             } catch (error) {
                 console.error("Error:", error);
-                alert("Geminiとの通信に失敗しました。APIキーを確認してください。");
+                alert("Geminiとの通信に失敗しました。");
             } finally {
                 statusBadge.textContent = "AI TUTOR // ACTIVE";
                 statusBadge.style.color = "var(--accent-cyan)";
@@ -364,14 +331,12 @@
             if (aiJson.current_step_label) {
                 stepLabel.textContent = aiJson.current_step_label;
             }
-
             chatHistoryArea.scrollTop = chatHistoryArea.scrollHeight;
         }
 
         // --- 起動イベント ---
         document.addEventListener("DOMContentLoaded", () => {
-            // 起動時にバッジを「05」または過去の記憶データに同期
-            updateErrorBadge();
+            loadSessionData(); // 起動時に問題データをロード
 
             const sendBtn = document.querySelector(".chat-input-wrapper button");
             const inputField = document.querySelector(".chat-input");
@@ -390,10 +355,8 @@
                 if (e.key === "Enter") handleSend();
             });
 
-            // 確定ボタンのクリック処理
             submitBtn.addEventListener("click", () => {
-                const studentAns = formulaInput.value.trim();
-                submitAnswer(studentAns);
+                submitAnswer(formulaInput.value.trim());
             });
         });
     </script>

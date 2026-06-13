@@ -306,8 +306,8 @@
 
                 // 新しいベントー・タイルのHTMLを生成
                 let cardHtml = `
-                    <div class="squircle-card size-medium" style="border-color: var(--accent-cyan); border-left: 4px solid var(--accent-cyan);">
-                        <div class="card-content-top">
+    <div class="squircle-card size-medium" onclick="location.href='problem.html?id=${p.id}'" style="border-color: var(--accent-cyan); border-left: 4px solid var(--accent-cyan); cursor: pointer;">
+        <div class="card-content-top">
                             <span class="badge ${badgeClass}">${p.subject} // ${p.field}</span>
                             <h2 class="card-title">${p.short_title}</h2>
                             <p style="color: var(--text-muted); line-height: 1.4; font-size:0.9rem;">${p.trap_description}</p>
