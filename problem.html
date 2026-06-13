@@ -128,7 +128,7 @@
         <main class="bento-grid">
             <section class="squircle-tile main-question-tile">
                 <div class="tile-header-group">
-                    <span class="badge badge-physics">物理 // 力学 // 誤答回数: 05</span>
+                    <span class="badge badge-physics">物理 // 力学 // 誤答回数: --</span>
                     <h2 class="question-text">
                         傾きの角 &theta; のなめらかな斜面を持つ質量 M の台が、水平な床の上に置かれている。この斜面上に質量 m の小球を載せ、静かに手を放した。台が床から受ける垂直抗力 N を表せ。
                     </h2>
@@ -168,7 +168,7 @@
 
                 <div class="formula-input-container">
                     <input type="text" class="formula-input-field" placeholder="N = (M + m)g / (M + m sin^2θ)" value="N = ">
-                    <button type="button" class="tactile-btn" style="height: 54px; font-size: 1.1rem;">解答を確定する</button>
+                    <button type="button" class="tactile-btn" id="submit-answer-btn" style="height: 54px; font-size: 1.1rem;">解答を確定する</button>
                 </div>
             </section>
         </main>
@@ -179,7 +179,6 @@
         const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
         const PROBLEM_ID = "P-2026-X12";
 
-        // AIへのシステムプロンプト
         const SYSTEM_INSTRUCTION = `
         あなたは「ソクラテス式問答法」を用いる、物静かだが核心を突く高校生向けのAIチューターです。
         最終的な正解（数式や数値）は絶対に教えず、小さな問いかけで生徒を自力での解決へ導いてください。
@@ -204,7 +203,7 @@
             }
         ];
 
-        // ★ブラウザ制限対策：LocalStorageが使えない環境に備えたメモリ上のバックアップ用変数
+        // メモリ上の完全な安全用初期データ
         let memoryBackupData = {
             id: PROBLEM_ID,
             title: "非慣性系における慣性力と物体の運動方程式の構築",
@@ -215,25 +214,36 @@
             lastResult: false
         };
 
-        // --- データの読み込み（クラッシュ対策の強化版） ---
+        // --- データの読み込み（型汚染・クラッシュを100%防ぐ最強版） ---
         function getProblemData() {
             try {
-                let allData = JSON.parse(localStorage.getItem("remind_app_problems")) || {};
-                if (!allData[PROBLEM_ID]) {
-                    allData[PROBLEM_ID] = memoryBackupData;
+                let raw = localStorage.getItem("remind_app_problems");
+                let allData = raw ? JSON.parse(raw) : {};
+                
+                // 過去の古いゴミデータが「配列型」などで残っていた場合の型エラーを完全にシャットアウト
+                if (typeof allData !== "object" || allData === null || Array.isArray(allData)) {
+                    allData = {};
+                }
+                
+                // 今回の問題データが存在しない、または壊れている場合は綺麗に初期化
+                if (!allData[PROBLEM_ID] || typeof allData[PROBLEM_ID].errorCount !== "number") {
+                    allData[PROBLEM_ID] = defaultDataCopy();
                     localStorage.setItem("remind_app_problems", JSON.stringify(allData));
                 }
-                // メモリ側も同期
+                
                 memoryBackupData = allData[PROBLEM_ID];
                 return allData[PROBLEM_ID];
             } catch (e) {
-                // LocalStorageがセキュリティ制限等で弾かれた場合はメモリデータを使用
-                console.warn("LocalStorage access denied. Using memory backup.");
+                console.warn("LocalStorageが無効か制限されています。メモリ上のバックアップを使用します。");
                 return memoryBackupData;
             }
         }
 
-        // --- 画面上の「誤答回数」の表示を現在のデータに書き換える関数 ---
+        function defaultDataCopy() {
+            return JSON.parse(JSON.stringify(memoryBackupData));
+        }
+
+        // --- 画面上の「誤答回数」バッジを書き換える関数 ---
         function updateErrorBadge() {
             const data = getProblemData();
             const badge = document.querySelector(".main-question-tile .badge");
@@ -242,23 +252,27 @@
             }
         }
 
-        // --- 解答ボタンを押した時にデータを安全に更新する関数 ---
+        // --- 解答ボタンを押した時に安全に回数を+1する関数 ---
         function submitAnswer(studentAnswer) {
             let allData = {};
             try {
-                allData = JSON.parse(localStorage.getItem("remind_app_problems")) || {};
+                let raw = localStorage.getItem("remind_app_problems");
+                allData = raw ? JSON.parse(raw) : {};
+                if (typeof allData !== "object" || allData === null || Array.isArray(allData)) {
+                    allData = {};
+                }
             } catch(e) {
                 allData = {};
             }
 
-            // 安全対策：もしallData[PROBLEM_ID]が空だったら初期データで埋める
             if (!allData[PROBLEM_ID]) {
-                allData[PROBLEM_ID] = memoryBackupData;
+                allData[PROBLEM_ID] = defaultDataCopy();
             }
 
             let currentProblem = allData[PROBLEM_ID];
             const cleanedAnswer = studentAnswer.replace(/\s+/g, "");
 
+            // 判定
             if (cleanedAnswer.includes("(M+m)g") && (cleanedAnswer.includes("sin") || cleanedAnswer.includes("θ"))) {
                 alert("🎉 正解です！素晴らしい！誤答を克服しました。");
                 currentProblem.lastResult = true;
@@ -266,22 +280,21 @@
             } else {
                 alert("❌ 不正解です。右側のAIチューターにヒントをもらいながらもう一度考えてみよう！");
                 currentProblem.lastResult = false;
-                currentProblem.errorCount += 1; // 確実に+1加算
+                // 型崩れを防ぎ、確実に現在の数値に1を足す
+                currentProblem.errorCount = Number(currentProblem.errorCount || 5) + 1;
             }
 
             currentProblem.lastAttemptAt = new Date().toISOString();
             allData[PROBLEM_ID] = currentProblem;
-            
-            // バックアップも更新
             memoryBackupData = currentProblem;
             
             try {
                 localStorage.setItem("remind_app_problems", JSON.stringify(allData));
             } catch(e) {
-                console.error("Failed to save to LocalStorage:", e);
+                console.error("LocalStorage save failed:", e);
             }
             
-            // 画面のバッジを最新の回数に更新
+            // 画面を即座に更新
             updateErrorBadge();
         }
 
@@ -355,14 +368,15 @@
             chatHistoryArea.scrollTop = chatHistoryArea.scrollHeight;
         }
 
-        // --- アプリ起動時の処理 ---
+        // --- 起動イベント ---
         document.addEventListener("DOMContentLoaded", () => {
+            // 起動時にバッジを「05」または過去の記憶データに同期
             updateErrorBadge();
 
             const sendBtn = document.querySelector(".chat-input-wrapper button");
             const inputField = document.querySelector(".chat-input");
             const formulaInput = document.querySelector(".formula-input-field");
-            const submitBtn = document.querySelector(".formula-input-container button");
+            const submitBtn = document.getElementById("submit-answer-btn");
 
             const handleSend = () => {
                 const text = inputField.value.trim();
@@ -376,7 +390,7 @@
                 if (e.key === "Enter") handleSend();
             });
 
-            // 解答ボタンのクリック処理
+            // 確定ボタンのクリック処理
             submitBtn.addEventListener("click", () => {
                 const studentAns = formulaInput.value.trim();
                 submitAnswer(studentAns);
