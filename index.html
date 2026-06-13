@@ -356,7 +356,13 @@
                 });
 
                 const data = await response.json();
-                const aiResult = JSON.parse(data.candidates[0].content.parts[0].text);
+                let rawJsonText = data.candidates[0].content.parts[0].text;
+
+                // ★追加：数式の「\」によるJSONパースエラー（Bad escaped character）を永久に回避するクレンジング魔法
+                // 正しいエスケープ（\"や\nなど）以外の、数式用の生の「\」をすべて安全な「\\」に自動変換します
+                rawJsonText = rawJsonText.replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
+
+                const aiResult = JSON.parse(rawJsonText);
 
                 const newId = "CUSTOM_" + Date.now();
                 const newProblem = {
