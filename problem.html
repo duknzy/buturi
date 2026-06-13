@@ -12,7 +12,7 @@
             chtml: { displayAlign: 'left' }
         };
     </script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+    <script id="MathJax-script" async src="[https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js](https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js)"></script>
 
     <style>
         .squircle-tile { border: 1px solid var(--accent-cyan); box-shadow: 4px 4px 0px rgba(0, 243, 255, 0.1); }
@@ -126,14 +126,14 @@
     </div>
 
    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+        import { initializeApp } from "[https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js](https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js)";
+        import { getAuth, onAuthStateChanged } from "[https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js](https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js)";
+        import { getDatabase, ref, set, onValue } from "[https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js](https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js)";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY", 
             authDomain: "buturi-2449e.firebaseapp.com",
-            databaseURL: "https://buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app/",
+            databaseURL: "[https://buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app/](https://buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app/)",
             projectId: "buturi-2449e",
             storageBucket: "buturi-2449e.appspot.com",
             messagingSenderId: "976306696124",
@@ -150,7 +150,6 @@
         const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
         const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
         
-        // ★修正点①：チャット受け取りプログラムの形式に合わせた、厳密なソクラテス指示プロンプトへ復元
         const SYSTEM_INSTRUCTION_BASE = `
         あなたは「ソクラテス式問答法」を用いる、物静かだが核心を突く高校生向けのAIチューターです。
         最終的な正解（数式や数値）は絶対に教えず、小さな問いかけで生徒を自力での解決へ導いてください。
@@ -161,7 +160,7 @@
         返答は必ず以下のJSONフォーマットの形式で出力してください。他の説明文などは一切含めないでください。
         {
           "ai_response": "生徒へ返すヒントメッセージ（数式には $ $ を使用すること）",
-          "current_step_label": "現在のステップ名（例: ステップ2: 働く力の列挙 など）",
+          "current_step_label": "現在のステップ名",
           "student_understanding_rate": 0から100の整数
         }
         `;
@@ -220,7 +219,6 @@
                 if (chatHistory.length === 0) {
                     chatHistory = [
                         { "role": "user", "parts": [{ "text": `【問題文】 ${currentProblemData.title}` }] },
-                        // 初期状態でAI側の仕様を狂わせないためのダミー
                         { "role": "model", "parts": [{ "text": `{"ai_response": "問題を確認しました。どこから考えてみましょうか？", "current_step_label": "ステップ1: 状況の整理", "student_understanding_rate": 20}` }] }
                     ];
                 }
@@ -269,11 +267,33 @@
                 const data = await response.json();
                 let rawJsonText = data.candidates[0].content.parts[0].text;
 
-                // ★修正点②：チャット中のAIメッセージに含まれるバックスラッシュも、完全にクレンジングしてJSONパースエラーを永久回避
-                rawJsonText = rawJsonText.replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
+                // マークダウンの不要なコード囲みを除去
+                rawJsonText = rawJsonText.trim();
+                if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
+                else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
+                if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
+                rawJsonText = rawJsonText.trim();
 
-                chatHistory.push({ "role": "model", "parts": [{ "text": rawJsonText }] });
-                updateChatUI(studentMessage, JSON.parse(rawJsonText));
+                // ★超強力：チャット中のAIメッセージに含まれるバックスラッシュ（\theta や \mu 等）も完全に保護
+                const fixJsonEscapes = (str) => {
+                    let inString = false; let result = "";
+                    for (let i = 0; i < str.length; i++) {
+                        let c = str[i];
+                        if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
+                        else if (c === '\\' && inString) {
+                            let next = str[i+1];
+                            if (next === '"') { result += '\\"'; i++; }
+                            else if (next === '\\') { result += '\\\\'; i++; }
+                            else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
+                            else { result += '\\\\'; }
+                        } else { result += c; }
+                    }
+                    return result;
+                };
+
+                const cleanedJson = fixJsonEscapes(rawJsonText);
+                chatHistory.push({ "role": "model", "parts": [{ "text": cleanedJson }] });
+                updateChatUI(studentMessage, JSON.parse(cleanedJson));
             } catch (error) { 
                 console.error(error);
                 alert("Geminiとの通信、またはデータ解析に失敗しました。"); 
