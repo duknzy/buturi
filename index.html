@@ -222,16 +222,17 @@
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-        // ⚠️ ここをご自身のFirebase設定に丸ごと書き換えてください
         const firebaseConfig = {
-  apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY",
-  authDomain: "buturi-2449e.firebaseapp.com",
-  projectId: "buturi-2449e",
-  storageBucket: "buturi-2449e.firebasestorage.app",
-  messagingSenderId: "976306696124",
-  appId: "1:976306696124:web:e455c1953544bff5c345b9",
-  measurementId: "G-3PGVL2LCJH"
-};
+            // ⚠️ Firebaseコンソールで取得した、あなた本物のAPIキー（AIzaSy... から始まるもの）にしてください
+            apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY", 
+            authDomain: "buturi-2449e.firebaseapp.com",
+            databaseURL: "https://buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app/",
+            projectId: "buturi-2449e",
+            storageBucket: "buturi-2449e.appspot.com",
+            // ⚠️ 以下の2つも、ご自身のFirebaseのWebアプリ登録画面に表示された数値に書き換えてください
+            messagingSenderId: "976306696124",
+            appId: "1:976306696124:web:e455c1953544bff5c345b9"
+        };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
