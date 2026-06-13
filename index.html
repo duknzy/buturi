@@ -6,7 +6,6 @@
     <title>RETROGRADE // 誤答克服ダッシュボード</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* ダッシュボード固有の境界線とグリッド設定 */
         .squircle-card {
             border: 1px solid #22222a;
             box-shadow: 4px 4px 0px #22222a;
@@ -93,7 +92,6 @@
         .mini-value { font-size: clamp(2rem, 4vw, 2.8rem); font-weight: 900; line-height: 1; }
         .mini-sub   { font-size: 0.75rem; color: var(--text-bright-muted); font-weight: 600; margin-top: 0.2rem; }
 
-        /* ★追加：問題登録用モーダル（ポップアップ）のスタイル */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -107,8 +105,8 @@
             box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
         }
         .modal-textarea {
-            width: 100%; height: 150px; background: #000; border: 1px solid #222;
-            color: #fff; padding: 1rem; border-radius: 12px; font-size: 1rem; margin: 1rem 0;
+            width: 100%; height: 100px; background: #000; border: 1px solid #222;
+            color: #fff; padding: 1rem; border-radius: 12px; font-size: 1rem; margin-top: 0.5rem;
             resize: none;
         }
         .modal-textarea:focus {
@@ -116,15 +114,25 @@
             box-shadow: 0 0 10px rgba(0,243,255,0.3);
         }
 
+        .image-upload-zone {
+            display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+            width: 100%; padding: 0.8rem; margin: 0.8rem 0;
+            border: 1px dashed rgba(0, 243, 255, 0.4); border-radius: 12px;
+            background: rgba(0, 243, 255, 0.02); cursor: pointer;
+            font-size: 0.9rem; font-weight: 700; color: var(--accent-cyan);
+            transition: background 0.2s;
+        }
+        .image-upload-zone:hover { background: rgba(0, 243, 255, 0.08); }
+        .preview-box {
+            width: 100%; max-height: 120px; border-radius: 8px; overflow: hidden;
+            display: none; border: 1px solid #222; margin-bottom: 0.8rem;
+        }
+        .preview-box img { width: 100%; height: 100%; object-fit: contain; background: #020205; }
+
         @media (max-width: 1024px) {
             .size-critical { grid-column: span 12; }
             .size-high, .size-medium, .size-small { grid-column: span 6; }
             .size-mini { grid-column: span 3; }
-        }
-        @media (max-width: 640px) {
-            .bento-grid { grid-template-columns: 1fr; grid-auto-rows: auto; }
-            .size-critical, .size-high, .size-medium, .size-small, .size-mini { grid-column: span 1; grid-row: auto; }
-            header { flex-direction: column; align-items: flex-start; gap: 1rem; }
         }
     </style>
 </head>
@@ -147,8 +155,7 @@
         </header>
 
         <main class="bento-grid" id="grid-main-wrapper">
-            
-            <div class="squircle-card size-critical" id="card-P-2026-X12" onclick="location.href='problem.html'" style="border-left: 4px solid var(--accent-magenta); cursor: pointer;">
+            <div class="squircle-card size-critical" id="card-P-2026-X12" onclick="location.href='problem.html?id=P-2026-X12'" style="border-left: 4px solid var(--accent-magenta); cursor: pointer;">
                 <div class="card-content-top">
                     <span class="badge badge-physics">物理 // 力学</span>
                     <h2 class="card-title">非慣性系における慣性力と物体的運動方程式の構築</h2>
@@ -242,11 +249,22 @@
     <div class="modal-overlay" id="add-problem-modal">
         <div class="squircle-tile modal-content glass-card">
             <div class="tile-header-group">
-                <span class="badge badge-alert">NEW PROBLEM</span>
+                <span class="badge badge-alert">NEW PROBLEM // MULTIMODAL</span>
                 <h3 style="font-size: 1.3rem; font-weight: 800;">間違えた問題の登録解析</h3>
-                <p style="color: var(--text-muted); font-size: 0.85rem;">問題文を入力してください。Geminiが『科目・分野・罠』を自動解析します。</p>
+                <p style="color: var(--text-muted); font-size: 0.85rem;">問題の写真をアップロードするか、テキストを入力してください。</p>
             </div>
-            <textarea class="modal-textarea" id="problem-text-input" placeholder="例：長さを L の軽い糸の下一端に質量 m の小球をつけ、最下点から..."></textarea>
+
+            <label for="problem-image-input" class="image-upload-zone">
+                📸 問題の写真（ノート・プリント）をアップロード
+            </label>
+            <input type="file" id="problem-image-input" accept="image/*" style="display: none;">
+            
+            <div class="preview-box" id="image-preview-container">
+                <img src="" id="img-preview-target">
+            </div>
+
+            <textarea class="modal-textarea" id="problem-text-input" placeholder="（任意）補足のテキストやメモがあればここに入力..."></textarea>
+            
             <div style="display: flex; gap: 1rem; justify-content: flex-end; width: 100%;">
                 <button type="button" class="tactile-btn tactile-btn-secondary" id="close-modal-btn">キャンセル</button>
                 <button type="button" class="tactile-btn" id="analyze-submit-btn">AI自動解析を実行</button>
@@ -254,60 +272,54 @@
         </div>
     </div>
 
-    <script>
-        // 1. ⚠️ここにあなたのGemini APIキーを貼り付けてください
+   <script>
         const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
-        
         const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
         const BASE_PROBLEM_ID = "P-2026-X12";
 
-        // 新規問題分析用のシステムプロンプト
         const SYSTEM_INSTRUCTION = `
         あなたは高校数学・物理の「誤答分析エキスパートAI」です。
-        ユーザーから送られた不完全な問題文を分析し、高校生が最も陥りやすい「誤答のボトルネック」や「罠」を綺麗にまとめて抽出してください。
+        提出された問題文テキスト、または問題の画像（写真）を解析してください。
+        画像が提出された場合は、そこに写っている問題文の文字を完全に読み取ってテキスト化してください。
         
         出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
         {
           "subject": "物理" または "数学",
-          "field": "分野名（例: 力学、波動、ベクトル、数列など）",
+          "field": "分野名（例: 力学、電磁気、ベクトル、数列など）",
           "short_title": "問題の要約タイトル（15文字〜25文字程度）",
+          "extracted_text": "読み取った、または提供された正確な問題文の全文",
           "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文（50文字程度）"
         }
         `;
 
-        // 画面全体の数値を同期・レンダリングする関数
+        let selectedImageBase64 = null;
+        let selectedImageMimeType = null;
+
         function syncDashboardData() {
             let allData = {};
-            try {
-                allData = JSON.parse(localStorage.getItem("remind_app_problems")) || {};
-            } catch(e) { allData = {}; }
+            try { allData = JSON.parse(localStorage.getItem("remind_app_problems")) || {}; } catch(e) { allData = {}; }
 
-            // 1. 固定の物理問題の数値を反映
             let physicsData = allData[BASE_PROBLEM_ID];
             let physicsCount = (physicsData && typeof physicsData.errorCount === 'number') ? physicsData.errorCount : 5;
             
             const physicsDisplay = document.querySelector("#card-P-2026-X12 .num-display");
             if (physicsDisplay) physicsDisplay.textContent = String(physicsCount).padStart(2, '0');
 
-            // 2. 動的に追加されたカスタム問題をLocalStorageから読み込んでHTMLを生成
             const dynamicArea = document.getElementById("dynamic-cards-area");
-            dynamicArea.innerHTML = ""; // 一旦クリア
+            dynamicArea.innerHTML = "";
 
             let dynamicTotalCount = 0;
 
             Object.keys(allData).forEach(id => {
-                if (id === BASE_PROBLEM_ID) return; // 固定問題はスキップ
+                if (id === BASE_PROBLEM_ID) return;
                 
                 let p = allData[id];
                 dynamicTotalCount += Number(p.errorCount || 1);
-
-                // バッジのスタイルクラスを決定
                 let badgeClass = p.subject.includes("物理") ? "badge-physics" : "badge-math";
 
-                // 新しいベントー・タイルのHTMLを生成
                 let cardHtml = `
-    <div class="squircle-card size-medium" onclick="location.href='problem.html?id=${p.id}'" style="border-color: var(--accent-cyan); border-left: 4px solid var(--accent-cyan); cursor: pointer;">
-        <div class="card-content-top">
+                    <div class="squircle-card size-medium" onclick="location.href='problem.html?id=${p.id}'" style="border-color: var(--accent-cyan); border-left: 4px solid var(--accent-cyan); cursor: pointer;">
+                        <div class="card-content-top">
                             <span class="badge ${badgeClass}">${p.subject} // ${p.field}</span>
                             <h2 class="card-title">${p.short_title}</h2>
                             <p style="color: var(--text-muted); line-height: 1.4; font-size:0.9rem;">${p.trap_description}</p>
@@ -321,24 +333,36 @@
                 dynamicArea.insertAdjacentHTML("beforeend", cardHtml);
             });
 
-            // 3. 全体の合計誤答数を計算して表示
-            let m001 = 3, p002 = 3, m002 = 2, m003 = 2; // モックの定数
+            let m001 = 3, p002 = 3, m002 = 2, m003 = 2;
             let totalSum = physicsCount + m001 + p002 + m002 + m003 + dynamicTotalCount;
 
             const totalDisplay = document.getElementById("total-errors-display");
             if (totalDisplay) totalDisplay.textContent = String(totalSum).padStart(2, '0');
         }
 
-        // --- Gemini APIを使って新しい問題を解析・登録する関数 ---
         async function analyzeAndAddProblem(userRawText) {
             const submitBtn = document.getElementById("analyze-submit-btn");
-            submitBtn.textContent = "AI分析中...";
+            submitBtn.textContent = "AIが画像を分析中...";
             submitBtn.disabled = true;
 
+            let parts = [];
+            let promptText = "提出されたデータ（画像またはテキスト）を解析し、指定のJSONで返してください。";
+            if (userRawText) promptText += `\nユーザーの入力メモ: ${userRawText}`;
+            parts.push({ "text": promptText });
+
+            if (selectedImageBase64 && selectedImageMimeType) {
+                parts.push({
+                    "inlineData": {
+                        "mimeType": selectedImageMimeType,
+                        "data": selectedImageBase64
+                    }
+                });
+            }
+
             const requestBody = {
-                "contents": [{ "parts": [{ "text": userRawText }] }],
+                "contents": [{ "parts": parts }],
                 "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION }] },
-                "generationConfig": { "responseMimeType": "application/json", "temperature": 0.5 }
+                "generationConfig": { "responseMimeType": "application/json", "temperature": 0.4 }
             };
 
             try {
@@ -354,40 +378,43 @@
                 const rawJsonText = data.candidates[0].content.parts[0].text;
                 const aiResult = JSON.parse(rawJsonText);
 
-                // 新しい問題オブジェクトを作成
                 let newId = "CUSTOM_" + Date.now();
+                
+                // ★修正点：撮影した生写真を「imageData」としてオブジェクトに一緒に保存する
                 let newProblem = {
                     id: newId,
-                    title: userRawText,
+                    title: aiResult.extracted_text || userRawText, 
                     short_title: aiResult.short_title,
                     subject: aiResult.subject,
                     field: aiResult.field,
                     trap_description: aiResult.trap_description,
-                    errorCount: 1, // 初期登録時は1回
+                    errorCount: 1,
                     lastAttemptAt: new Date().toISOString(),
-                    lastResult: false
+                    lastResult: false,
+                    imageData: selectedImageBase64 ? `data:${selectedImageMimeType};base64,${selectedImageBase64}` : null
                 };
 
-                // LocalStorageに保存
                 let allData = JSON.parse(localStorage.getItem("remind_app_problems")) || {};
                 allData[newId] = newProblem;
                 localStorage.setItem("remind_app_problems", JSON.stringify(allData));
 
-                // モーダルを閉じて画面をリフレッシュ
                 document.getElementById("add-problem-modal").style.display = "none";
                 document.getElementById("problem-text-input").value = "";
-                syncDashboardData(); // 即座に再描画！
+                document.getElementById("problem-image-input").value = "";
+                document.getElementById("image-preview-container").style.display = "none";
+                selectedImageBase64 = null;
+
+                syncDashboardData();
 
             } catch (error) {
                 console.error(error);
-                alert("AIの解析に失敗しました。キーの有効性や文字数を確認してください。");
+                alert("AIの画像解析に失敗しました。");
             } finally {
                 submitBtn.textContent = "AI自動解析を実行";
                 submitBtn.disabled = false;
             }
         }
 
-        // --- 画面起動時のイベント設定 ---
         document.addEventListener("DOMContentLoaded", () => {
             syncDashboardData();
 
@@ -396,16 +423,36 @@
             const closeBtn = document.getElementById("close-modal-btn");
             const submitBtn = document.getElementById("analyze-submit-btn");
             const textInput = document.getElementById("problem-text-input");
+            const imageInput = document.getElementById("problem-image-input");
+            const previewContainer = document.getElementById("image-preview-container");
+            const previewTarget = document.getElementById("img-preview-target");
 
-            // モーダルの開閉イベント
             openBtn.addEventListener("click", () => modal.style.display = "flex");
-            closeBtn.addEventListener("click", () => modal.style.display = "none");
+            closeBtn.addEventListener("click", () => {
+                modal.style.display = "none";
+                imageInput.value = "";
+                previewContainer.style.display = "none";
+                selectedImageBase64 = null;
+            });
 
-            // AI解析ボタンクリック
+            imageInput.addEventListener("change", function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                selectedImageMimeType = file.type;
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    selectedImageBase64 = evt.target.result.split(',')[1];
+                    previewTarget.src = evt.target.result;
+                    previewContainer.style.display = "block";
+                };
+                reader.readAsDataURL(file);
+            });
+
             submitBtn.addEventListener("click", () => {
                 const text = textInput.value.trim();
-                if (!text) {
-                    alert("問題文を入力してください。");
+                if (!text && !selectedImageBase64) {
+                    alert("写真を選択するかテキストを入力してください。");
                     return;
                 }
                 analyzeAndAddProblem(text);
