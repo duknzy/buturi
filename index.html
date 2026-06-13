@@ -124,7 +124,6 @@
         #logout-btn:hover { border-color: var(--accent-magenta); color: var(--accent-magenta); }
         .login-overlay-box { grid-column: span 12; padding: 4rem; text-align: center; background: rgba(5,5,8,0.6); border: 1px dashed #22222a; border-radius: 16px; }
 
-        /* サムネイルプレビュー用の高度なデザインシステム */
         .card-inner-layout {
             display: flex;
             gap: 1.2rem;
@@ -157,6 +156,14 @@
             flex-grow: 1;
             min-width: 0;
         }
+
+        /* ==========================================================================
+           ★ 案1：忘却曲線タイマーバッジ用のサイバーパンク・ネオンカラー
+           ========================================================================== */
+        .badge-critical { background: rgba(255, 0, 127, 0.1) !important; color: var(--accent-magenta) !important; border: 1px solid var(--accent-magenta) !important; }
+        .badge-overdue { background: rgba(255, 245, 0, 0.1) !important; color: #fff500 !important; border: 1px solid #fff500 !important; }
+        .badge-safe { background: rgba(0, 243, 255, 0.1) !important; color: var(--accent-cyan) !important; border: 1px solid var(--accent-cyan) !important; }
+        .badge-new { background: rgba(255, 255, 255, 0.05) !important; color: #fff !important; border: 1px solid rgba(255, 255, 255, 0.2) !important; }
 
         @media (max-width: 1024px) { .size-high, .size-medium { grid-column: span 6; } .size-mini { grid-column: span 3; } }
         @media (max-width: 640px) { .bento-grid { grid-template-columns: 1fr; grid-auto-rows: auto; } .size-high, .size-medium, .size-mini { grid-column: span 1; grid-row: auto; } header { flex-direction: column; align-items: flex-start; gap: 1rem; } .card-thumbnail-wrapper { width: 85px; height: 85px; min-width: 85px; } }
@@ -219,7 +226,7 @@
 
             <div class="squircle-card size-mini" style="background: linear-gradient(135deg, #050508, #001515); border-color: rgba(0, 243, 255, 0.2);">
                 <div class="mini-label" style="color: var(--accent-cyan);">SOLVED TODAY</div>
-                <div class="mini-value" style="color: var(--accent-cyan);">00</div>
+                <div class="mini-value" id="solved-today-display" style="color: var(--accent-cyan);">00</div>
                 <div class="mini-sub">本日の克服済問題数</div>
             </div>
         </main>
@@ -336,11 +343,49 @@
                 dynamicArea.innerHTML = "";
                 
                 let dynamicTotalCount = 0;
+                let solvedTodayCount = 0;
+                const todayStr = new Date().toDateString(); // 今日の日付（文字列）を取得
 
                 Object.keys(allData).forEach(id => {
                     let p = allData[id];
                     dynamicTotalCount += Number(p.errorCount || 0);
-                    let badgeClass = p.subject.includes("物理") ? "badge-physics" : "badge-math";
+                    let badgeSubjectClass = p.subject.includes("物理") ? "badge-physics" : "badge-math";
+
+                    // --------------------------------------------------------
+                    // 📊 案3：今日クリア（克服）した問題の自動カウント処理
+                    // --------------------------------------------------------
+                    if (p.lastAttemptAt && p.lastResult === true) {
+                        const attemptDateStr = new Date(p.lastAttemptAt).toDateString();
+                        if (attemptDateStr === todayStr) {
+                            solvedTodayCount++;
+                        }
+                    }
+
+                    // --------------------------------------------------------
+                    // ⏳ 案1：忘却タイマーバッジの動的算出ロジック
+                    // --------------------------------------------------------
+                    let timeBadgeText = "🆕 NEW // 未挑戦";
+                    let timeBadgeClass = "badge-new";
+
+                    if (p.lastAttemptAt) {
+                        const lastTime = new Date(p.lastAttemptAt).getTime();
+                        const nowTime = new Date().getTime();
+                        const diffDays = (nowTime - lastTime) / (1000 * 60 * 60 * 24); // 経過日数
+
+                        if (p.errorCount === 0 || p.lastResult === true) {
+                            timeBadgeText = "✨ SAFE // 克服済";
+                            timeBadgeClass = "badge-safe";
+                        } else if (diffDays >= 7) {
+                            timeBadgeText = "⚠️ OVERDUE // 忘却危機";
+                            timeBadgeClass = "badge-overdue";
+                        } else if (diffDays >= 3) {
+                            timeBadgeText = "🔥 CRITICAL // 要復習";
+                            timeBadgeClass = "badge-critical";
+                        } else {
+                            timeBadgeText = "⏳ PENDING // 定着中";
+                            timeBadgeClass = "badge-safe";
+                        }
+                    }
 
                     let thumbnailHtml = "";
                     if (p.imageData) {
@@ -349,13 +394,17 @@
                         thumbnailHtml = `<div class="card-thumbnail-wrapper" style="color:var(--text-muted); font-size:1.6rem; font-weight:normal;">📝</div>`;
                     }
 
+                    // バッジエリアに忘却バッジを横並びで埋め込み
                     let cardHtml = `
                         <div class="squircle-card size-medium" onclick="location.href='problem.html?id=${p.id}'" style="border-color: var(--accent-cyan); border-left: 4px solid var(--accent-cyan); cursor: pointer; padding: 1.1rem 1.4rem;">
                             <div class="card-inner-layout">
                                 ${thumbnailHtml}
                                 <div class="card-main-text-zone">
                                     <div class="card-content-top">
-                                        <span class="badge ${badgeClass}" style="margin-bottom: 0.3rem;">${p.subject} // ${p.field}</span>
+                                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.4rem; flex-wrap: wrap;">
+                                            <span class="badge ${badgeSubjectClass}">${p.subject} // ${p.field}</span>
+                                            <span class="badge ${timeBadgeClass}">${timeBadgeText}</span>
+                                        </div>
                                         <h2 class="card-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.short_title}</h2>
                                         <p style="color: var(--text-muted); line-height: 1.3; font-size:0.85rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 0.2rem;">${p.trap_description}</p>
                                     </div>
@@ -370,8 +419,12 @@
                     dynamicArea.insertAdjacentHTML("beforeend", cardHtml);
                 });
 
+                // 各カウンターを画面のメーターへ反映
                 const totalDisplay = document.getElementById("total-errors-display");
                 if (totalDisplay) totalDisplay.textContent = String(dynamicTotalCount).padStart(2, '0');
+
+                const solvedDisplay = document.getElementById("solved-today-display");
+                if (solvedDisplay) solvedDisplay.textContent = String(solvedTodayCount).padStart(2, '0');
             });
         }
 
