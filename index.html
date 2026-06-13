@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RETROGRADE // 誤答克服ダッシュボード</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* ダッシュボード固有の境界線とグリッド設定 */
+        .squircle-card {
+            border: 1px solid #22222a;
+            box-shadow: 4px 4px 0px #22222a;
+        }
+        .squircle-card:hover {
+            transform: translate(-2px, -2px);
+            border-color: #3a3a4a;
+            box-shadow: 6px 6px 0px #3a3a4a;
+        }
+        .glass-card {
+            background: var(--card-bg-glass);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 1px solid #22222a;
+            padding-bottom: 1.5rem;
+        }
+
+        .logo {
+            font-size: var(--fs-xl);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            line-height: 0.9;
+            background: linear-gradient(90deg, var(--text-main) 70%, var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            grid-auto-rows: minmax(170px, auto);
+            gap: 1.5rem;
+            grid-auto-flow: row dense;
+        }
+
+        .size-critical { grid-column: span 8; grid-row: span 2; } 
+        .size-high     { grid-column: span 4; grid-row: span 2; }     
+        .size-medium   { grid-column: span 6; grid-row: span 1; }   
+        .size-small    { grid-column: span 4; grid-row: span 1; }    
+        .size-mini     { grid-column: span 2; grid-row: span 1; display: flex; flex-direction: column; justify-content: center; }     
+
+        .card-title {
+            font-weight: 800;
+            line-height: 1.25;
+            letter-spacing: -0.5px;
+            margin: 0;
+        }
+        .size-critical .card-title { font-size: var(--fs-lg); }
+        .size-high .card-title     { font-size: calc(var(--fs-lg) * 0.85); }
+        .size-medium .card-title   { font-size: clamp(1.15rem, 1.8vw, 1.4rem); }
+        .size-small .card-title    { font-size: clamp(1.05rem, 1.5vw, 1.2rem); }
+
+        .card-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1.5rem;
+            padding-top: 0.5rem;
+            color: var(--text-bright-muted);
+            font-size: var(--fs-sm);
+        }
+
+        .error-count { font-size: var(--fs-md); font-weight: 900; }
+        .critical-text { color: var(--accent-magenta); }
+        .warning-text { color: var(--accent-cyan); }
+
+        .mini-label { font-size: 0.75rem; font-weight: 800; margin-bottom: 0.2rem; }
+        .mini-value { font-size: clamp(2rem, 4vw, 2.8rem); font-weight: 900; line-height: 1; }
+        .mini-sub   { font-size: 0.75rem; color: var(--text-bright-muted); font-weight: 600; margin-top: 0.2rem; }
+
+        @media (max-width: 1024px) {
+            .size-critical { grid-column: span 12; }
+            .size-high, .size-medium, .size-small { grid-column: span 6; }
+            .size-mini { grid-column: span 3; }
+        }
+        @media (max-width: 640px) {
+            .bento-grid { grid-template-columns: 1fr; grid-auto-rows: auto; }
+            .size-critical, .size-high, .size-medium, .size-small, .size-mini { grid-column: span 1; grid-row: auto; }
+            header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <header>
+            <div>
+                <h1 class="logo">RE:MIND</h1>
+                <p style="color: var(--text-muted); margin-top: 0.5rem; font-weight: 600;">高校数学・物理 誤答解析システム</p>
+            </div>
+            <div style="font-weight: 800; border: 1px solid #22222a; padding: 0.5rem 1rem; border-radius: 12px;" class="glass-card">
+                STATUS: <span style="color: var(--accent-cyan);">READY</span>
+            </div>
+        </header>
+
+        <main class="bento-grid">
+            <div class="squircle-card size-critical" onclick="location.href='problem.html'" style="border-left: 4px solid var(--accent-magenta); cursor: pointer;">
+                <div class="card-content-top">
+                    <span class="badge badge-physics">物理 // 力学</span>
+                    <h2 class="card-title">非慣性系における慣性力と物体的運動方程式の構築</h2>
+                    <p style="color: var(--text-muted); line-height: 1.4;">遠心力とコリオリの力が絡む、回転座標系から見た小球の運動で立式ミスが多発しています。</p>
+                </div>
+                <div class="card-meta">
+                    <div>前回挑戦: 22時間前</div>
+                    <div class="error-count critical-text">誤答回数: 05</div>
+                </div>
+            </div>
+
+            <div class="squircle-card size-high glass-card" style="border-color: rgba(0, 243, 255, 0.3);">
+                <div class="card-content-top">
+                    <span class="badge badge-alert">ANALYTICS</span>
+                    <h2 class="card-title" style="color: var(--accent-cyan);">要復習セクション</h2>
+                </div>
+                <div style="margin: 0.8rem 0 0 0; width: 100%;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem; font-size: var(--fs-sm);">
+                        <span>微分積分（数学Ⅲ）</span><span>85%</span>
+                    </div>
+                    <div style="width: 100%; height: 6px; background: #111; border-radius: 3px; overflow: hidden; border: 1px solid #22222a;">
+                        <div style="width: 85%; height: 100%; background: var(--accent-cyan);"></div>
+                    </div>
+                    <p style="line-height: 1.4; font-size: 0.85rem; color: var(--text-bright-muted); margin-top: 0.8rem;">弱点傾向：数式変形時の符号ミス、および境界条件の考慮漏れ</p>
+                </div>
+                <div class="card-meta" style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05);">
+                    <span style="color: var(--text-muted);">データ更新: 本日</span>
+                </div>
+            </div>
+
+            <div class="squircle-card size-medium">
+                <div class="card-content-top">
+                    <span class="badge badge-math">数学Ⅲ // 微積</span>
+                    <h2 class="card-title">定積分によって定義される関数と極値の判定</h2>
+                </div>
+                <div class="card-meta">
+                    <div>前回挑戦: 2日前</div>
+                    <div class="error-count warning-text">誤答回数: 03</div>
+                </div>
+            </div>
+
+            <div class="squircle-card size-medium">
+                <div class="card-content-top">
+                    <span class="badge badge-physics">物理 // 電磁気</span>
+                    <h2 class="card-title">自己インダクタンスを含む自己誘導回路の過渡現象</h2>
+                </div>
+                <div class="card-meta">
+                    <div>前回挑戦: 3日前</div>
+                    <div class="error-count warning-text">誤答回数: 03</div>
+                </div>
+            </div>
+
+            <div class="squircle-card size-small">
+                <div class="card-content-top">
+                    <span class="badge badge-math">数学B // ベクトル</span>
+                    <h2 class="card-title">空間ベクトルにおける平面の方程式と点との距離</h2>
+                </div>
+                <div class="card-meta">
+                    <div>前回挑戦: 5日前</div>
+                    <div class="error-count">誤答回数: 02</div>
+                </div>
+            </div>
+
+            <div class="squircle-card size-small">
+                <div class="card-content-top">
+                    <span class="badge badge-math">数学A // 確率</span>
+                    <h2 class="card-title">条件付き確率と原因の確率（ベイズの定理の応用）</h2>
+                </div>
+                <div class="card-meta">
+                    <div>前回挑戦: 1週間前</div>
+                    <div class="error-count">誤答回数: 02</div>
+                </div>
+            </div>
+
+            <div class="squircle-card size-mini" style="background: linear-gradient(135deg, #050508, #150015); border-color: rgba(255, 0, 127, 0.2);">
+                <div class="mini-label" style="color: var(--accent-magenta);">TOTAL ERRORS</div>
+                <div class="mini-value" style="color: var(--accent-magenta);">14</div>
+                <div class="mini-sub">未消化の誤答問題</div>
+            </div>
+
+            <div class="squircle-card size-mini" style="background: linear-gradient(135deg, #050508, #001515); border-color: rgba(0, 243, 255, 0.2);">
+                <div class="mini-label" style="color: var(--accent-cyan);">SOLVED TODAY</div>
+                <div class="mini-value" style="color: var(--accent-cyan);">06</div>
+                <div class="mini-sub">目標まであと4問</div>
+            </div>
+        </main>
+    </div>
+
+</body>
+</html>

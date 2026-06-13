@@ -1,0 +1,84 @@
+/* ==========================================================================
+   COMMON DESIGN SYSTEM (Tactile Brutalism 2.0)
+   ========================================================================== */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --bg-color: #000000;
+    --card-bg: #050508;
+    --card-bg-glass: rgba(10, 10, 18, 0.5);
+    --border-color: #22222a;
+    --border-glow: #3a3a4a;
+    
+    /* Neon Accents */
+    --accent-cyan: #00f3ff;
+    --accent-magenta: #ff007f;
+    --accent-yellow: #fff500;
+    
+    /* Text */
+    --text-main: #ffffff;
+    --text-muted: #708590;
+    --text-bright-muted: #a0b5c0;
+    
+    /* Fonts */
+    --fs-xl: clamp(2.5rem, 6vw + 1rem, 4.5rem);
+    --fs-lg: clamp(1.4rem, 2.5vw + 0.5rem, 2.2rem);
+    --fs-md: clamp(1.1rem, 1.5vw + 0.2rem, 1.4rem);
+    --fs-sm: 0.9rem;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
+    min-height: 100vh;
+    padding: 2rem;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* 物理的なノイズテクスチャ */
+body::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    opacity: 0.04;
+    pointer-events: none;
+    z-index: 9999;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* スクワークル構造 */
+.squircle-card, .squircle-tile {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 32px / 32px;
+    padding: 1.8rem;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+    box-shadow: 4px 4px 0px rgba(0, 243, 255, 0.05);
+}
+
+/* ボタンの150ms高速アクション */
+.tactile-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-cyan);
+    color: #000;
+    border: none;
+    border-radius: 14px / 14px;
+    padding: 0.8rem 1.5rem;
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform 150ms cubic-bezier(0.1, 0.8, 0.2, 1);
+    box-shadow: 3px 3px 0px #008b94;
+}
+.tactile-btn:active { transform: scale(0.94) translate(1px, 1px); }
