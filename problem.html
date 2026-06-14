@@ -12,7 +12,7 @@
             chtml: { displayAlign: 'left' }
         };
     </script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+    <script id="MathJax-script" async src="[https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js](https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js)"></script>
 
     <style>
         .squircle-tile { border: 1px solid var(--accent-cyan); box-shadow: 4px 4px 0px rgba(0, 243, 255, 0.1); }
@@ -42,7 +42,6 @@
         .self-check-container { display: flex; flex-direction: column; gap: 1rem; width: 100%; margin-top: 0.5rem; }
         .reveal-btn-area { display: flex; width: 100%; }
         
-        /* 採点表示エリアの最適化（縦に長くなってもスクロールで快適に読めるようにガード） */
         .reveal-zone { 
             display: none; flex-direction: column; gap: 1rem; width: 100%; 
             background: rgba(255,255,255,0.01); padding: 1.5rem; border-radius: 16px; 
@@ -50,14 +49,13 @@
             max-height: 450px; overflow-y: auto;
         }
         
-        /* ★UX改善：文字サイズを解説用に最適化し、行間を広げて改行を100%有効化 */
         .model-answer-text { 
             font-size: 1.05rem; 
             color: var(--text-bright-muted); 
             font-weight: 500; 
             margin-bottom: 0.5rem; 
-            white-space: pre-wrap; /* これで改行が完全に効くようになります */
-            line-height: 1.8;      /* 数式が上下にぶつからない快適な行間 */
+            white-space: pre-wrap; 
+            line-height: 1.8;      
             letter-spacing: 0.5px;
         }
         
@@ -144,17 +142,14 @@
     </div>
 
    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-        const protocol = "https:";
-        const hostUrl = "buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app";
+        import { initializeApp } from "[https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js](https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js)";
+        import { getAuth, onAuthStateChanged } from "[https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js](https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js)";
+        import { getDatabase, ref, set, onValue } from "[https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js](https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js)";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY", 
             authDomain: "buturi-2449e.firebaseapp.com",
-            databaseURL: protocol + "//" + hostUrl, 
+            databaseURL: "[https://buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app/](https://buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app/)",
             projectId: "buturi-2449e",
             storageBucket: "buturi-2449e.appspot.com",
             messagingSenderId: "976306696124",
@@ -168,17 +163,18 @@
         const urlParams = new URLSearchParams(window.location.search);
         const PROBLEM_ID = urlParams.get('id');
 
-        const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
-        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        
+        // 🚀 DeepSeek V4 チャット接続
+        const DEEPSEEK_API_KEY = "sk-75a20ea4412a4d98af24a9b79b9269c7";
+        const DEEPSEEK_API_URL = "[https://api.deepseek.com/v1/chat/completions](https://api.deepseek.com/v1/chat/completions)";
+        const MODEL_NAME = "deepseek-chat";
+
         const SYSTEM_INSTRUCTION_BASE = `
         あなたは「ソクラテス式問答法」を用いる、物静かだが核心を突く高校生向けのAIチューターです。
         最終的な正解（数式や数値）は絶対に教えず、小さな問いかけで生徒を自力での解決へ導いてください。
         1回の発言につき、質問は「1つ」に絞ってください。
-        
-        【重要】変数や数式（例: m, v, g, thetaなど）をメッセージに含めるときは、必ず前後に $ をつけて「$m$」や「$\\sin\\theta$」のようにLaTeX形式の数式として出力してください。
+        変数や数式（例: m, v, g, thetaなど）をメッセージに含めるときは、必ず前後に $ をつけて「$m$」や「$\\sin\\theta$」のようにLaTeX形式の数式として出力してください。
 
-        返談は必ず以下のJSONフォーマットの形式で出力してください。他の説明文などは一切含めないでください。
+        返答は必ず以下のJSONフォーマットの形式のみ（他の説明文は一切排除）で出力してください。
         {
           "ai_response": "生徒へ返すヒントメッセージ（数式には $ $ を使用すること）",
           "current_step_label": "現在のステップ名",
@@ -186,7 +182,7 @@
         }
         `;
 
-        let chatHistory = [];
+        let chatHistory = []; // OpenAI 規格の履歴 [{role: "user"|"assistant", content: ""}]
         let currentProblemData = {};
         let loginUid = null;
 
@@ -219,13 +215,12 @@
 
                 document.getElementById("problem-id-display").textContent = `PROBLEM ID: ${currentProblemData.id}`;
                 
-                // ★超親切機能：すでに登録されてしまったギチギチの過去データも綺麗に縦並びにするレスキューフィルター
                 let rawAnswer = currentProblemData.answerFormula || "解答データなし";
                 let formattedAnswer = rawAnswer
-                    .replace(/(\d+\.\s*\*\*)/g, '\n\n$1') // 「1. **」の前に2行改行を入れる
-                    .replace(/(\*\*方法\d+：)/g, '\n\n$1') // 「**方法1：」の前に2行改行を入れる
-                    .replace(/(⇒)/g, '\n $1')            // 「⇒」の矢印の前で改行してインデント
-                    .replace(/(したがって、)/g, '\n\n$1')   // 「したがって、」の前に改行を入れる
+                    .replace(/(\d+\.\s*\*\*)/g, '\n\n$1') 
+                    .replace(/(\*\*方法\d+：)/g, '\n\n$1') 
+                    .replace(/(⇒)/g, '\n $1')            
+                    .replace(/(したがって、)/g, '\n\n$1')   
                     .trim();
 
                 document.getElementById("target-model-answer").textContent = formattedAnswer;
@@ -241,7 +236,7 @@
                 }
                 
                 document.getElementById("hint-text-display").textContent = currentProblemData.trap_description || "AI分析完了。";
-                document.getElementById("initial-ai-bubble").textContent = "クラウドから問題写真とAIボトルネックをロードしました。セッションを開始できます！";
+                document.getElementById("initial-ai-bubble").textContent = "クラウド連携完了。DeepSeek V4のブレインがスタンバイしています！";
 
                 const showAnsBtn = document.getElementById("show-answer-btn");
                 showAnsBtn.textContent = "👁 模範解答を表示して答え合わせする";
@@ -249,8 +244,8 @@
 
                 if (chatHistory.length === 0) {
                     chatHistory = [
-                        { "role": "user", "parts": [{ "text": `【問題文】 ${currentProblemData.title}` }] },
-                        { "role": "model", "parts": [{ "text": `{"ai_response": "問題を確認しました。どこから考えてみましょうか？", "current_step_label": "ステップ1: 状況の整理", "student_understanding_rate": 20}` }] }
+                        { "role": "user", "content": `【問題文】 ${currentProblemData.title}` },
+                        { "role": "assistant", "content": `{"ai_response": "問題を確認しました。どこから考えてみましょうか？", "current_step_label": "ステップ1: 状況の整理", "student_understanding_rate": 20}` }
                     ];
                 }
                 if (window.MathJax) MathJax.typesetPromise();
@@ -280,52 +275,65 @@
             loadCloudProblemSession(loginUid);
         }
 
+        function cleanDeepSeekResponse(rawText) {
+            let text = rawText.trim();
+            if (text.includes("</think>")) {
+                text = text.split("</think>")[1].trim();
+            }
+            if (text.startsWith("```json")) text = text.substring(7);
+            else if (text.startsWith("```")) text = text.substring(3);
+            if (text.endsWith("```")) text = text.substring(0, text.length - 3);
+            text = text.trim();
+
+            let inString = false; let result = "";
+            for (let i = 0; i < text.length; i++) {
+                let c = text[i];
+                if (c === '"' && (i === 0 || text[i-1] !== '\\')) { inString = !inString; result += c; }
+                else if (c === '\\' && inString) {
+                    let next = text[i+1];
+                    if (next === '"') { result += '\\"'; i++; }
+                    else if (next === '\\') { result += '\\\\'; i++; }
+                    else if (next === 'n' && (text[i+2] === ' ' || text[i+2] === '"' || text[i+2] === '\\' || !/[a-zA-Z]/.test(text[i+2]))) { result += '\\n'; i++; }
+                    else { result += '\\\\'; }
+                } else { result += c; }
+            }
+            return JSON.parse(result);
+        }
+
         async function sendMessageToGemini(studentMessage) {
             const statusBadge = document.getElementById("ai-status");
             statusBadge.textContent = "AI TUTOR // THINKING...";
             statusBadge.style.color = "var(--accent-magenta)";
-            chatHistory.push({ "role": "user", "parts": [{ "text": studentMessage }] });
+            
+            chatHistory.push({ "role": "user", "content": studentMessage });
 
             try {
-                const response = await fetch(GEMINI_API_URL, {
+                const response = await fetch(DEEPSEEK_API_URL, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
+                    },
                     body: JSON.stringify({
-                        "contents": chatHistory, "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION_BASE }] },
-                        "generationConfig": { "responseMimeType": "application/json", "temperature": 0.7 }
+                        "model": MODEL_NAME,
+                        "messages": [
+                            { "role": "system", "content": SYSTEM_INSTRUCTION_BASE },
+                            ...chatHistory
+                        ],
+                        "temperature": 0.5,
+                        "response_format": { "type": "json_object" }
                     })
                 });
+                
                 const data = await response.json();
-                let rawJsonText = data.candidates[0].content.parts[0].text;
+                let rawOutput = data.choices[0].message.content;
+                const aiJson = cleanDeepSeekResponse(rawOutput);
 
-                rawJsonText = rawJsonText.trim();
-                if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
-                else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
-                if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
-                rawJsonText = rawJsonText.trim();
-
-                const fixJsonEscapes = (str) => {
-                    let inString = false; let result = "";
-                    for (let i = 0; i < str.length; i++) {
-                        let c = str[i];
-                        if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
-                        else if (c === '\\' && inString) {
-                            let next = str[i+1];
-                            if (next === '"') { result += '\\"'; i++; }
-                            else if (next === '\\') { result += '\\\\'; i++; }
-                            else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
-                            else { result += '\\\\'; }
-                        } else { result += c; }
-                    }
-                    return result;
-                };
-
-                const cleanedJson = fixJsonEscapes(rawJsonText);
-                chatHistory.push({ "role": "model", "parts": [{ "text": cleanedJson }] });
-                updateChatUI(studentMessage, JSON.parse(cleanedJson));
+                chatHistory.push({ "role": "assistant", "content": JSON.stringify(aiJson) });
+                updateChatUI(studentMessage, aiJson);
             } catch (error) { 
                 console.error(error);
-                alert("Geminiとの通信、またはデータ解析に失敗しました。"); 
+                alert("DeepSeek V4ブレインとの通信に失敗しました。残高などを確認してください。"); 
             }
             finally { statusBadge.textContent = "AI TUTOR // ACTIVE"; statusBadge.style.color = "var(--accent-cyan)"; }
         }

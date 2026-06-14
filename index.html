@@ -157,7 +157,6 @@
             min-width: 0;
         }
 
-        /* ⏳ 新開発：FSRS動的判定ネオンカラーシステム */
         .badge-critical { background: rgba(255, 0, 127, 0.15) !important; color: var(--accent-magenta) !important; border: 1px solid var(--accent-magenta) !important; box-shadow: 0 0 8px rgba(255, 0, 127, 0.2); }
         .badge-overdue  { background: rgba(255, 245, 0, 0.12) !important; color: #fff500 !important; border: 1px solid #fff500 !important; }
         .badge-safe     { background: rgba(0, 243, 255, 0.1) !important; color: var(--accent-cyan) !important; border: 1px solid var(--accent-cyan) !important; }
@@ -198,7 +197,7 @@
             
             <div class="squircle-card size-high glass-card" style="border-color: rgba(0, 243, 255, 0.3); padding: 1.5rem;">
                 <div class="card-content-top">
-                    <span class="badge badge-alert">FSRS ENGINE v1.0</span>
+                    <span class="badge badge-alert">DEEPSEEK V4 ENGINE</span>
                     <h2 class="card-title" style="color: var(--accent-cyan);">記憶安定度スコア</h2>
                 </div>
                 <div style="margin: 0.8rem 0 0 0; width: 100%;">
@@ -236,7 +235,7 @@
             <div class="tile-header-group">
                 <span class="badge badge-alert">NEW PROBLEM // CLOUD STORAGE</span>
                 <h3 style="font-size: 1.3rem; font-weight: 800;">間違えた問題の登録解析</h3>
-                <p style="color: var(--text-muted); font-size: 0.85rem;">写真をアップロードすると、Geminiが自動で『答えの数式』まで生成しクラウドへ保存します。</p>
+                <p style="color: var(--text-muted); font-size: 0.85rem;">写真をアップロードすると、DeepSeek V4が自動で『答えの数式』まで生成しクラウドへ保存します。</p>
             </div>
 
             <label for="problem-image-input" class="image-upload-zone">
@@ -277,12 +276,15 @@
         const database = getDatabase(app);
         const provider = new GoogleAuthProvider();
 
-        const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
-        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        // 🚀 DeepSeek V4 APIの接続設定（OpenAI互換フォーマット）
+        const DEEPSEEK_API_KEY = "sk-75a20ea4412a4d98af24a9b79b9269c7";
+        const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+        const MODEL_NAME = "deepseek-chat"; // ※マルチモーダル(V4)対応モデル名
 
         const SYSTEM_INSTRUCTION = `
         あなたは高校数学・物理の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
-        出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
+        出力は、マークダウン装飾を一切含まない、純粋なJSONオブジェクトのみとしてください。
+        返答のフォーマットは、必ず以下のJSONの形式に完全に一致させてください。
         {
           "subject": "物理" または "数学",
           "field": "分野名",
@@ -355,7 +357,6 @@
                     dynamicTotalCount += Number(p.errorCount || 0);
                     let badgeSubjectClass = p.subject.includes("物理") ? "badge-physics" : "badge-math";
 
-                    // 【案3の実装】今日の克服（解決）カウンター
                     if (p.lastAttemptAt && p.lastResult === true) {
                         const attemptDateStr = new Date(p.lastAttemptAt).toDateString();
                         if (attemptDateStr === todayStr) {
@@ -363,9 +364,6 @@
                         }
                     }
 
-                    // ========================================================
-                    // 🚀 【案1：FSRS思想の動的スケジューリング・コアロジック】
-                    // ========================================================
                     let timeBadgeText = "🆕 NEW // 未挑戦";
                     let timeBadgeClass = "badge-new";
 
@@ -374,38 +372,31 @@
                         const nowTime = new Date().getTime();
                         const diffDays = (nowTime - lastTime) / (1000 * 60 * 60 * 24);
 
-                        // 誤答回数(errorCount)から「問題の難易度(Difficulty)」をFSRS的にマッピング
                         const difficulty = Number(p.errorCount || 1);
                         
-                        // FSRSの簡易記憶安定度(Stability)関数：苦手な問題ほど復習間隔(最長)を短く絞る
-                        // 簡単な問題（errorCount=0）は7日間キープ、難しい問題は1〜3日でタイマーを強制点火
                         let optimalInterval = 7; 
                         if (difficulty === 1) optimalInterval = 4;
                         if (difficulty === 2) optimalInterval = 2;
                         if (difficulty >= 3)  optimalInterval = 1; 
 
                         if (p.errorCount === 0 || p.lastResult === true) {
-                            // 克服済データ
                             timeBadgeText = "✨ SAFE // 克服済";
                             timeBadgeClass = "badge-safe";
                             safeCount++;
                         } else if (diffDays >= (optimalInterval * 1.5)) {
-                            // 最適復習間隔を大幅に超過：忘却の危機
                             timeBadgeText = "⚠️ OVERDUE // 忘却危機";
                             timeBadgeClass = "badge-overdue";
                             criticalDueCount++;
                         } else if (diffDays >= optimalInterval) {
-                            // 今まさに復習のゴールデンタイム
                             timeBadgeText = "🔥 CRITICAL // 要復習";
                             timeBadgeClass = "badge-critical";
                             criticalDueCount++;
                         } else {
-                            // まだ記憶が新しい状態
                             timeBadgeText = "⏳ PENDING // 定着中";
                             timeBadgeClass = "badge-pending";
                         }
                     } else {
-                        criticalDueCount++; // 未挑戦も復習対象としてカウント
+                        criticalDueCount++;
                     }
 
                     let thumbnailHtml = "";
@@ -439,14 +430,12 @@
                     dynamicArea.insertAdjacentHTML("beforeend", cardHtml);
                 });
 
-                // 左上：記憶定着度アナリティクスメーターの計算＆アニメーション連動
                 const totalDisplay = document.getElementById("total-errors-display");
                 if (totalDisplay) totalDisplay.textContent = String(dynamicTotalCount).padStart(2, '0');
 
                 const solvedDisplay = document.getElementById("solved-today-display");
                 if (solvedDisplay) solvedDisplay.textContent = String(solvedTodayCount).padStart(2, '0');
 
-                // 推定記憶定着メーター（全体の何％がSAFE状態か）
                 let retentionRate = 100;
                 if (totalProblemEntries > 0) {
                     retentionRate = Math.round((safeCount / totalProblemEntries) * 100);
@@ -457,55 +446,72 @@
             });
         }
 
+        // 🛡️ DeepSeek特有の思考タグとマークダウンを完全に剥ぎ取ってJSON化する強力な防衛フィルター
+        function cleanDeepSeekResponse(rawText) {
+            let text = rawText.trim();
+            if (text.includes("</think>")) {
+                text = text.split("</think>")[1].trim();
+            }
+            if (text.startsWith("```json")) text = text.substring(7);
+            else if (text.startsWith("```")) text = text.substring(3);
+            if (text.endsWith("```")) text = text.substring(0, text.length - 3);
+            text = text.trim();
+
+            let inString = false; let result = "";
+            for (let i = 0; i < text.length; i++) {
+                let c = text[i];
+                if (c === '"' && (i === 0 || text[i-1] !== '\\')) { inString = !inString; result += c; }
+                else if (c === '\\' && inString) {
+                    let next = text[i+1];
+                    if (next === '"') { result += '\\"'; i++; }
+                    else if (next === '\\') { result += '\\\\'; i++; }
+                    else if (next === 'n' && (text[i+2] === ' ' || text[i+2] === '"' || text[i+2] === '\\' || !/[a-zA-Z]/.test(text[i+2]))) { result += '\\n'; i++; }
+                    else { result += '\\\\'; }
+                } else { result += c; }
+            }
+            return JSON.parse(result);
+        }
+
         async function analyzeAndAddProblem(userRawText) {
             if (!currentUser) return;
             const submitBtn = document.getElementById("analyze-submit-btn");
-            submitBtn.textContent = "AIが答えを計算＆クラウド保存中...";
+            submitBtn.textContent = "DeepSeek V4が画像を分析中...";
             submitBtn.disabled = true;
 
-            let parts = [{ "text": "提出されたデータを解析し、最終的な『正しい答え（model_answer）』も含めて指定のJSONで返してください。" }];
-            if (userRawText) parts[0].text += `\nユーザーの入力メモ: ${userRawText}`;
+            // DeepSeek V4 用のマルチモーダルメッセージ構造
+            let contentPayload = [];
+            let promptText = "提出された物理または数学のデータを解析し、指定のJSONのみで返してください。";
+            if (userRawText) promptText += `\nユーザーの入力メモ: ${userRawText}`;
+            contentPayload.push({ "type": "text", "text": promptText });
+
             if (selectedImageBase64 && selectedImageMimeType) {
-                parts.push({ "inlineData": { "mimeType": selectedImageMimeType, "data": selectedImageBase64 } });
+                contentPayload.push({
+                    "type": "image_url",
+                    "image_url": { "url": `data:${selectedImageMimeType};base64,${selectedImageBase64}` }
+                });
             }
 
             try {
-                const response = await fetch(GEMINI_API_URL, {
+                const response = await fetch(DEEPSEEK_API_URL, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
+                    },
                     body: JSON.stringify({
-                        "contents": [{ "parts": parts }],
-                        "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION }] },
-                        "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
+                        "model": MODEL_NAME,
+                        "messages": [
+                            { "role": "system", "content": SYSTEM_INSTRUCTION },
+                            { "role": "user", "content": contentPayload }
+                        ],
+                        "temperature": 0.2,
+                        "response_format": { "type": "json_object" }
                     })
                 });
 
                 const data = await response.json();
-                let rawJsonText = data.candidates[0].content.parts[0].text;
-
-                rawJsonText = rawJsonText.trim();
-                if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
-                else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
-                if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
-                rawJsonText = rawJsonText.trim();
-
-                const fixJsonEscapes = (str) => {
-                    let inString = false; let result = "";
-                    for (let i = 0; i < str.length; i++) {
-                        let c = str[i];
-                        if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
-                        else if (c === '\\' && inString) {
-                            let next = str[i+1];
-                            if (next === '"') { result += '\\"'; i++; }
-                            else if (next === '\\') { result += '\\\\'; i++; }
-                            else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
-                            else { result += '\\\\'; }
-                        } else { result += c; }
-                    }
-                    return result;
-                };
-
-                const aiResult = JSON.parse(fixJsonEscapes(rawJsonText));
+                let rawOutput = data.choices[0].message.content;
+                const aiResult = cleanDeepSeekResponse(rawOutput);
 
                 const newId = "CUSTOM_" + Date.now();
                 const newProblem = {
@@ -532,7 +538,7 @@
 
             } catch (error) {
                 console.error(error);
-                alert("AIの解析、またはクラウドへの保存に失敗しました。");
+                alert("DeepSeek V4の解析、またはクラウドへの保存に失敗しました。クレジット残高やキーを確認してください。");
             } finally {
                 submitBtn.textContent = "AI自動解析を実行";
                 submitBtn.disabled = false;
