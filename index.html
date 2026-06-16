@@ -197,7 +197,7 @@
             
             <div class="squircle-card size-high glass-card" style="border-color: rgba(0, 243, 255, 0.3); padding: 1.5rem;">
                 <div class="card-content-top">
-                    <span class="badge badge-alert">DEEPSEEK V4 ENGINE</span>
+                    <span class="badge badge-alert">HYBRID ENGINE: GEMINI + DEEPSEEK</span>
                     <h2 class="card-title" style="color: var(--accent-cyan);">記憶安定度スコア</h2>
                 </div>
                 <div style="margin: 0.8rem 0 0 0; width: 100%;">
@@ -235,7 +235,7 @@
             <div class="tile-header-group">
                 <span class="badge badge-alert">NEW PROBLEM // CLOUD STORAGE</span>
                 <h3 style="font-size: 1.3rem; font-weight: 800;">間違えた問題の登録解析</h3>
-                <p style="color: var(--text-muted); font-size: 0.85rem;">写真をアップロードすると、DeepSeek V4が自動で『答えの数式』まで生成しクラウドへ保存します。</p>
+                <p style="color: var(--text-muted); font-size: 0.85rem;">写真をアップロードすると、Geminiの高性能な眼が問題文を読み取りクラウドへ保存します。</p>
             </div>
 
             <label for="problem-image-input" class="image-upload-zone">
@@ -276,16 +276,13 @@
         const database = getDatabase(app);
         const provider = new GoogleAuthProvider();
 
-        const DEEPSEEK_API_KEY = "sk-75a20ea4412a4d98af24a9b79b9269c7";
-        const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
-        
-        // 🚀 修正：画像（Vision）をフルサポートしている正式なマルチモーダル対応フラグに変更
-        const MODEL_NAME = "deepseek-chat"; 
+        // 👁️ 画像解析（目）はネイティブに最強のGeminiへリバート
+        const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
         const SYSTEM_INSTRUCTION = `
         あなたは高校数学・物理の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
-        出力は、マークダウン装飾を一切含まない、純粋なJSONオブジェクトのみとしてください。
-        返答のフォーマットは、必ず以下のJSONの形式に完全に一致させてください。
+        出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
         {
           "subject": "物理" または "数学",
           "field": "分野名",
@@ -447,74 +444,55 @@
             });
         }
 
-        function cleanDeepSeekResponse(rawText) {
-            let text = rawText.trim();
-            if (text.includes("</think>")) {
-                text = text.split("</think>")[1].trim();
-            }
-            if (text.startsWith("```json")) text = text.substring(7);
-            else if (text.startsWith("```")) text = text.substring(3);
-            if (text.endsWith("```")) text = text.substring(0, text.length - 3);
-            text = text.trim();
-
-            let inString = false; let result = "";
-            for (let i = 0; i < text.length; i++) {
-                let c = text[i];
-                if (c === '"' && (i === 0 || text[i-1] !== '\\')) { inString = !inString; result += c; }
-                else if (c === '\\' && inString) {
-                    let next = text[i+1];
-                    if (next === '"') { result += '\\"'; i++; }
-                    else if (next === '\\') { result += '\\\\'; i++; }
-                    else if (next === 'n' && (text[i+2] === ' ' || text[i+2] === '"' || text[i+2] === '\\' || !/[a-zA-Z]/.test(text[i+2]))) { result += '\\n'; i++; }
-                    else { result += '\\\\'; }
-                } else { result += c; }
-            }
-            return JSON.parse(result);
-        }
-
         async function analyzeAndAddProblem(userRawText) {
             if (!currentUser) return;
             const submitBtn = document.getElementById("analyze-submit-btn");
-            submitBtn.textContent = "DeepSeek V4が画像を分析中...";
+            submitBtn.textContent = "Gemini Visionが画像を分析中...";
             submitBtn.disabled = true;
 
-            let contentPayload = [];
-            let promptText = "提出された物理または数学のデータを解析し、指定のJSONのみで返してください。";
-            if (userRawText) promptText += `\nユーザーの入力メモ: ${userRawText}`;
-            contentPayload.push({ "type": "text", "text": promptText });
-
+            let parts = [{ "text": "提出されたデータを解析し、最終的な『正しい答え（model_answer）』も含めて指定のJSONで返してください。" }];
+            if (userRawText) parts[0].text += `\nユーザーの入力メモ: ${userRawText}`;
             if (selectedImageBase64 && selectedImageMimeType) {
-                contentPayload.push({
-                    "type": "image_url",
-                    "image_url": { "url": `data:${selectedImageMimeType};base64,${selectedImageBase64}` }
-                });
+                parts.push({ "inlineData": { "mimeType": selectedImageMimeType, "data": selectedImageBase64 } });
             }
 
             try {
-                const response = await fetch(DEEPSEEK_API_URL, {
+                const response = await fetch(GEMINI_API_URL, {
                     method: "POST",
-                    headers: { 
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
-                    },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        "model": MODEL_NAME,
-                        "messages": [
-                            { "role": "system", "content": SYSTEM_INSTRUCTION },
-                            { "role": "user", "content": contentPayload }
-                        ],
-                        "temperature": 0.2
+                        "contents": [{ "parts": parts }],
+                        "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION }] },
+                        "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
                     })
                 });
 
                 const data = await response.json();
-                
-                if (data.error) {
-                    throw new Error(data.error.message);
-                }
+                let rawJsonText = data.candidates[0].content.parts[0].text;
 
-                let rawOutput = data.choices[0].message.content;
-                const aiResult = cleanDeepSeekResponse(rawOutput);
+                rawJsonText = rawJsonText.trim();
+                if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
+                else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
+                if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
+                rawJsonText = rawJsonText.trim();
+
+                const fixJsonEscapes = (str) => {
+                    let inString = false; let result = "";
+                    for (let i = 0; i < str.length; i++) {
+                        let c = str[i];
+                        if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
+                        else if (c === '\\' && inString) {
+                            let next = str[i+1];
+                            if (next === '"') { result += '\\"'; i++; }
+                            else if (next === '\\') { result += '\\\\'; i++; }
+                            else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
+                            else { result += '\\\\'; }
+                        } else { result += c; }
+                    }
+                    return result;
+                };
+
+                const aiResult = JSON.parse(fixJsonEscapes(rawJsonText));
 
                 const newId = "CUSTOM_" + Date.now();
                 const newProblem = {
@@ -541,7 +519,7 @@
 
             } catch (error) {
                 console.error(error);
-                alert("DeepSeek V4の解析に失敗しました。理由: " + error.message);
+                alert("AIの解析、またはクラウドへの保存に失敗しました。");
             } finally {
                 submitBtn.textContent = "AI自動解析を実行";
                 submitBtn.disabled = false;
