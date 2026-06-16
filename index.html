@@ -276,10 +276,11 @@
         const database = getDatabase(app);
         const provider = new GoogleAuthProvider();
 
-        // 🚀 DeepSeek 正式仕様のエンドポイントURLと推論モデル指定へ完全統合
         const DEEPSEEK_API_KEY = "sk-75a20ea4412a4d98af24a9b79b9269c7";
         const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
-        const MODEL_NAME = "deepseek-reasoner"; // 理数系ビジョン推論を最高精度で行う公式フラグ
+        
+        // 🚀 修正：画像（Vision）をフルサポートしている正式なマルチモーダル対応フラグに変更
+        const MODEL_NAME = "deepseek-chat"; 
 
         const SYSTEM_INSTRUCTION = `
         あなたは高校数学・物理の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
@@ -502,13 +503,12 @@
                             { "role": "system", "content": SYSTEM_INSTRUCTION },
                             { "role": "user", "content": contentPayload }
                         ],
-                        "temperature": 0.1
+                        "temperature": 0.2
                     })
                 });
 
                 const data = await response.json();
                 
-                // 防衛コード：APIエラーが返ってきた場合のハンドリング
                 if (data.error) {
                     throw new Error(data.error.message);
                 }
