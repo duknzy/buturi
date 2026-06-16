@@ -27,14 +27,33 @@
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1a2a35; padding-bottom: 1rem; }
         .timer-display { font-size: 2rem; font-weight: 900; color: var(--accent-magenta); font-family: monospace; letter-spacing: 1px; text-shadow: 0 0 10px rgba(255, 0, 127, 0.3); }
         .progress-badge { background: transparent; color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
-        .problem-card { display: flex; flex-direction: column; gap: 1.5rem; padding: 2rem; background: var(--card-bg-glass); border: 1px solid rgba(0, 243, 255, 0.2); box-shadow: 4px 4px 0px rgba(0, 243, 255, 0.05); }
-        .sprint-title { font-size: 1.4rem; font-weight: 800; line-height: 1.5; color: var(--text-main); min-height: 80px; }
-        .control-panel { display: flex; gap: 1rem; width: 100%; margin-top: 1rem; }
-        .btn-action { flex: 1; height: 54px; font-size: 1.1rem; font-weight: 800; }
+        
+        /* Layout Fix: 高さを可変(height: auto)にし、インラインブロック要素の浮きを抑制 */
+        .problem-card { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 1.5rem; 
+            padding: 2rem; 
+            background: var(--card-bg-glass); 
+            border: 1px solid rgba(0, 243, 255, 0.2); 
+            box-shadow: 4px 4px 0px rgba(0, 243, 255, 0.05);
+            height: auto !important;
+            position: relative;
+        }
+        
+        /* MathJax展開時も十分なエリアを確保するよう可変に */
+        .sprint-title { font-size: 1.4rem; font-weight: 800; line-height: 1.6; color: var(--text-main); min-height: auto; margin-bottom: 1rem; }
+        .control-panel { display: flex; gap: 1rem; width: 100%; margin-top: 1rem; position: relative; z-index: 10; }
+        .btn-action { flex: 1; height: 54px; font-size: 1.1rem; font-weight: 800; cursor: pointer; }
         .btn-wrong { background: var(--accent-magenta) !important; color: #000 !important; box-shadow: 4px 4px 0px #9e004f !important; }
-        .btn-correct { background: var(--accent-cyan) !important; box-shadow: 4px 4px 0px #008b94 !important; }
-        .reveal-zone { display: none; flex-direction: column; gap: 1rem; background: rgba(255,255,255,0.01); padding: 1.5rem; border-radius: 16px; border: 1px dashed #222; margin-top: 1rem; }
+        .btn-correct { background: var(--accent-cyan) !important; color: #000 !important; box-shadow: 4px 4px 0px #008b94 !important; }
+        
+        /* 重なり防止：display: none から flex への切り替え時に位置が狂わないよう担保 */
+        .reveal-zone { display: none; flex-direction: column; gap: 1.2rem; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: 16px; border: 1px dashed #3a3a4a; margin-top: 1.5rem; width: 100%; }
         .result-screen { display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 4rem 2rem; border: 1px solid var(--accent-cyan); background: var(--card-bg-glass); }
+        
+        /* MathJaxが生成するコンテナが他の要素を押し潰さないための防御用CSS */
+        .mjx-chtml { margin: 0.5rem 0 !important; padding-left: 2px; }
     </style>
 </head>
 <body>
@@ -60,10 +79,12 @@
             </div>
 
             <div class="reveal-zone" id="sprint-reveal-zone">
+                <hr style="border: 0; border-top: 1px dashed #22222a; margin-bottom: 0.5rem;">
                 <div style="font-size:0.8rem; color:var(--text-muted); font-weight:800; margin-bottom:0.2rem;">CORRECT ANSWER</div>
                 <div class="model-answer-text" id="sprint-answer-display" style="font-size:1.3rem; color:var(--accent-cyan); font-weight:900; margin-bottom:1rem;">---</div>
+                
                 <div style="font-size:0.8rem; color:var(--text-muted); font-weight:800; margin-bottom:0.2rem;">STEPS</div>
-                <div class="model-answer-text" id="sprint-steps-display" style="font-size:1rem; white-space:pre-wrap; line-height:1.6; color:var(--text-bright-muted);">---</div>
+                <div class="model-answer-text" id="sprint-steps-display" style="font-size:1rem; white-space:pre-wrap; line-height:1.6; color:var(--text-bright-muted); margin-bottom:1rem;">---</div>
                 
                 <div class="control-panel">
                     <button type="button" class="tactile-btn btn-action btn-wrong" id="btn-sprint-wrong">❌ ミスった（RE:MINDへ送る）</button>
@@ -92,6 +113,7 @@
 
         const { dailyProblemBank } = await import("./daily-data.js");
 
+        // Firebase設定
         const firebaseConfig = {
             apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY", 
             authDomain: "buturi-2449e.firebaseapp.com",
@@ -159,11 +181,11 @@
             document.getElementById("sprint-timer").textContent = `${min}:${sec}.${ms}`;
         }
 
-        // 🚨 【最重要アップデート】画面書き換え後に「古いMathJaxの残骸」をリセットして再構築を約束する
+        // 数式キャッシュリセット＆高精度強制再レンダリング処理
         async function forceTriggerMathJax() {
             if (window.MathJax && MathJax.typesetPromise) {
                 try {
-                    // 一度古い数式キャッシュをクリア
+                    // MathJaxのキューを一度クリアして確実に再スキャンさせる
                     await MathJax.typesetPromise();
                 } catch (err) {
                     console.log("MathJax Typeset Error: ", err);
@@ -177,6 +199,7 @@
                 return;
             }
 
+            // 画面表示リセット
             document.getElementById("sprint-reveal-zone").style.display = "none";
             document.getElementById("btn-reveal-ans").style.display = "block";
             document.getElementById("sprint-progress").textContent = `Q. ${currentQuestionIndex + 1} / ${selectedQuestions.length}`;
@@ -184,14 +207,14 @@
             const q = selectedQuestions[currentQuestionIndex];
             document.getElementById("problem-meta").textContent = `${q.subject} // ${q.field}`;
             
-            // テキストを安全にinnerHTMLへ注入
+            // 安全かつ確実にプロパティをインジェクション（q.titleを確実に使用）
             document.getElementById("problem-title-display").innerHTML = q.title;
             document.getElementById("sprint-answer-display").innerHTML = q.answer;
             
             let cleanSteps = q.steps.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
             document.getElementById("sprint-steps-display").innerHTML = cleanSteps;
 
-            // DOMに文字が配置された瞬間に即座にMathJaxを叩き起こす
+            // DOM展開直後に即座にレンダリングを実行
             forceTriggerMathJax();
         }
 
@@ -241,7 +264,7 @@
         document.getElementById("btn-reveal-ans").addEventListener("click", () => {
             document.getElementById("btn-reveal-ans").style.display = "none";
             document.getElementById("sprint-reveal-zone").style.display = "flex";
-            // 答えのエリアを展開した瞬間にも確実にトリガーを引く
+            // 解説エリア展開時にも確実に数式をリレンダリング
             forceTriggerMathJax();
         });
 
