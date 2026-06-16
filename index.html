@@ -383,7 +383,8 @@
             }
         }
 
-        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        // 💡 正しい現行ブレイン「gemini-2.5-flash」のエンドポイントに完全復旧
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
         const SYSTEM_INSTRUCTION = `
         あなたは高校数学・物理の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
@@ -626,7 +627,6 @@
             }
 
             try {
-                // 通信直前のデバッグログ
                 console.log("Gemini APIへリクエストを送信します。URL:", GEMINI_API_URL);
 
                 const response = await fetch(GEMINI_API_URL, {
@@ -695,7 +695,6 @@
 
             } catch (error) {
                 console.error("【詳細ログ】AI解析エラー発生:", error);
-                // 画面上に原因をポップアップで強制主張させる（デバッグ仕様）
                 alert("❌ AI自動解析に失敗しました！\n\n【原因】:\n" + error.message + "\n\n※APIキーが間違っているか、キーの有効期限が切れている可能性が極めて高いです。下の『APIキーをリセット』ボタンから再設定してみてください。");
             } finally {
                 submitBtn.textContent = "AI自動解析を実行";
@@ -759,7 +758,7 @@
             selectedImageBase64 = null;
         }
 
-        // --- DOMContentLoadedの罠を完全に排除し、即座に確実にイベント登録を実行 ---
+        // イベント登録を実行
         const modal = document.getElementById("add-problem-modal");
         const openBtn = document.getElementById("open-modal-btn");
         const closeBtn = document.getElementById("close-modal-btn");
@@ -778,7 +777,6 @@
             textInput.addEventListener('input', () => { window.updateMathPreview(false); });
         }
 
-        // キーリセットボタンが押されたらキャッシュを吹き飛ばしてリロードする
         if (clearKeysBtn) {
             clearKeysBtn.addEventListener("click", () => {
                 localStorage.removeItem("RE_MIND_GEMINI_KEY");
