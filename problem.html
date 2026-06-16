@@ -167,7 +167,7 @@
         あなたは「ソクラテス式問答法」を用いる、物静かだが核心を突く高校生向けのAIチューターです。
         最終的な正解（数式や数値）は絶対に教えず、小さな問いかけで生徒を自力での解決へ導いてください。
         1回の発言につき、質問は「1つ」に絞ってください。
-        変数や数式（例: m, v, g, thetaなど）をメッセージに含めるときは、必ず前後に $ sliceを挟んで「$m$」や「$\\sin\\theta$」のようにLaTeX形式の数式として出力してください。
+        変数や数式（例: m, v, g, thetaなど）をメッセージに含めるときは、必ず前後に $ をつけて「$m$」や「$\\sin\\theta$」のようにLaTeX形式の数式として出力してください。
 
         返答は必ず以下のJSONフォーマットの形式のみ（他の説明文は一切排除）で出力してください。
         {
@@ -238,7 +238,7 @@
 
                 if (chatHistory.length === 0) {
                     chatHistory = [
-                        { "role": "user", "content": `【問題文】 ${currentProblemData.title}` },
+                        { "role": "user", "content": "【問題文】 " + currentProblemData.title },
                         { "role": "assistant", "content": `{"ai_response": "問題を確認しました。どこから考えてみましょうか？", "current_step_label": "ステップ1: 状況の整理", "student_understanding_rate": 20}` }
                     ];
                 }
@@ -306,7 +306,7 @@
                     method: "POST",
                     headers: { 
                         "Content-Type": "application/json",
-                        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
+                        "Authorization": "Bearer " + DEEPSEEK_API_KEY
                     },
                     body: JSON.stringify({
                         "model": MODEL_NAME,
