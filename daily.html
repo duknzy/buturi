@@ -90,7 +90,6 @@
         const { getAuth, onAuthStateChanged } = await import(fbBase + "firebase-auth.js");
         const { getDatabase, ref, set } = await import(fbBase + "firebase-database.js");
 
-        // 外部ファイルのインポートを完全に同期的に待つ
         const { dailyProblemBank } = await import("./daily-data.js");
 
         const firebaseConfig = {
@@ -113,14 +112,13 @@
         let startTime = 0;
         let timerInterval = null;
 
-        // データの存在確認とAuth確認が両方揃った段階で確実にトリガーする安全設計
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 loginUid = user.uid;
                 if (dailyProblemBank && dailyProblemBank.length > 0) {
                     setupDailySprint();
                 } else {
-                    alert("問題データの読み込みに失敗しました。daily-data.jsを確認してください。");
+                    alert("問題データの読み込みに失敗しました。");
                 }
             } else {
                 location.href = "index.html";
@@ -128,22 +126,21 @@
         });
 
         function setupDailySprint() {
-            // 今日の日付（YYYY-MM-DD）から確実に固定シードを生成する
             const now = new Date();
             const todayStr = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
             
-            let seed = 0;
-            for (let i = 0; i < todayStr.length; i++) { 
-                seed += todayStr.charCodeAt(i) * (i + 1); 
+            let seed = 5381;
+            for (let i = 0; i < todayStr.length; i++) {
+                seed = ((seed << 5) + seed) + todayStr.charCodeAt(i);
             }
+            seed = Math.abs(seed);
 
             let bankCopy = [...dailyProblemBank];
             let shuffled = [];
             
-            // 確実なシード固定シャッフルロジック
             while (bankCopy.length > 0) {
-                seed = (seed * 9301 + 49297) % 233280;
-                let index = Math.floor((seed / 233280) * bankCopy.length);
+                seed = (seed * 1103515245 + 12345) % 2147483648;
+                let index = Math.floor((seed / 2147483648) * bankCopy.length);
                 shuffled.push(bankCopy.splice(index, 1)[0]);
             }
 
@@ -162,15 +159,16 @@
             document.getElementById("sprint-timer").textContent = `${min}:${sec}.${ms}`;
         }
 
-        // 🚨 【最強のエスケープ中和処理】すべての二重バックスラッシュを完全クリーン化する
-        function cleanLatexString(rawStr) {
-            if (!rawStr) return "";
-            let result = String(rawStr);
-            // ループを回してバックスラッシュが多重に重なっている箇所をすべて1本(\)に収束させる
-            while (result.includes('\\\\')) {
-                result = result.replace(/\\\\/g, '\\');
+        // 🚨 【最重要アップデート】画面書き換え後に「古いMathJaxの残骸」をリセットして再構築を約束する
+        async function forceTriggerMathJax() {
+            if (window.MathJax && MathJax.typesetPromise) {
+                try {
+                    // 一度古い数式キャッシュをクリア
+                    await MathJax.typesetPromise();
+                } catch (err) {
+                    console.log("MathJax Typeset Error: ", err);
+                }
             }
-            return result;
         }
 
         function renderQuestion() {
@@ -186,20 +184,15 @@
             const q = selectedQuestions[currentQuestionIndex];
             document.getElementById("problem-meta").textContent = `${q.subject} // ${q.field}`;
             
-            // 強力にデコードしてDOMへ注入
-            document.getElementById("problem-title-display").textContent = cleanLatexString(q.title);
-            document.getElementById("sprint-answer-display").textContent = cleanLatexString(q.answer);
+            // テキストを安全にinnerHTMLへ注入
+            document.getElementById("problem-title-display").innerHTML = q.title;
+            document.getElementById("sprint-answer-display").innerHTML = q.answer;
             
-            // 特殊な改行コード表記（\\nや\n）を正規の改行に整える
-            let cleanSteps = cleanLatexString(q.steps);
-            document.getElementById("sprint-steps-display").textContent = cleanSteps.replace(/\\n/g, '\n');
+            let cleanSteps = q.steps.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
+            document.getElementById("sprint-steps-display").innerHTML = cleanSteps;
 
-            // MathJaxの数式レンダリングを最優先で再実行
-            setTimeout(() => {
-                if (window.MathJax && MathJax.typesetPromise) {
-                    MathJax.typesetPromise().catch((err) => console.log(err));
-                }
-            }, 30);
+            // DOMに文字が配置された瞬間に即座にMathJaxを叩き起こす
+            forceTriggerMathJax();
         }
 
         async function sendToMainRemindList() {
@@ -210,7 +203,7 @@
             
             const remindProblem = {
                 id: q.id,
-                title: cleanLatexString(q.title),
+                title: q.title,
                 short_title: `【DS】${q.field}計算`,
                 subject: q.subject,
                 field: q.field,
@@ -219,7 +212,7 @@
                 lastAttemptAt: new Date().toISOString(),
                 lastResult: false,
                 imageData: null,
-                answerFormula: `${cleanLatexString(q.answer)}\n\n【解説】\n${cleanLatexString(q.steps).replace(/\\n/g, '\n')}`
+                answerFormula: `${q.answer}\n\n【解説】\n${q.steps}`
             };
 
             try {
@@ -248,9 +241,8 @@
         document.getElementById("btn-reveal-ans").addEventListener("click", () => {
             document.getElementById("btn-reveal-ans").style.display = "none";
             document.getElementById("sprint-reveal-zone").style.display = "flex";
-            setTimeout(() => {
-                if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise();
-            }, 30);
+            // 答えのエリアを展開した瞬間にも確実にトリガーを引く
+            forceTriggerMathJax();
         });
 
         document.getElementById("btn-sprint-correct").addEventListener("click", nextQuestion);
