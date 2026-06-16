@@ -14,13 +14,12 @@
     </script>
     <script id="MathJax-script" async></script>
     <script>
-        // コピペ破壊防御：マークダウン記号を一切使わず、単純な文字列結合で自動リンク化を回避
+        // コピペ破壊防御：ドットも完全に分離して自動リンク化の隙を与えない
         (function() {
             var script = document.getElementById("MathJax-script");
             var proto = "https" + "://";
-            var domain = "cdn" + ".jsdelivr.net/";
-            var path = "npm/mathjax@3/es5/tex-chtml.js";
-            script.src = proto + domain + path;
+            var d = ".";
+            script.src = proto + "cdn" + d + "jsdelivr" + d + "net/npm/mathjax@3/es5/tex-chtml.js";
         })();
     </script>
 
@@ -100,24 +99,22 @@
         <main class="bento-grid">
             <section class="squircle-tile main-question-tile">
                 <div class="tile-header-group" style="display: flex; justify-content: space-between; align-items: center; width:100%;">
-                    <span class="badge badge-physics" id="question-badge">読み込み中...</span>
+                    <span class="badge badge-physics" id="question-badge">LOADING...</span>
                     <button type="button" class="btn-analyze-now" id="on-demand-analyze-btn">⚡ この問題をAI解析する</button>
                 </div>
                 
-                <div class="physics-figure-box" id="figure-box">
-                    <span style="color:var(--text-muted); font-size:0.9rem;">画像をロード中...</span>
-                </div>
+                <div class="physics-figure-box" id="figure-box"></div>
             </section>
 
             <aside class="squircle-tile ai-sidebar-tile glass-sidebar">
                 <div class="tile-header-group">
                     <span class="badge badge-ai" id="ai-status">AI TUTOR // ACTIVE</span>
-                    <h3 style="font-size: var(--fs-md); font-weight: 800;" id="current-step">ステップ1: 状況の整理</h3>
+                    <h3 style="font-size: var(--fs-md); font-weight: 800;" id="current-step">INITIALIZING...</h3>
                 </div>
 
                 <div class="chat-history">
                     <div class="chat-bubble bubble-ai" id="initial-ai-bubble">
-                        生徒のログインを確認しています...
+                        CONNECTING TO CLOUD...
                     </div>
                 </div>
 
@@ -135,7 +132,7 @@
                 <div class="self-check-container">
                     <div class="reveal-btn-area" id="reveal-btn-wrap">
                         <button type="button" class="tactile-btn" id="show-answer-btn" style="width:100%; height:54px; font-size:1.1rem;" disabled>
-                            🔒 ロード中...
+                            🔒 LOADING...
                         </button>
                     </div>
 
@@ -153,9 +150,10 @@
     </div>
 
    <script type="module">
+        // 🚨 超厳重コピペ破壊防御：ドットすらも完全に分解結合し、チャットツールの自動リンク化を100%未然に防ぐ
         const proto = "https" + "://";
-        const fbDomain = "www" + "[.gstatic.com/firebasejs/10.12.0/](https://.gstatic.com/firebasejs/10.12.0/)";
-        const fbBase = proto + fbDomain;
+        const d = ".";
+        const fbBase = proto + "www" + d + "gstatic" + d + "com/firebasejs/10.12.0/";
 
         const { initializeApp } = await import(fbBase + "firebase-app.js");
         const { getAuth, onAuthStateChanged } = await import(fbBase + "firebase-auth.js");
@@ -164,7 +162,7 @@
         const firebaseConfig = {
             apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY", 
             authDomain: "buturi-2449e.firebaseapp.com",
-            databaseURL: proto + "buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app/",
+            databaseURL: proto + "buturi-2449e-default-rtdb" + d + "asia-southeast1" + d + "firebasedatabase" + d + "app/",
             projectId: "buturi-2449e",
             storageBucket: "buturi-2449e.appspot.com",
             messagingSenderId: "976306696124",
@@ -178,7 +176,6 @@
         const urlParams = new URLSearchParams(window.location.search);
         const PROBLEM_ID = urlParams.get('id');
 
-        // 🚨 安全対策：APIキーの直書きを完全に排除。ブラウザのLocalStorageから読み込む
         let GEMINI_API_KEY = localStorage.getItem("RE_MIND_GEMINI_KEY");
         let DEEPSEEK_API_KEY = localStorage.getItem("RE_MIND_DEEPSEEK_KEY");
 
@@ -191,8 +188,8 @@
             if (DEEPSEEK_API_KEY) localStorage.setItem("RE_MIND_DEEPSEEK_KEY", DEEPSEEK_API_KEY);
         }
 
-        const GEMINI_API_URL = `${proto}generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        const DEEPSEEK_API_URL = proto + "[api.deepseek.com/v1/chat/completions](https://api.deepseek.com/v1/chat/completions)";
+        const GEMINI_API_URL = `${proto}generativelanguage${d}googleapis${d}com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const DEEPSEEK_API_URL = proto + "api" + d + "deepseek" + d + "com/v1/chat/completions";
         const MODEL_NAME = "deepseek-chat";
 
         const GEMINI_SYSTEM_INSTRUCTION = `
@@ -282,8 +279,10 @@
                 
                 if (currentProblemData.subject === "未分類") {
                     document.getElementById("initial-ai-bubble").textContent = "この問題は未解析ストックです。右上の『⚡ この問題をAI解析する』を押すと、Gemini Visionが起動して完全に対話可能になります！";
+                    document.getElementById("current-step").textContent = "ステップ0: 未解析";
                 } else {
                     document.getElementById("initial-ai-bubble").textContent = "クラウド連携完了。DeepSeekのブレインがスタンバイしています！";
+                    document.getElementById("current-step").textContent = "ステップ1: 状況の整理";
                 }
 
                 const showAnsBtn = document.getElementById("show-answer-btn");
@@ -436,7 +435,6 @@
             
             chatHistory.push({ "role": "user", "content": studentMessage });
 
-            // 【完全修正】問題文(0番)を除外した上で、純粋な対話ラリーの末尾4件のみをスライス（重複回避）
             const recentHistory = chatHistory.slice(1).slice(-4);
             const optimizedMessages = [
                 { "role": "system", "content": SYSTEM_INSTRUCTION_BASE },
