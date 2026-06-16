@@ -6,21 +6,23 @@
     <title>RETROGRADE // DAILY SPRINT 10</title>
     <link rel="stylesheet" href="style.css">
     
-    <script>
+ <script>
         window.MathJax = {
-            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
-            chtml: { displayAlign: 'left' }
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process'
+            },
+            chtml: {
+                displayAlign: 'left'
+            }
         };
     </script>
-    <script id="MathJax-script" async></script>
-    <script>
-        (function() {
-            var script = document.getElementById("MathJax-script");
-            var proto = "https" + "://";
-            var d = ".";
-            script.src = proto + "cdn" + d + "jsdelivr" + d + "net/npm/mathjax@3/es5/tex-chtml.js";
-        })();
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
 
     <style>
         .sprint-container { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; min-height: calc(100vh - 3rem); }
@@ -207,14 +209,19 @@
             const q = selectedQuestions[currentQuestionIndex];
             document.getElementById("problem-meta").textContent = `${q.subject} // ${q.field}`;
             
-            // 安全かつ確実にプロパティをインジェクション（q.titleを確実に使用）
+            // 1. 問題文の読み込み
             document.getElementById("problem-title-display").innerHTML = q.title;
+            
+            // 2. 答えの読み込み
             document.getElementById("sprint-answer-display").innerHTML = q.answer;
             
-            let cleanSteps = q.steps.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
+            // 3. 【重要】MathJaxを破壊する改行コード(\\n や \n)を完全に <br> へ置換し、余分なエスケープを殺す
+            let cleanSteps = q.steps;
+            cleanSteps = cleanSteps.replace(/\\n/g, '<br>'); // 文字列としての \n を置換
+            cleanSteps = cleanSteps.replace(/\n/g, '<br>');  // 実際の改行コードを置換
             document.getElementById("sprint-steps-display").innerHTML = cleanSteps;
 
-            // DOM展開直後に即座にレンダリングを実行
+            // DOMに展開が終わった後にMathJaxを安全に呼び出す
             forceTriggerMathJax();
         }
 
