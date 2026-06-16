@@ -12,7 +12,7 @@
             chtml: { displayAlign: 'left' }
         };
     </script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+    <script id="MathJax-script" async src="[https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js](https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js)"></script>
 
     <style>
         .squircle-tile { border: 1px solid var(--accent-cyan); box-shadow: 4px 4px 0px rgba(0, 243, 255, 0.1); }
@@ -138,14 +138,14 @@
     </div>
 
    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+        import { initializeApp } from "[https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js](https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js)";
+        import { getAuth, onAuthStateChanged } from "[https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js](https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js)";
+        import { getDatabase, ref, set, onValue } from "[https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js](https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js)";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY", 
             authDomain: "buturi-2449e.firebaseapp.com",
-            databaseURL: "https://buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app/",
+            databaseURL: "[https://buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app/](https://buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app/)",
             projectId: "buturi-2449e",
             storageBucket: "buturi-2449e.appspot.com",
             messagingSenderId: "976306696124",
@@ -160,14 +160,14 @@
         const PROBLEM_ID = urlParams.get('id');
 
         const DEEPSEEK_API_KEY = "sk-75a20ea4412a4d98af24a9b79b9269c7";
-        const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+        const DEEPSEEK_API_URL = "[https://api.deepseek.com/v1/chat/completions](https://api.deepseek.com/v1/chat/completions)";
         const MODEL_NAME = "deepseek-chat";
 
         const SYSTEM_INSTRUCTION_BASE = `
         あなたは「ソクラテス式問答法」を用いる、物静かだが核心を突く高校生向けのAIチューターです。
         最終的な正解（数式や数値）は絶対に教えず、小さな問いかけで生徒を自力での解決へ導いてください。
         1回の発言につき、質問は「1つ」に絞ってください。
-        変数や数式（例: m, v, g, thetaなど）をメッセージに含めるときは、必ず前後に $ をつけて「$m$」や「$\\sin\\theta$」のようにLaTeX形式の数式として出力してください。
+        変数や数式（例: m, v, g, thetaなど）をメッセージに含めるときは、必ず前後に $ sliceを挟んで「$m$」や「$\\sin\\theta$」のようにLaTeX形式の数式として出力してください。
 
         返答は必ず以下のJSONフォーマットの形式のみ（他の説明文は一切排除）で出力してください。
         {
@@ -327,7 +327,7 @@
                 updateChatUI(studentMessage, aiJson);
             } catch (error) { 
                 console.error(error);
-                alert("DeepSeek V4ブレインとの通信に失敗しました。残高などを確認してください。"); 
+                alert("DeepSeekブレインとの通信に失敗しました。残高などを確認してください。"); 
             }
             finally { statusBadge.textContent = "AI TUTOR // ACTIVE"; statusBadge.style.color = "var(--accent-cyan)"; }
         }
