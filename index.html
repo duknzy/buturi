@@ -277,7 +277,7 @@
         const provider = new GoogleAuthProvider();
 
         const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
-        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + GEMINI_API_KEY;
 
         const SYSTEM_INSTRUCTION = `
         あなたは高校数学・物理の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
