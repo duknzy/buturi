@@ -257,11 +257,9 @@
     </div>
 
    <script type="module">
-        // 自動リンク破壊を防ぐため、文字列を分解して安全にインポート
-        const fbBase = "https://www.gstatic.com/firebasejs/10.12.0/";
-        const { initializeApp } = await import(fbBase + "firebase-app.js");
-        const { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } = await import(fbBase + "firebase-auth.js");
-        const { getDatabase, ref, set, onValue } = await import(fbBase + "firebase-database.js");
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY", 
@@ -279,7 +277,7 @@
         const provider = new GoogleAuthProvider();
 
         const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
-        const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + GEMINI_API_KEY;
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
         const SYSTEM_INSTRUCTION = `
         あなたは高校数学・物理の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
@@ -416,6 +414,7 @@
                                             <span class="badge ${timeBadgeClass}">${timeBadgeText}</span>
                                         </div>
                                         <h2 class="card-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.short_title}</h2>
+                                        <p style="color: var(--text-muted); line-height: 1.3; font-size:0.85rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 0.2rem;">${p.trap_description || ''}</p>
                                     </div>
                                     <div class="card-meta" style="margin-top: 0.4rem; padding-top: 0.3rem; border-top: 1px solid rgba(255,255,255,0.03);">
                                         <div style="font-size:0.75rem; color:var(--text-muted);">同期中</div>
