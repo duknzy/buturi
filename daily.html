@@ -90,7 +90,6 @@
         const { getAuth, onAuthStateChanged } = await import(fbBase + "firebase-auth.js");
         const { getDatabase, ref, set } = await import(fbBase + "firebase-database.js");
 
-        // 🚨 外部の独立タンク（daily-data.js）から問題データをスマートにインポート！
         const { dailyProblemBank } = await import("./daily-data.js");
 
         const firebaseConfig = {
@@ -150,6 +149,22 @@
             document.getElementById("sprint-timer").textContent = `${min}:${sec}.${ms}`;
         }
 
+        // JS内のエスケープをMathJaxが解釈できる生のLaTeX記号にデコードする処理
+        function cleanLatexString(rawStr) {
+            if (!rawStr) return "";
+            return rawStr
+                .replace(/\\\\frac/g, '\\frac')
+                .replace(/\\\\pi/g, '\\pi')
+                .replace(/\\\\theta/g, '\\theta')
+                .replace(/\\\\sin/g, '\\sin')
+                .replace(/\\\\cos/g, '\\cos')
+                .replace(/\\\\tan/g, '\\tan')
+                .replace(/\\\\sqrt/g, '\\sqrt')
+                .replace(/\\\\vec/g, '\\vec')
+                .replace(/\\\\le/g, '\\le')
+                .replace(/\\\\ge/g, '\\ge');
+        }
+
         function renderQuestion() {
             if (currentQuestionIndex >= selectedQuestions.length) {
                 finishSprint();
@@ -162,11 +177,17 @@
 
             const q = selectedQuestions[currentQuestionIndex];
             document.getElementById("problem-meta").textContent = `${q.subject} // ${q.field}`;
-            document.getElementById("problem-title-display").textContent = q.title;
-            document.getElementById("sprint-answer-display").textContent = q.answer;
-            document.getElementById("sprint-steps-display").textContent = q.steps.replace(/\\n/g, '\n');
+            
+            // 🚨 どんなエスケープまみれのデータでも強制的に綺麗な数式に補正してハメ出す
+            document.getElementById("problem-title-display").textContent = cleanLatexString(q.title);
+            document.getElementById("sprint-answer-display").textContent = cleanLatexString(q.answer);
+            document.getElementById("sprint-steps-display").textContent = cleanLatexString(q.steps).replace(/\\n/g, '\n');
 
-            if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise();
+            setTimeout(() => {
+                if (window.MathJax && MathJax.typesetPromise) {
+                    MathJax.typesetPromise().catch((err) => console.log(err));
+                }
+            }, 50);
         }
 
         async function sendToMainRemindList() {
@@ -177,16 +198,16 @@
             
             const remindProblem = {
                 id: q.id,
-                title: q.title,
+                title: cleanLatexString(q.title),
                 short_title: `【DS】${q.field}計算`,
                 subject: q.subject,
                 field: q.field,
-                trap_description: "デイリースプリントからの転送弱点。公式の適用と素やすい計算力を再確認せよ。",
+                trap_description: "デイリースプリントからの転送弱点。公式の適用と素早い計算力を再確認せよ。",
                 errorCount: 1,
                 lastAttemptAt: new Date().toISOString(),
                 lastResult: false,
                 imageData: null,
-                answerFormula: `${q.answer}\n\n【解説】\n${q.steps}`
+                answerFormula: `${cleanLatexString(q.answer)}\n\n【解説】\n${cleanLatexString(q.steps).replace(/\\n/g, '\n')}`
             };
 
             try {
@@ -215,7 +236,9 @@
         document.getElementById("btn-reveal-ans").addEventListener("click", () => {
             document.getElementById("btn-reveal-ans").style.display = "none";
             document.getElementById("sprint-reveal-zone").style.display = "flex";
-            if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise();
+            setTimeout(() => {
+                if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise();
+            }, 50);
         });
 
         document.getElementById("btn-sprint-correct").addEventListener("click", nextQuestion);
