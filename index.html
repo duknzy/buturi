@@ -149,6 +149,7 @@
             height: 100%;
             object-fit: cover;
         }
+        .card-thumbnail-wrapper .badge-subject-fallback { font-size: 1.6rem; font-weight: normal; }
         .card-main-text-zone {
             display: flex;
             flex-direction: column;
@@ -235,7 +236,7 @@
             <div class="tile-header-group">
                 <span class="badge badge-alert">NEW PROBLEM // CLOUD STORAGE</span>
                 <h3 style="font-size: 1.3rem; font-weight: 800;">間違えた問題の登録解析</h3>
-                <p style="color: var(--text-muted); font-size: 0.85rem;">写真をアップロードすると、Geminiの高性能な眼が問題文を読み取りクラウドへ安全に保存します。</p>
+                <p style="color: var(--text-muted); font-size: 0.85rem;">写真をアップロードして登録します。即座にAI解析をするか、管理のみ（スキップ）か選択可能です。</p>
             </div>
 
             <label for="problem-image-input" class="image-upload-zone">
@@ -249,8 +250,9 @@
 
             <textarea class="modal-textarea" id="problem-text-input" placeholder="（任意）補足のテキストやメモがあればここに入力..."></textarea>
             
-            <div style="display: flex; gap: 1rem; justify-content: flex-end; width: 100%;">
+            <div style="display: flex; gap: 0.6rem; justify-content: flex-end; width: 100%; margin-top: 1rem; flex-wrap: wrap;">
                 <button type="button" class="tactile-btn tactile-btn-secondary" id="close-modal-btn">キャンセル</button>
+                <button type="button" class="tactile-btn" id="quick-submit-btn" style="background: #111; color: var(--accent-cyan); border: 1px solid var(--accent-cyan); box-shadow: 3px 3px 0px rgba(0,243,255,0.2);">AI解析なしで登録</button>
                 <button type="button" class="tactile-btn" id="analyze-submit-btn">AI自動解析を実行</button>
             </div>
         </div>
@@ -276,7 +278,18 @@
         const database = getDatabase(app);
         const provider = new GoogleAuthProvider();
 
-        const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
+        // 🚨 安全対策：APIキーの直書きを完全に排除。ブラウザのLocalStorageから読み込む
+        let GEMINI_API_KEY = localStorage.getItem("RE_MIND_GEMINI_KEY");
+
+        if (!GEMINI_API_KEY) {
+            GEMINI_API_KEY = prompt("GeminiのAPIキーを入力してください（ブラウザ内だけに安全に保存され、GitHub等には公開されません）:");
+            if (GEMINI_API_KEY) {
+                localStorage.setItem("RE_MIND_GEMINI_KEY", GEMINI_API_KEY);
+            } else {
+                alert("GeminiのAPIキーが登録されないと、問題の自動解析は実行できません。");
+            }
+        }
+
         const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
         const SYSTEM_INSTRUCTION = `
@@ -352,7 +365,10 @@
                     totalProblemEntries++;
                     let p = allData[id];
                     dynamicTotalCount += Number(p.errorCount || 0);
-                    let badgeSubjectClass = p.subject.includes("物理") ? "badge-physics" : "badge-math";
+                    
+                    let subjectText = p.subject || "未分類";
+                    let fieldText = p.field || "未分類";
+                    let badgeSubjectClass = subjectText.includes("物理") ? "badge-physics" : (subjectText.includes("数学") ? "badge-math" : "badge-pending");
 
                     if (p.lastAttemptAt && p.lastResult === true) {
                         const attemptDateStr = new Date(p.lastAttemptAt).toDateString();
@@ -400,7 +416,7 @@
                     if (p.imageData) {
                         thumbnailHtml = `<div class="card-thumbnail-wrapper"><img src="${p.imageData}"></div>`;
                     } else {
-                        thumbnailHtml = `<div class="card-thumbnail-wrapper" style="color:var(--text-muted); font-size:1.6rem; font-weight:normal;">📝</div>`;
+                        thumbnailHtml = `<div class="card-thumbnail-wrapper" style="color:var(--text-muted);"><span class="badge-subject-fallback">📝</span></div>`;
                     }
 
                     let cardHtml = `
@@ -410,7 +426,7 @@
                                 <div class="card-main-text-zone">
                                     <div class="card-content-top">
                                         <div style="display: flex; gap: 0.5rem; margin-bottom: 0.4rem; flex-wrap: wrap;">
-                                            <span class="badge ${badgeSubjectClass}">${p.subject} // ${p.field}</span>
+                                            <span class="badge ${badgeSubjectClass}">${subjectText} // ${fieldText}</span>
                                             <span class="badge ${timeBadgeClass}">${timeBadgeText}</span>
                                         </div>
                                         <h2 class="card-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.short_title}</h2>
@@ -446,8 +462,10 @@
         async function analyzeAndAddProblem(userRawText) {
             if (!currentUser) return;
             const submitBtn = document.getElementById("analyze-submit-btn");
+            const quickBtn = document.getElementById("quick-submit-btn");
             submitBtn.textContent = "Gemini Visionが画像を分析中...";
             submitBtn.disabled = true;
+            quickBtn.disabled = true;
 
             let parts = [{ "text": "提出されたデータを解析し、最終的な『正しい答え（model_answer）』も含めて指定のJSONで返してください。" }];
             if (userRawText) parts[0].text += `\nユーザーの入力メモ: ${userRawText}`;
@@ -467,9 +485,8 @@
                 });
 
                 const data = await response.json();
-                let rawJsonText = data.candidates[0].content.parts[0].text;
+                let rawJsonText = data.candidates[0].content.parts[0].text.trim();
 
-                rawJsonText = rawJsonText.trim();
                 if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
                 else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
                 if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
@@ -509,12 +526,7 @@
                 };
 
                 await set(ref(database, 'users/' + currentUser.uid + '/problems/' + newId), newProblem);
-
-                document.getElementById("add-problem-modal").style.display = "none";
-                document.getElementById("problem-text-input").value = "";
-                document.getElementById("problem-image-input").value = "";
-                document.getElementById("image-preview-container").style.display = "none";
-                selectedImageBase64 = null;
+                closeModalAndReset();
 
             } catch (error) {
                 console.error(error);
@@ -522,7 +534,57 @@
             } finally {
                 submitBtn.textContent = "AI自動解析を実行";
                 submitBtn.disabled = false;
+                quickBtn.disabled = false;
             }
+        }
+
+        async function quickAddProblem(userRawText) {
+            if (!currentUser) return;
+            const submitBtn = document.getElementById("analyze-submit-btn");
+            const quickBtn = document.getElementById("quick-submit-btn");
+            quickBtn.textContent = "即時登録中...";
+            submitBtn.disabled = true;
+            quickBtn.disabled = true;
+
+            try {
+                const newId = "CUSTOM_" + Date.now();
+                const timestampStr = new Date().toLocaleDateString('ja-JP');
+                
+                let shortTitle = userRawText ? (userRawText.substring(0, 15) + (userRawText.length > 15 ? "..." : "")) : `クイック登録_${timestampStr}`;
+                
+                const newProblem = {
+                    id: newId,
+                    title: userRawText || "画像のみ登録（未解析問題）", 
+                    short_title: shortTitle,
+                    subject: "未分類",
+                    field: "手動管理",
+                    trap_description: "この問題はAI解析をスキップして登録されました。答え合わせは自身の教材で行うか、後ほど解析してください。",
+                    errorCount: 1,
+                    lastAttemptAt: new Date().toISOString(),
+                    lastResult: false,
+                    imageData: selectedImageBase64 ? `data:${selectedImageMimeType};base64,${selectedImageBase64}` : null,
+                    answerFormula: "模範解答データはありません。自力で解説を確認してください。" 
+                };
+
+                await set(ref(database, 'users/' + currentUser.uid + '/problems/' + newId), newProblem);
+                closeModalAndReset();
+
+            } catch (error) {
+                console.error(error);
+                alert("クラウドへの保存に失敗しました。");
+            } finally {
+                quickBtn.textContent = "AI解析なしで登録";
+                submitBtn.disabled = false;
+                quickBtn.disabled = false;
+            }
+        }
+
+        function closeModalAndReset() {
+            document.getElementById("add-problem-modal").style.display = "none";
+            document.getElementById("problem-text-input").value = "";
+            document.getElementById("problem-image-input").value = "";
+            document.getElementById("image-preview-container").style.display = "none";
+            selectedImageBase64 = null;
         }
 
         document.addEventListener("DOMContentLoaded", () => {
@@ -530,6 +592,7 @@
             const openBtn = document.getElementById("open-modal-btn");
             const closeBtn = document.getElementById("close-modal-btn");
             const submitBtn = document.getElementById("analyze-submit-btn");
+            const quickBtn = document.getElementById("quick-submit-btn");
             const textInput = document.getElementById("problem-text-input");
             const imageInput = document.getElementById("problem-image-input");
             const previewContainer = document.getElementById("image-preview-container");
@@ -565,6 +628,12 @@
                 const text = textInput.value.trim();
                 if (!text && !selectedImageBase64) { alert("写真を選択するかメモを入力してください。"); return; }
                 analyzeAndAddProblem(text);
+            });
+
+            quickBtn.addEventListener("click", () => {
+                const text = textInput.value.trim();
+                if (!text && !selectedImageBase64) { alert("写真を選択するかメモを入力してください。"); return; }
+                quickAddProblem(text);
             });
         });
    </script>

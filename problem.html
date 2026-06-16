@@ -74,7 +74,6 @@
         .btn-incorrect { background: var(--accent-magenta) !important; color: #000 !important; box-shadow: 4px 4px 0px #9e004f !important; flex: 1; height: 54px; font-size: 1.1rem; }
         #neon-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 99999; display: block; }
         
-        /* 後から解析ボタン用のスタイル */
         .btn-analyze-now { background: #111 !important; color: var(--accent-cyan) !important; border: 1px solid var(--accent-cyan) !important; box-shadow: 3px 3px 0px rgba(0,243,255,0.2) !important; font-size: 0.85rem; padding: 0.3rem 0.8rem; border-radius: 8px; cursor: pointer; display: none; font-weight: 800; }
         .btn-analyze-now:hover { background: rgba(0,243,255,0.05) !important; }
 
@@ -154,9 +153,8 @@
     </div>
 
    <script type="module">
-        // コピペ破壊防御：純粋な文字列結合のみでベースURLを構成
         const proto = "https" + "://";
-        const fbDomain = "www" + ".gstatic.com/firebasejs/10.12.0/";
+        const fbDomain = "www" + "[.gstatic.com/firebasejs/10.12.0/](https://.gstatic.com/firebasejs/10.12.0/)";
         const fbBase = proto + fbDomain;
 
         const { initializeApp } = await import(fbBase + "firebase-app.js");
@@ -180,9 +178,23 @@
         const urlParams = new URLSearchParams(window.location.search);
         const PROBLEM_ID = urlParams.get('id');
 
-        // Geminiの認証情報（オンデマンド解析用）
-        const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
+        // 🚨 安全対策：APIキーの直書きを完全に排除。ブラウザのLocalStorageから読み込む
+        let GEMINI_API_KEY = localStorage.getItem("RE_MIND_GEMINI_KEY");
+        let DEEPSEEK_API_KEY = localStorage.getItem("RE_MIND_DEEPSEEK_KEY");
+
+        if (!GEMINI_API_KEY) {
+            GEMINI_API_KEY = prompt("GeminiのAPIキーを入力してください:");
+            if (GEMINI_API_KEY) localStorage.setItem("RE_MIND_GEMINI_KEY", GEMINI_API_KEY);
+        }
+        if (!DEEPSEEK_API_KEY) {
+            DEEPSEEK_API_KEY = prompt("DeepSeekのAPIキーを入力してください:");
+            if (DEEPSEEK_API_KEY) localStorage.setItem("RE_MIND_DEEPSEEK_KEY", DEEPSEEK_API_KEY);
+        }
+
         const GEMINI_API_URL = `${proto}generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const DEEPSEEK_API_URL = proto + "[api.deepseek.com/v1/chat/completions](https://api.deepseek.com/v1/chat/completions)";
+        const MODEL_NAME = "deepseek-chat";
+
         const GEMINI_SYSTEM_INSTRUCTION = `
         あなたは高校数学・物理の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
         出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
@@ -195,10 +207,6 @@
           "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
         }
         `;
-
-        const DEEPSEEK_API_KEY = "sk-75a20ea4412a4d98af24a9b79b9269c7";
-        const DEEPSEEK_API_URL = proto + "api.deepseek.com/v1/chat/completions";
-        const MODEL_NAME = "deepseek-chat";
 
         const SYSTEM_INSTRUCTION_BASE = `
         あなたはソクラテス式問答法を用いる高校生向けAIチューターです。
@@ -258,7 +266,6 @@
                 const badge = document.getElementById("question-badge");
                 badge.textContent = currentProblemData.subject + " // " + currentProblemData.field + " // 誤答回数: " + String(currentProblemData.errorCount).padStart(2, '0');
                 
-                // クイック登録（未分類）状態の時は、後から解析ボタンを表示させる
                 const analyzeBtn = document.getElementById("on-demand-analyze-btn");
                 if (currentProblemData.subject === "未分類") {
                     analyzeBtn.style.display = "block";
@@ -293,7 +300,6 @@
             }, { onlyOnce: true });
         }
 
-        // 後からAI解析を実行するコプロセッサ関数
         async function runOnDemandAnalysis() {
             if (!loginUid || !currentProblemData.imageData) {
                 alert("解析可能な画像データが見つかりません。");
@@ -304,7 +310,6 @@
             analyzeBtn.textContent = "⚙️ 爆速解析中...";
             analyzeBtn.disabled = true;
 
-            // Base64ヘッダーをカットして純粋なデータを取り出す
             let base64Raw = currentProblemData.imageData.split(",")[1];
             let mimeType = currentProblemData.imageData.split(",")[0].split(":")[1].split(";")[0];
 
@@ -350,7 +355,6 @@
 
                 const aiResult = JSON.parse(fixJsonEscapes(rawJsonText));
 
-                // 既存のデータをGeminiの解析結果でアップデート
                 currentProblemData.title = aiResult.extracted_text || currentProblemData.title;
                 currentProblemData.short_title = aiResult.short_title;
                 currentProblemData.subject = aiResult.subject;
@@ -358,7 +362,6 @@
                 currentProblemData.trap_description = aiResult.trap_description;
                 currentProblemData.answerFormula = aiResult.model_answer;
 
-                // Firebaseへ書き込み
                 const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
                 await set(probRef, currentProblemData);
 
@@ -422,7 +425,6 @@
         }
 
         async function sendMessageToGemini(studentMessage) {
-            // 未解析状態のままメッセージを送らせないためのブロック
             if (currentProblemData.subject === "未分類") {
                 alert("対話を始める前に、まずは右上のボタンからAI解析を実行してください。");
                 return;
@@ -434,11 +436,11 @@
             
             chatHistory.push({ "role": "user", "content": studentMessage });
 
-            // 【完全修正】問題文(0番)を除外した上で、純粋な対話ラリーの末尾4件のみをスライス
+            // 【完全修正】問題文(0番)を除外した上で、純粋な対話ラリーの末尾4件のみをスライス（重複回避）
             const recentHistory = chatHistory.slice(1).slice(-4);
             const optimizedMessages = [
                 { "role": "system", "content": SYSTEM_INSTRUCTION_BASE },
-                chatHistory[0], // 最初の問題文をベースとして固定
+                chatHistory[0], 
                 ...recentHistory
             ];
 
@@ -500,8 +502,6 @@
             showAnswerBtn.addEventListener("click", () => { revealWrap.style.display = "none"; revealZone.style.display = "flex"; if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise(); });
             document.getElementById("btn-judge-right").addEventListener("click", () => processSelfJudgment(true));
             document.getElementById("btn-judge-wrong").addEventListener("click", () => processSelfJudgment(false));
-            
-            // 後から解析ボタンのクリックイベント
             onDemandBtn.addEventListener("click", () => runOnDemandAnalysis());
         });
    </script>
