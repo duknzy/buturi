@@ -276,10 +276,10 @@
         const database = getDatabase(app);
         const provider = new GoogleAuthProvider();
 
-        // 🚀 DeepSeek V4 APIの接続設定（OpenAI互換フォーマット）
+        // 🚀 DeepSeek 正式仕様のエンドポイントURLと推論モデル指定へ完全統合
         const DEEPSEEK_API_KEY = "sk-75a20ea4412a4d98af24a9b79b9269c7";
-        const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
-        const MODEL_NAME = "deepseek-chat"; // ※マルチモーダル(V4)対応モデル名
+        const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
+        const MODEL_NAME = "deepseek-reasoner"; // 理数系ビジョン推論を最高精度で行う公式フラグ
 
         const SYSTEM_INSTRUCTION = `
         あなたは高校数学・物理の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
@@ -446,7 +446,6 @@
             });
         }
 
-        // 🛡️ DeepSeek特有の思考タグとマークダウンを完全に剥ぎ取ってJSON化する強力な防衛フィルター
         function cleanDeepSeekResponse(rawText) {
             let text = rawText.trim();
             if (text.includes("</think>")) {
@@ -478,7 +477,6 @@
             submitBtn.textContent = "DeepSeek V4が画像を分析中...";
             submitBtn.disabled = true;
 
-            // DeepSeek V4 用のマルチモーダルメッセージ構造
             let contentPayload = [];
             let promptText = "提出された物理または数学のデータを解析し、指定のJSONのみで返してください。";
             if (userRawText) promptText += `\nユーザーの入力メモ: ${userRawText}`;
@@ -504,12 +502,17 @@
                             { "role": "system", "content": SYSTEM_INSTRUCTION },
                             { "role": "user", "content": contentPayload }
                         ],
-                        "temperature": 0.2,
-                        "response_format": { "type": "json_object" }
+                        "temperature": 0.1
                     })
                 });
 
                 const data = await response.json();
+                
+                // 防衛コード：APIエラーが返ってきた場合のハンドリング
+                if (data.error) {
+                    throw new Error(data.error.message);
+                }
+
                 let rawOutput = data.choices[0].message.content;
                 const aiResult = cleanDeepSeekResponse(rawOutput);
 
@@ -538,7 +541,7 @@
 
             } catch (error) {
                 console.error(error);
-                alert("DeepSeek V4の解析、またはクラウドへの保存に失敗しました。クレジット残高やキーを確認してください。");
+                alert("DeepSeek V4の解析に失敗しました。理由: " + error.message);
             } finally {
                 submitBtn.textContent = "AI自動解析を実行";
                 submitBtn.disabled = false;
