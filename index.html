@@ -405,16 +405,24 @@
 
         let previewTimeout = null; // タイピングの遅延監視用タイマー
 
-        /**
-         * カーソル位置に数式記号を挿入するロジック
-         */
+       // 【アップデート】カーソル位置に数式記号を挿入するロジック（スマート補完付き）
         window.insertMathSymbol = function(startTag, endTag = "") {
             const textarea = document.getElementById('problem-text-input');
             if (!textarea) return;
 
-            const startPos = textarea.selectionStart;
-            const endPos = textarea.selectionEnd;
+            let startPos = textarea.selectionStart;
+            let endPos = textarea.selectionEnd;
             const currentText = textarea.value;
+
+            // カーソル位置より前にある「$」の数を数えて、現在数式の「外」にいるか判定
+            const textBeforeCursor = currentText.substring(0, startPos);
+            const dollarCount = (textBeforeCursor.match(/\$/g) || []).length;
+
+            // 「$」そのもののボタンではなく、かつ数式の外（$の数が偶数）にいる場合、自動で $ で囲む
+            if (startTag !== '$' && dollarCount % 2 === 0) {
+                startTag = '$' + startTag;
+                endTag = endTag + '$';
+            }
 
             const selectedText = currentText.substring(startPos, endPos);
             const replacement = startTag + selectedText + endTag;
@@ -422,37 +430,31 @@
             textarea.value = currentText.substring(0, startPos) + replacement + currentText.substring(endPos);
             textarea.focus();
 
+            // カーソル位置を適切な場所に移動
             const newCursorPos = startPos + startTag.length + selectedText.length;
             textarea.selectionStart = newCursorPos;
             textarea.selectionEnd = newCursorPos;
 
-            // ボタンクリック時は遅延させず、即座(true)に数式に変換する
+            // 即座にプレビューを更新
             window.updateMathPreview(true);
         };
 
-        /**
-         * 数式リアルタイムプレビュー更新処理（デバウンス対応）
-         * @param {boolean} immediate - true の場合は遅延なしで即座にレンダリングを実行
-         */
+        // 【アップデート】数式リアルタイムプレビュー更新処理（安全版）
         window.updateMathPreview = function(immediate = false) {
             const textarea = document.getElementById('problem-text-input');
             const preview = document.getElementById('math-preview');
             if (!textarea || !preview) return;
 
-            // 通常の文字テキストはタイピングのラグを感じさせないよう即座に画面へ反映
+            // プレビュー領域に文字を反映
             preview.innerHTML = textarea.value ? textarea.value : "入力プレビューがここに表示されます";
 
-            // 前回のタイピングによるレンダリング予約を一旦キャンセル
             if (previewTimeout) {
                 clearTimeout(previewTimeout);
             }
 
-            // MathJaxの数式レンダリング実処理
             const renderMath = () => {
                 if (window.MathJax && window.MathJax.typesetPromise) {
-                    // 1. まず古い要素のキャッシュを完全にクリア（超重要！）
-                    window.MathJax.typesetClear([preview]);
-                    // 2. その後、新しいテキストを数式にレンダリングする
+                    // エラーの温床になる古いキャッシュクリアを廃止し、安全に再レンダリング
                     window.MathJax.typesetPromise([preview]).catch((err) => console.log(err.message));
                 }
             };
@@ -460,12 +462,10 @@
             if (immediate) {
                 renderMath();
             } else {
-                // ユーザーがタイピングの手を止めて300ms後に安全にレンダリングを実行（衝突回避）
+                // タイピング時は300ms待ってから安全にレンダリング
                 previewTimeout = setTimeout(renderMath, 300);
             }
         };
-
-        // --- ここまで差し替え ---
 
         onAuthStateChanged(auth, (user) => {
             const authPanel = document.getElementById("auth-panel");
