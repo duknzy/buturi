@@ -401,7 +401,13 @@
         let selectedImageBase64 = null;
         let selectedImageMimeType = null;
 
-        // 【追加】カーソル位置に数式記号を挿入するロジック（インラインHTMLから叩けるようwindowに結合）
+        // --- ここから差し替え ---
+
+        let previewTimeout = null; // タイピングの遅延監視用タイマー
+
+        /**
+         * カーソル位置に数式記号を挿入するロジック
+         */
         window.insertMathSymbol = function(startTag, endTag = "") {
             const textarea = document.getElementById('problem-text-input');
             if (!textarea) return;
@@ -420,21 +426,46 @@
             textarea.selectionStart = newCursorPos;
             textarea.selectionEnd = newCursorPos;
 
-            window.updateMathPreview();
+            // ボタンクリック時は遅延させず、即座(true)に数式に変換する
+            window.updateMathPreview(true);
         };
 
-        // 【追加】数式リアルタイムプレビュー更新処理（windowに結合）
-        window.updateMathPreview = function() {
+        /**
+         * 数式リアルタイムプレビュー更新処理（デバウンス対応）
+         * @param {boolean} immediate - true の場合は遅延なしで即座にレンダリングを実行
+         */
+        window.updateMathPreview = function(immediate = false) {
             const textarea = document.getElementById('problem-text-input');
             const preview = document.getElementById('math-preview');
             if (!textarea || !preview) return;
 
+            // 通常の文字テキストはタイピングのラグを感じさせないよう即座に画面へ反映
             preview.innerHTML = textarea.value ? textarea.value : "入力プレビューがここに表示されます";
 
-            if (window.MathJax && window.MathJax.typesetPromise) {
-                window.MathJax.typesetPromise([preview]).catch((err) => console.log(err.message));
+            // 前回のタイピングによるレンダリング予約を一旦キャンセル
+            if (previewTimeout) {
+                clearTimeout(previewTimeout);
+            }
+
+            // MathJaxの数式レンダリング実処理
+            const renderMath = () => {
+                if (window.MathJax && window.MathJax.typesetPromise) {
+                    // 1. まず古い要素のキャッシュを完全にクリア（超重要！）
+                    window.MathJax.typesetClear([preview]);
+                    // 2. その後、新しいテキストを数式にレンダリングする
+                    window.MathJax.typesetPromise([preview]).catch((err) => console.log(err.message));
+                }
+            };
+
+            if (immediate) {
+                renderMath();
+            } else {
+                // ユーザーがタイピングの手を止めて300ms後に安全にレンダリングを実行（衝突回避）
+                previewTimeout = setTimeout(renderMath, 300);
             }
         };
+
+        // --- ここまで差し替え ---
 
         onAuthStateChanged(auth, (user) => {
             const authPanel = document.getElementById("auth-panel");
@@ -710,7 +741,13 @@
             document.getElementById("problem-text-input").value = "";
             document.getElementById("problem-image-input").value = "";
             document.getElementById("image-preview-container").style.display = "none";
-            document.getElementById("math-preview").innerHTML = "入力プレビューがここに表示されます";
+            
+            // モーダルを閉じるときはMathJaxの追跡も一度クリアして初期化する
+            const preview = document.getElementById("math-preview");
+            if (window.MathJax && window.MathJax.typesetClear) {
+                window.MathJax.typesetClear([preview]);
+            }
+            preview.innerHTML = "入力プレビューがここに表示されます";
             selectedImageBase64 = null;
         }
 
@@ -728,8 +765,10 @@
             openBtn.addEventListener("click", () => modal.style.display = "flex");
             closeBtn.addEventListener("click", () => { closeModalAndReset(); });
 
-            // 【追加】テキスト入力時にもリアルタイムにプレビューを走らせる
-            textInput.addEventListener('input', window.updateMathPreview);
+            // テキスト入力時はデバウンス（遅延ありモード）でプレビューを叩く
+            textInput.addEventListener('input', () => { window.updateMathPreview(false); });
+
+            // (以下、画像アップロードや各種送信処理はそのまま流用してください...)
 
             imageInput.addEventListener("change", function(e) {
                 const file = e.target.files[0];
