@@ -90,6 +90,7 @@
         const { getAuth, onAuthStateChanged } = await import(fbBase + "firebase-auth.js");
         const { getDatabase, ref, set } = await import(fbBase + "firebase-database.js");
 
+        // 外部ファイルのインポートを完全に同期的に待つ
         const { dailyProblemBank } = await import("./daily-data.js");
 
         const firebaseConfig = {
@@ -112,22 +113,34 @@
         let startTime = 0;
         let timerInterval = null;
 
+        // データの存在確認とAuth確認が両方揃った段階で確実にトリガーする安全設計
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 loginUid = user.uid;
-                setupDailySprint();
+                if (dailyProblemBank && dailyProblemBank.length > 0) {
+                    setupDailySprint();
+                } else {
+                    alert("問題データの読み込みに失敗しました。daily-data.jsを確認してください。");
+                }
             } else {
                 location.href = "index.html";
             }
         });
 
         function setupDailySprint() {
-            const todayStr = new Date().toLocaleDateString('ja-JP');
+            // 今日の日付（YYYY-MM-DD）から確実に固定シードを生成する
+            const now = new Date();
+            const todayStr = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+            
             let seed = 0;
-            for (let i = 0; i < todayStr.length; i++) { seed += todayStr.charCodeAt(i); }
+            for (let i = 0; i < todayStr.length; i++) { 
+                seed += todayStr.charCodeAt(i) * (i + 1); 
+            }
 
             let bankCopy = [...dailyProblemBank];
             let shuffled = [];
+            
+            // 確実なシード固定シャッフルロジック
             while (bankCopy.length > 0) {
                 seed = (seed * 9301 + 49297) % 233280;
                 let index = Math.floor((seed / 233280) * bankCopy.length);
@@ -149,20 +162,15 @@
             document.getElementById("sprint-timer").textContent = `${min}:${sec}.${ms}`;
         }
 
-        // JS内のエスケープをMathJaxが解釈できる生のLaTeX記号にデコードする処理
+        // 🚨 【最強のエスケープ中和処理】すべての二重バックスラッシュを完全クリーン化する
         function cleanLatexString(rawStr) {
             if (!rawStr) return "";
-            return rawStr
-                .replace(/\\\\frac/g, '\\frac')
-                .replace(/\\\\pi/g, '\\pi')
-                .replace(/\\\\theta/g, '\\theta')
-                .replace(/\\\\sin/g, '\\sin')
-                .replace(/\\\\cos/g, '\\cos')
-                .replace(/\\\\tan/g, '\\tan')
-                .replace(/\\\\sqrt/g, '\\sqrt')
-                .replace(/\\\\vec/g, '\\vec')
-                .replace(/\\\\le/g, '\\le')
-                .replace(/\\\\ge/g, '\\ge');
+            let result = String(rawStr);
+            // ループを回してバックスラッシュが多重に重なっている箇所をすべて1本(\)に収束させる
+            while (result.includes('\\\\')) {
+                result = result.replace(/\\\\/g, '\\');
+            }
+            return result;
         }
 
         function renderQuestion() {
@@ -178,16 +186,20 @@
             const q = selectedQuestions[currentQuestionIndex];
             document.getElementById("problem-meta").textContent = `${q.subject} // ${q.field}`;
             
-            // 🚨 どんなエスケープまみれのデータでも強制的に綺麗な数式に補正してハメ出す
+            // 強力にデコードしてDOMへ注入
             document.getElementById("problem-title-display").textContent = cleanLatexString(q.title);
             document.getElementById("sprint-answer-display").textContent = cleanLatexString(q.answer);
-            document.getElementById("sprint-steps-display").textContent = cleanLatexString(q.steps).replace(/\\n/g, '\n');
+            
+            // 特殊な改行コード表記（\\nや\n）を正規の改行に整える
+            let cleanSteps = cleanLatexString(q.steps);
+            document.getElementById("sprint-steps-display").textContent = cleanSteps.replace(/\\n/g, '\n');
 
+            // MathJaxの数式レンダリングを最優先で再実行
             setTimeout(() => {
                 if (window.MathJax && MathJax.typesetPromise) {
                     MathJax.typesetPromise().catch((err) => console.log(err));
                 }
-            }, 50);
+            }, 30);
         }
 
         async function sendToMainRemindList() {
@@ -238,7 +250,7 @@
             document.getElementById("sprint-reveal-zone").style.display = "flex";
             setTimeout(() => {
                 if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise();
-            }, 50);
+            }, 30);
         });
 
         document.getElementById("btn-sprint-correct").addEventListener("click", nextQuestion);
