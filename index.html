@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RETROGRADE // 誤答克服ダッシュボード</title>
     <link rel="stylesheet" href="style.css">
+    
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+
     <style>
         .squircle-card {
             border: 1px solid #22222a;
@@ -97,6 +111,8 @@
             width: 90%; max-width: 600px;
             border: 1px solid var(--accent-cyan);
             box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+            max-height: 95vh;
+            overflow-y: auto;
         }
         .modal-textarea {
             width: 100%; height: 100px; background: #000; border: 1px solid #222;
@@ -104,16 +120,67 @@
             resize: none;
         }
 
+        /* 【追加】数学キーボードのスタイル */
+        .math-keyboard {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 0.4rem;
+            margin-top: 0.8rem;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 0.5rem;
+            border-radius: 12px;
+            border: 1px solid #22222a;
+        }
+        .math-key {
+            background: #050508;
+            border: 1px solid #22222a;
+            color: var(--text-bright-muted);
+            padding: 0.5rem 0.2rem;
+            font-size: 0.85rem;
+            font-weight: 700;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: center;
+        }
+        .math-key:hover {
+            background: #001515;
+            border-color: var(--accent-cyan);
+            color: var(--text-main);
+            box-shadow: 0 0 8px rgba(0, 243, 255, 0.3);
+        }
+        .math-key.btn-accent {
+            border-color: var(--accent-magenta);
+            color: var(--accent-magenta);
+        }
+        .math-key.btn-accent:hover {
+            background: rgba(255, 0, 127, 0.1);
+            box-shadow: 0 0 8px rgba(255, 0, 127, 0.4);
+        }
+
+        /* 【追加】リアルタイムプレビュー領域 */
+        .math-preview {
+            margin-top: 0.6rem;
+            padding: 0.8rem;
+            background: #020205;
+            border: 1px dashed #22222a;
+            border-radius: 12px;
+            min-height: 45px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            word-break: break-all;
+        }
+
         .image-upload-zone {
             display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-            width: 100%; padding: 0.8rem; margin: 0.8rem 0;
+            width: 100%; padding: 0.8rem; margin: 0.8rem 0 0 0;
             border: 1px dashed rgba(0, 243, 255, 0.4); border-radius: 12px;
             background: rgba(0, 243, 255, 0.02); cursor: pointer;
             font-size: 0.9rem; font-weight: 700; color: var(--accent-cyan);
         }
         .preview-box {
             width: 100%; max-height: 120px; border-radius: 8px; overflow: hidden;
-            display: none; border: 1px solid #222; margin-bottom: 0.8rem;
+            display: none; border: 1px solid #222; margin-top: 0.8rem;
         }
         .preview-box img { width: 100%; height: 100%; object-fit: contain; background: #020205; }
         
@@ -239,19 +306,42 @@
             <div class="tile-header-group">
                 <span class="badge badge-alert">NEW PROBLEM // CLOUD STORAGE</span>
                 <h3 style="font-size: 1.3rem; font-weight: 800;">間違えた問題の登録解析</h3>
-                <p style="color: var(--text-muted); font-size: 0.85rem;">写真をアップロードして登録します。即座にAI解析をするか、管理のみ（スキップ）か選択可能です。</p>
+                <p style="color: var(--text-muted); font-size: 0.85rem;">テキスト入力、または写真をアップロードして登録します。数式や記号はキーパッドを活用してください。</p>
             </div>
 
+            <div class="math-keyboard">
+                <button type="button" class="math-key btn-accent" onclick="insertMathSymbol('$', '$')">$$</button>
+                <button type="button" class="math-key" onclick="insertMathSymbol('\\frac{', '}{}')">分数</button>
+                <button type="button" class="math-key" onclick="insertMathSymbol('\\sqrt{', '}')">√</button>
+                <button type="button" class="math-key" onclick="insertMathSymbol('^{', '}')">xⁿ</button>
+                <button type="button" class="math-key" onclick="insertMathSymbol('_{', '}')">xₙ</button>
+                <button type="button" class="math-key" onclick="insertMathSymbol('\\theta')">θ</button>
+                <button type="button" class="math-key" onclick="insertMathSymbol('\\pi')">π</button>
+                <button type="button" class="math-key" onclick="insertMathSymbol('\\alpha')">α</button>
+                <button type="button" class="math-key" onclick="insertMathSymbol('\\beta')">β</button>
+                <button type="button" class="math-key" onclick="insertMathSymbol('\\Delta')">Δ</button>
+                <button type="button" class="math-key" onclick="insertMathSymbol('\\pm')">±</button>
+                <button type="button" class="math-key" onclick="insertMathSymbol('\\le')">≦</button>
+                <button type="button" class="math-key" onclick="insertMathSymbol('\\ge')">≧</button>
+                <button type="button" class="math-key" onclick="insertMathSymbol('\\vec{', '}')">ベクトル</button>
+                <button type="button" class="math-key" onclick="insertMathSymbol('\\int_{', '}^{}')">∫</button>
+                <button type="button" class="math-key" onclick="insertMathSymbol('\\log_{', '}')">log</button>
+                <button type="button" class="math-key" onclick="insertMathSymbol('\\sin')">sin</button>
+                <button type="button" class="math-key" onclick="insertMathSymbol('\\cos')">cos</button>
+            </div>
+
+            <textarea class="modal-textarea" id="problem-text-input" placeholder="問題文を直接入力するか、写真の補足メモを入力してください。数式は $x^2+y^2=1$ のように $ で挟むと綺麗にプレビューされます。"></textarea>
+            
+            <div id="math-preview" class="math-preview tex2jax_process">入力プレビューがここに表示されます</div>
+
             <label for="problem-image-input" class="image-upload-zone">
-                📸 問題の写真（ノート・プリント）をアップロード
+                📸 問題の写真（ノート・プリント）をアップロード（任意）
             </label>
             <input type="file" id="problem-image-input" accept="image/*" style="display: none;">
             
             <div class="preview-box" id="image-preview-container">
                 <img src="" id="img-preview-target">
             </div>
-
-            <textarea class="modal-textarea" id="problem-text-input" placeholder="（任意）補足のテキストやメモがあればここに入力..."></textarea>
             
             <div style="display: flex; gap: 0.6rem; justify-content: flex-end; width: 100%; margin-top: 1rem; flex-wrap: wrap;">
                 <button type="button" class="tactile-btn tactile-btn-secondary" id="close-modal-btn">キャンセル</button>
@@ -281,7 +371,6 @@
         const database = getDatabase(app);
         const provider = new GoogleAuthProvider();
 
-        // 🚨 安全対策：APIキーの直書きを完全に排除。ブラウザのLocalStorageから読み込む
         let GEMINI_API_KEY = localStorage.getItem("RE_MIND_GEMINI_KEY");
 
         if (!GEMINI_API_KEY) {
@@ -304,13 +393,48 @@
           "short_title": "問題の要約タイトル",
           "extracted_text": "読み取った正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと",
           "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
-          "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
+          "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇架書き形式（1., 2.など）で出力すること"
         }
         `;
 
         let currentUser = null;
         let selectedImageBase64 = null;
         let selectedImageMimeType = null;
+
+        // 【追加】カーソル位置に数式記号を挿入するロジック（インラインHTMLから叩けるようwindowに結合）
+        window.insertMathSymbol = function(startTag, endTag = "") {
+            const textarea = document.getElementById('problem-text-input');
+            if (!textarea) return;
+
+            const startPos = textarea.selectionStart;
+            const endPos = textarea.selectionEnd;
+            const currentText = textarea.value;
+
+            const selectedText = currentText.substring(startPos, endPos);
+            const replacement = startTag + selectedText + endTag;
+
+            textarea.value = currentText.substring(0, startPos) + replacement + currentText.substring(endPos);
+            textarea.focus();
+
+            const newCursorPos = startPos + startTag.length + selectedText.length;
+            textarea.selectionStart = newCursorPos;
+            textarea.selectionEnd = newCursorPos;
+
+            window.updateMathPreview();
+        };
+
+        // 【追加】数式リアルタイムプレビュー更新処理（windowに結合）
+        window.updateMathPreview = function() {
+            const textarea = document.getElementById('problem-text-input');
+            const preview = document.getElementById('math-preview');
+            if (!textarea || !preview) return;
+
+            preview.innerHTML = textarea.value ? textarea.value : "入力プレビューがここに表示されます";
+
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise([preview]).catch((err) => console.log(err.message));
+            }
+        };
 
         onAuthStateChanged(auth, (user) => {
             const authPanel = document.getElementById("auth-panel");
@@ -422,7 +546,6 @@
                         thumbnailHtml = `<div class="card-thumbnail-wrapper" style="color:var(--text-muted);"><span class="badge-subject-fallback">📝</span></div>`;
                     }
 
-                    // 🚨 ネタバレ完全抹殺：cardHtml の中から trap_description を表示していた <p> エリアを完全に消去
                     let cardHtml = `
                         <div class="squircle-card size-medium" onclick="location.href='problem.html?id=${p.id}'" style="border-color: var(--accent-cyan); border-left: 4px solid var(--accent-cyan); cursor: pointer; padding: 1.1rem 1.4rem;">
                             <div class="card-inner-layout">
@@ -587,6 +710,7 @@
             document.getElementById("problem-text-input").value = "";
             document.getElementById("problem-image-input").value = "";
             document.getElementById("image-preview-container").style.display = "none";
+            document.getElementById("math-preview").innerHTML = "入力プレビューがここに表示されます";
             selectedImageBase64 = null;
         }
 
@@ -602,7 +726,10 @@
             const previewTarget = document.getElementById("img-preview-target");
 
             openBtn.addEventListener("click", () => modal.style.display = "flex");
-            closeBtn.addEventListener("click", () => { modal.style.display = "none"; imageInput.value = ""; previewContainer.style.display = "none"; selectedImageBase64 = null; });
+            closeBtn.addEventListener("click", () => { closeModalAndReset(); });
+
+            // 【追加】テキスト入力時にもリアルタイムにプレビューを走らせる
+            textInput.addEventListener('input', window.updateMathPreview);
 
             imageInput.addEventListener("change", function(e) {
                 const file = e.target.files[0];
