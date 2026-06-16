@@ -140,7 +140,7 @@
                         <div style="font-size:0.8rem; color:var(--text-muted); font-weight:800; margin-bottom:0.2rem;">MODEL ANSWER</div>
                         <div class="model-answer-text" id="target-model-answer"></div>
                         <div class="judgment-buttons">
-                            <button type="button" class="tactile-btn btn-incorrect" id="btn-judge-wrong">❌ 間混えた（再挑戦）</button>
+                            <button type="button" class="tactile-btn btn-incorrect" id="btn-judge-wrong">❌ 間違えた（再挑戦）</button>
                             <button type="button" class="tactile-btn btn-correct" id="btn-judge-right">🎉 合ってた（克服！）</button>
                         </div>
                     </div>
@@ -150,7 +150,6 @@
     </div>
 
    <script type="module">
-        // 🚨 超厳重コピペ破壊防御：ドットすらも完全に分解結合し、チャットツールの自動リンク化を100%未然に防ぐ
         const proto = "https" + "://";
         const d = ".";
         const fbBase = proto + "www" + d + "gstatic" + d + "com/firebasejs/10.12.0/";
@@ -188,6 +187,7 @@
             if (DEEPSEEK_API_KEY) localStorage.setItem("RE_MIND_DEEPSEEK_KEY", DEEPSEEK_API_KEY);
         }
 
+        // 💡 正しい現行ブレイン「gemini-2.5-flash」に完全統合・復旧
         const GEMINI_API_URL = `${proto}generativelanguage${d}googleapis${d}com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
         const DEEPSEEK_API_URL = proto + "api" + d + "deepseek" + d + "com/v1/chat/completions";
         const MODEL_NAME = "deepseek-chat";
@@ -207,7 +207,7 @@
 
         const SYSTEM_INSTRUCTION_BASE = `
         あなたはソクラテス式問答法を用いる高校生向けAIチューターです。
-        正解（数式・数値）は絶対教えず、1回につき1つの小さな問いかけで自力解決へ導いてください。
+        正解（数式・数値）は絶対教えず、1回につき1つの小さな問いかけで自力解決へ導してください。
         数式や変数（m, v, g, theta等）は必ず「$m$」「$\\sin\\theta$」のように$で囲むLaTeX形式にすること。
 
         返答は以下のJSONのみ（説明不要）：
@@ -301,7 +301,7 @@
 
         async function runOnDemandAnalysis() {
             if (!loginUid || !currentProblemData.imageData) {
-                alert("解析可能な画像データが見つかりません。");
+                alert("解析可能な画像データが見つかりません。直接文字だけで登録した問題の場合は、画像がないためVision解析できません。");
                 return;
             }
 
@@ -327,6 +327,11 @@
                         "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
                     })
                 });
+
+                if (!response.ok) {
+                    const errorErr = await response.json().catch(() => ({}));
+                    throw new Error(errorErr.error?.message || `HTTPエラー: ${response.status}`);
+                }
 
                 const data = await response.json();
                 let rawJsonText = data.candidates[0].content.parts[0].text.trim();
@@ -355,11 +360,11 @@
                 const aiResult = JSON.parse(fixJsonEscapes(rawJsonText));
 
                 currentProblemData.title = aiResult.extracted_text || currentProblemData.title;
-                currentProblemData.short_title = aiResult.short_title;
-                currentProblemData.subject = aiResult.subject;
-                currentProblemData.field = aiResult.field;
-                currentProblemData.trap_description = aiResult.trap_description;
-                currentProblemData.answerFormula = aiResult.model_answer;
+                currentProblemData.short_title = aiResult.short_title || "解析問題";
+                currentProblemData.subject = aiResult.subject || "未分類";
+                currentProblemData.field = aiResult.field || "手動管理";
+                currentProblemData.trap_description = aiResult.trap_description || "";
+                currentProblemData.answerFormula = aiResult.model_answer || "解説データなし";
 
                 const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
                 await set(probRef, currentProblemData);
@@ -369,7 +374,7 @@
 
             } catch (error) {
                 console.error(error);
-                alert("オンデマンド解析に失敗しました。");
+                alert("オンデマンド解析に失敗しました。\n原因: " + error.message);
                 analyzeBtn.textContent = "⚡ この問題をAI解析する";
                 analyzeBtn.disabled = false;
             }
@@ -385,7 +390,7 @@
                 currentProblemData.lastResult = true;
                 currentProblemData.errorCount = 0; 
             } else {
-                alert("❌ クラウドに記録しました。AIと一緒に考え直しよう！");
+                alert("❌ クラウドに記録しました。AIと一緒に考え直そう！");
                 currentProblemData.lastResult = false;
                 currentProblemData.errorCount = Number(currentProblemData.errorCount || 1) + 1;
             }
@@ -423,7 +428,7 @@
             return JSON.parse(result);
         }
 
-        async function sendMessageToGemini(studentMessage) {
+        async function sendMessageToDeepSeek(studentMessage) {
             if (currentProblemData.subject === "未分類") {
                 alert("対話を始める前に、まずは右上のボタンからAI解析を実行してください。");
                 return;
@@ -457,6 +462,10 @@
                     })
                 });
                 
+                if (!response.ok) {
+                    throw new Error(`HTTPエラー コード: ${response.status}`);
+                }
+
                 const data = await response.json();
                 let rawOutput = data.choices[0].message.content;
                 const aiJson = cleanDeepSeekResponse(rawOutput);
@@ -465,7 +474,7 @@
                 updateChatUI(studentMessage, aiJson);
             } catch (error) { 
                 console.error(error);
-                alert("DeepSeekブレインとの通信に失敗しました。"); 
+                alert("DeepSeekブレインとの通信に失敗しました。\n原因: " + error.message + "\n\n※DeepSeekのAPIキーが正しくセットされているか確認してください。"); 
             }
             finally { statusBadge.textContent = "AI TUTOR // ACTIVE"; statusBadge.style.color = "var(--accent-cyan)"; }
         }
@@ -487,21 +496,28 @@
         function triggerNeonExplosion() { const colors = ["#00f3ff", "#ff007f", "#fff500"]; const startX = canvas.width / 2, startY = canvas.height * 0.8; for (let i = 0; i < 150; i++) particles.push(new Particle(startX, startY, colors[Math.floor(Math.random() * colors.length)])); animateParticles(); }
         function animateParticles() { if (particles.length === 0) { ctx.clearRect(0, 0, canvas.width, canvas.height); return; } ctx.clearRect(0, 0, canvas.width, canvas.height); for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].alpha <= 0) particles.splice(i, 1); } requestAnimationFrame(animateParticles); }
 
-        document.addEventListener("DOMContentLoaded", () => {
-            const sendBtn = document.querySelector(".chat-input-wrapper button");
-            const inputField = document.querySelector(".chat-input");
-            const showAnswerBtn = document.getElementById("show-answer-btn");
-            const revealWrap = document.getElementById("reveal-btn-wrap");
-            const revealZone = document.getElementById("answer-reveal-zone");
-            const onDemandBtn = document.getElementById("on-demand-analyze-btn");
+        // 🚨 DOMContentLoadedを完全撤廃し、モジュールスクリプト実行時に確実にイベントを即座に紐付け
+        const sendBtn = document.querySelector(".chat-input-wrapper button");
+        const inputField = document.querySelector(".chat-input");
+        const showAnswerBtn = document.getElementById("show-answer-btn");
+        const revealWrap = document.getElementById("reveal-btn-wrap");
+        const revealZone = document.getElementById("answer-reveal-zone");
+        const onDemandBtn = document.getElementById("on-demand-analyze-btn");
 
-            sendBtn.addEventListener("click", () => { const t = inputField.value.trim(); if (t) { inputField.value = ""; sendMessageToGemini(t); } });
-            inputField.addEventListener("keypress", (e) => { if (e.key === "Enter") { const t = inputField.value.trim(); if (t) { inputField.value = ""; sendMessageToGemini(t); } } });
+        if (sendBtn && inputField) {
+            sendBtn.addEventListener("click", () => { const t = inputField.value.trim(); if (t) { inputField.value = ""; sendMessageToDeepSeek(t); } });
+            inputField.addEventListener("keypress", (e) => { if (e.key === "Enter") { const t = inputField.value.trim(); if (t) { inputField.value = ""; sendMessageToDeepSeek(t); } } });
+        }
+        if (showAnswerBtn && revealWrap && revealZone) {
             showAnswerBtn.addEventListener("click", () => { revealWrap.style.display = "none"; revealZone.style.display = "flex"; if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise(); });
-            document.getElementById("btn-judge-right").addEventListener("click", () => processSelfJudgment(true));
-            document.getElementById("btn-judge-wrong").addEventListener("click", () => processSelfJudgment(false));
+        }
+        
+        document.getElementById("btn-judge-right").addEventListener("click", () => processSelfJudgment(true));
+        document.getElementById("btn-judge-wrong").addEventListener("click", () => processSelfJudgment(false));
+        
+        if (onDemandBtn) {
             onDemandBtn.addEventListener("click", () => runOnDemandAnalysis());
-        });
+        }
    </script>
 </body>
 </html>
