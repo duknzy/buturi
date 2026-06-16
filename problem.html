@@ -442,10 +442,18 @@
 
             const recentHistory = chatHistory.slice(1).slice(-4);
             const optimizedMessages = [
-                { "role": "system", "content": SYSTEM_INSTRUCTION_BASE },
-                chatHistory[0], 
-                ...recentHistory
-            ];
+    { 
+        "role": "system", 
+        "content": SYSTEM_INSTRUCTION_BASE + `
+        【あなたが導くべきゴール（Geminiの解析結果）】
+        ・この問題の分野: ${currentProblemData.field}
+        ・生徒がハマりやすい罠: ${currentProblemData.trap_description}
+        ・模範解答と解説: ${currentProblemData.answerFormula}
+        この答えを絶対に直接教えずに、ソクラテス式に導いてください。`
+    },
+    chatHistory[0], 
+    ...recentHistory
+];
 
             try {
                 const response = await fetch(DEEPSEEK_API_URL, {
