@@ -73,6 +73,11 @@
         .btn-correct { background: var(--accent-cyan) !important; box-shadow: 4px 4px 0px #008b94 !important; flex: 1; height: 54px; font-size: 1.1rem; }
         .btn-incorrect { background: var(--accent-magenta) !important; color: #000 !important; box-shadow: 4px 4px 0px #9e004f !important; flex: 1; height: 54px; font-size: 1.1rem; }
         #neon-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 99999; display: block; }
+        
+        /* 後から解析ボタン用のスタイル */
+        .btn-analyze-now { background: #111 !important; color: var(--accent-cyan) !important; border: 1px solid var(--accent-cyan) !important; box-shadow: 3px 3px 0px rgba(0,243,255,0.2) !important; font-size: 0.85rem; padding: 0.3rem 0.8rem; border-radius: 8px; cursor: pointer; display: none; font-weight: 800; }
+        .btn-analyze-now:hover { background: rgba(0,243,255,0.05) !important; }
+
         @media (max-width: 1100px) { .workspace-container { height: auto; } .bento-grid { grid-template-rows: auto; } .main-question-tile, .answer-formula-tile, .ai-sidebar-tile { grid-column: span 12; } .ai-sidebar-tile { height: 400px; } }
     </style>
 </head>
@@ -95,8 +100,9 @@
 
         <main class="bento-grid">
             <section class="squircle-tile main-question-tile">
-                <div class="tile-header-group">
+                <div class="tile-header-group" style="display: flex; justify-content: space-between; align-items: center; width:100%;">
                     <span class="badge badge-physics" id="question-badge">読み込み中...</span>
+                    <button type="button" class="btn-analyze-now" id="on-demand-analyze-btn">⚡ この問題をAI解析する</button>
                 </div>
                 
                 <div class="physics-figure-box" id="figure-box">
@@ -148,7 +154,7 @@
     </div>
 
    <script type="module">
-        // コピペ破壊防御：純粋な文字列結合のみでベースURLを構成。自動リンク化を完全にスルーする
+        // コピペ破壊防御：純粋な文字列結合のみでベースURLを構成
         const proto = "https" + "://";
         const fbDomain = "www" + ".gstatic.com/firebasejs/10.12.0/";
         const fbBase = proto + fbDomain;
@@ -174,23 +180,37 @@
         const urlParams = new URLSearchParams(window.location.search);
         const PROBLEM_ID = urlParams.get('id');
 
+        // Geminiの認証情報（オンデマンド解析用）
+        const GEMINI_API_KEY = "AQ.Ab8RN6K1zuWr0-mFNqAojEHCn-TJeAAvPq0epxQr0HbmQQrynw"; 
+        const GEMINI_API_URL = `${proto}generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const GEMINI_SYSTEM_INSTRUCTION = `
+        あなたは高校数学・物理の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
+        出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
+        {
+          "subject": "物理" または "数学",
+          "field": "分野名",
+          "short_title": "問題の要約タイトル",
+          "extracted_text": "読み取った正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと",
+          "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
+          "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
+        }
+        `;
+
         const DEEPSEEK_API_KEY = "sk-75a20ea4412a4d98af24a9b79b9269c7";
         const DEEPSEEK_API_URL = proto + "api.deepseek.com/v1/chat/completions";
         const MODEL_NAME = "deepseek-chat";
 
         const SYSTEM_INSTRUCTION_BASE = `
-        あなたは「ソクラテス式問答法」を用いる、物静かだが核心を突く高校生向けのAIチューターです。
-        最終的な正解（数式や数値）は絶対に教えず、小さな問いかけで生徒を自力での解決へ導いてください。
-        1回の発言につき、質問は「1つ」に絞ってください。
-        変数や数式（例: m, v, g, thetaなど）をメッセージに含めるときは、必ず前後に $ をつけて「$m$」や「$\\sin\\theta$」のようにLaTeX形式の数式として出力してください。
+        あなたはソクラテス式問答法を用いる高校生向けAIチューターです。
+        正解（数式・数値）は絶対教えず、1回につき1つの小さな問いかけで自力解決へ導いてください。
+        数式や変数（m, v, g, theta等）は必ず「$m$」「$\\sin\\theta$」のように$で囲むLaTeX形式にすること。
 
-        返答は必ず以下のJSONフォーマットの形式のみ（他の説明文は一切排除）で出力してください。
+        返答は以下のJSONのみ（説明不要）：
         {
-          "ai_response": "生徒へ返すヒントメッセージ（数式には $ $ を使用すること）",
-          "current_step_label": "現在のステップ名",
-          "student_understanding_rate": 0から100の整数
+          "ai_response": "生徒へのヒント（数式は$ $を使用）",
+          "current_step_label": "現在のステップ名"
         }
-        `;
+        `.trim();
 
         let chatHistory = []; 
         let currentProblemData = {};
@@ -238,6 +258,14 @@
                 const badge = document.getElementById("question-badge");
                 badge.textContent = currentProblemData.subject + " // " + currentProblemData.field + " // 誤答回数: " + String(currentProblemData.errorCount).padStart(2, '0');
                 
+                // クイック登録（未分類）状態の時は、後から解析ボタンを表示させる
+                const analyzeBtn = document.getElementById("on-demand-analyze-btn");
+                if (currentProblemData.subject === "未分類") {
+                    analyzeBtn.style.display = "block";
+                } else {
+                    analyzeBtn.style.display = "none";
+                }
+
                 const figBox = document.getElementById("figure-box");
                 if (currentProblemData.imageData) {
                     figBox.innerHTML = '<img src="' + currentProblemData.imageData + '" style="width:100%; height:100%; object-fit:contain; border-radius:12px;">';
@@ -245,7 +273,11 @@
                     figBox.innerHTML = '<div style="padding:2rem; text-align:center; color:var(--text-muted);">' + currentProblemData.title + '</div>';
                 }
                 
-                document.getElementById("initial-ai-bubble").textContent = "クラウド連携完了。DeepSeek V4のブレインがスタンバイしています！";
+                if (currentProblemData.subject === "未分類") {
+                    document.getElementById("initial-ai-bubble").textContent = "この問題は未解析ストックです。右上の『⚡ この問題をAI解析する』を押すと、Gemini Visionが起動して完全に対話可能になります！";
+                } else {
+                    document.getElementById("initial-ai-bubble").textContent = "クラウド連携完了。DeepSeekのブレインがスタンバイしています！";
+                }
 
                 const showAnsBtn = document.getElementById("show-answer-btn");
                 showAnsBtn.textContent = "👁 模範解答を表示して答え合わせする";
@@ -254,11 +286,91 @@
                 if (chatHistory.length === 0) {
                     chatHistory = [
                         { "role": "user", "content": "【問題文】 " + currentProblemData.title },
-                        { "role": "assistant", "content": `{"ai_response": "問題を確認しました。どこから考えてみましょうか？", "current_step_label": "ステップ1: 状況の整理", "student_understanding_rate": 20}` }
+                        { "role": "assistant", "content": `{"ai_response": "問題を確認しました。どこから考えてみましょうか？", "current_step_label": "ステップ1: 状況の整理"}` }
                     ];
                 }
                 if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise();
             }, { onlyOnce: true });
+        }
+
+        // 後からAI解析を実行するコプロセッサ関数
+        async function runOnDemandAnalysis() {
+            if (!loginUid || !currentProblemData.imageData) {
+                alert("解析可能な画像データが見つかりません。");
+                return;
+            }
+
+            const analyzeBtn = document.getElementById("on-demand-analyze-btn");
+            analyzeBtn.textContent = "⚙️ 爆速解析中...";
+            analyzeBtn.disabled = true;
+
+            // Base64ヘッダーをカットして純粋なデータを取り出す
+            let base64Raw = currentProblemData.imageData.split(",")[1];
+            let mimeType = currentProblemData.imageData.split(",")[0].split(":")[1].split(";")[0];
+
+            let parts = [
+                { "text": "提出されたデータを解析し、最終的な『正しい答え（model_answer）』も含めて指定のJSONで返してください。" },
+                { "inlineData": { "mimeType": mimeType, "data": base64Raw } }
+            ];
+
+            try {
+                const response = await fetch(GEMINI_API_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        "contents": [{ "parts": parts }],
+                        "systemInstruction": { "parts": [{ "text": GEMINI_SYSTEM_INSTRUCTION }] },
+                        "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
+                    })
+                });
+
+                const data = await response.json();
+                let rawJsonText = data.candidates[0].content.parts[0].text.trim();
+
+                if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
+                else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
+                if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
+                rawJsonText = rawJsonText.trim();
+
+                const fixJsonEscapes = (str) => {
+                    let inString = false; let result = "";
+                    for (let i = 0; i < str.length; i++) {
+                        let c = str[i];
+                        if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
+                        else if (c === '\\' && inString) {
+                            let next = str[i+1];
+                            if (next === '"') { result += '\\"'; i++; }
+                            else if (next === '\\') { result += '\\\\'; i++; }
+                            else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
+                            else { result += '\\\\'; }
+                        } else { result += c; }
+                    }
+                    return result;
+                };
+
+                const aiResult = JSON.parse(fixJsonEscapes(rawJsonText));
+
+                // 既存のデータをGeminiの解析結果でアップデート
+                currentProblemData.title = aiResult.extracted_text || currentProblemData.title;
+                currentProblemData.short_title = aiResult.short_title;
+                currentProblemData.subject = aiResult.subject;
+                currentProblemData.field = aiResult.field;
+                currentProblemData.trap_description = aiResult.trap_description;
+                currentProblemData.answerFormula = aiResult.model_answer;
+
+                // Firebaseへ書き込み
+                const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
+                await set(probRef, currentProblemData);
+
+                alert("⚡ AI解析が完了しました！セッションをリロードします。");
+                window.location.reload();
+
+            } catch (error) {
+                console.error(error);
+                alert("オンデマンド解析に失敗しました。");
+                analyzeBtn.textContent = "⚡ この問題をAI解析する";
+                analyzeBtn.disabled = false;
+            }
         }
 
         async function processSelfJudgment(isCorrect) {
@@ -271,7 +383,7 @@
                 currentProblemData.lastResult = true;
                 currentProblemData.errorCount = 0; 
             } else {
-                alert("❌ クラウドに記録しました。AIと一緒に考え直そう！");
+                alert("❌ クラウドに記録しました。AIと一緒に考え直しよう！");
                 currentProblemData.lastResult = false;
                 currentProblemData.errorCount = Number(currentProblemData.errorCount || 1) + 1;
             }
@@ -310,11 +422,25 @@
         }
 
         async function sendMessageToGemini(studentMessage) {
+            // 未解析状態のままメッセージを送らせないためのブロック
+            if (currentProblemData.subject === "未分類") {
+                alert("対話を始める前に、まずは右上のボタンからAI解析を実行してください。");
+                return;
+            }
+
             const statusBadge = document.getElementById("ai-status");
             statusBadge.textContent = "AI TUTOR // THINKING...";
             statusBadge.style.color = "var(--accent-magenta)";
             
             chatHistory.push({ "role": "user", "content": studentMessage });
+
+            // 【完全修正】問題文(0番)を除外した上で、純粋な対話ラリーの末尾4件のみをスライス
+            const recentHistory = chatHistory.slice(1).slice(-4);
+            const optimizedMessages = [
+                { "role": "system", "content": SYSTEM_INSTRUCTION_BASE },
+                chatHistory[0], // 最初の問題文をベースとして固定
+                ...recentHistory
+            ];
 
             try {
                 const response = await fetch(DEEPSEEK_API_URL, {
@@ -325,10 +451,7 @@
                     },
                     body: JSON.stringify({
                         "model": MODEL_NAME,
-                        "messages": [
-                            { "role": "system", "content": SYSTEM_INSTRUCTION_BASE },
-                            ...chatHistory
-                        ],
+                        "messages": optimizedMessages,
                         "temperature": 0.5,
                         "response_format": { "type": "json_object" }
                     })
@@ -342,7 +465,7 @@
                 updateChatUI(studentMessage, aiJson);
             } catch (error) { 
                 console.error(error);
-                alert("DeepSeekブレインとの通信に失敗しました。残高などを確認してください。"); 
+                alert("DeepSeekブレインとの通信に失敗しました。"); 
             }
             finally { statusBadge.textContent = "AI TUTOR // ACTIVE"; statusBadge.style.color = "var(--accent-cyan)"; }
         }
@@ -370,12 +493,16 @@
             const showAnswerBtn = document.getElementById("show-answer-btn");
             const revealWrap = document.getElementById("reveal-btn-wrap");
             const revealZone = document.getElementById("answer-reveal-zone");
+            const onDemandBtn = document.getElementById("on-demand-analyze-btn");
 
             sendBtn.addEventListener("click", () => { const t = inputField.value.trim(); if (t) { inputField.value = ""; sendMessageToGemini(t); } });
             inputField.addEventListener("keypress", (e) => { if (e.key === "Enter") { const t = inputField.value.trim(); if (t) { inputField.value = ""; sendMessageToGemini(t); } } });
             showAnswerBtn.addEventListener("click", () => { revealWrap.style.display = "none"; revealZone.style.display = "flex"; if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise(); });
             document.getElementById("btn-judge-right").addEventListener("click", () => processSelfJudgment(true));
             document.getElementById("btn-judge-wrong").addEventListener("click", () => processSelfJudgment(false));
+            
+            // 後から解析ボタンのクリックイベント
+            onDemandBtn.addEventListener("click", () => runOnDemandAnalysis());
         });
    </script>
 </body>
