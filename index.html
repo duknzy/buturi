@@ -216,20 +216,50 @@
             height: 100%;
             object-fit: cover;
         }
-        .card-thumbnail-wrapper .badge-subject-fallback { font-size: 1.6rem; font-weight: normal; }
-        .card-main-text-zone {
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            flex-grow: 1;
-            min-width: 0;
+
+        /* ✨【新設】画像がないテキスト問題用のプレビューボードCSS */
+        .card-thumbnail-text-preview {
+            font-size: 0.62rem !important;
+            color: var(--text-bright-muted);
+            padding: 0.5rem;
+            line-height: 1.3;
+            word-break: break-all;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 5;
+            -webkit-box-orient: vertical;
+            text-align: left;
+            width: 100%;
+            height: 100%;
+            background: #06060a;
+            font-family: monospace;
+        }
+        /* サムネイル内の一時的なMathJax数式サイズの最適化調整 */
+        .card-thumbnail-text-preview mjx-container {
+            font-size: 0.68rem !important;
+            margin: 0 !important;
+            display: inline-block !important;
         }
 
-        .badge-critical { background: rgba(255, 0, 127, 0.15) !important; color: var(--accent-magenta) !important; border: 1px solid var(--accent-magenta) !important; box-shadow: 0 0 8px rgba(255, 0, 127, 0.2); }
-        .badge-overdue  { background: rgba(255, 245, 0, 0.12) !important; color: #fff500 !important; border: 1px solid #fff500 !important; }
-        .badge-safe     { background: rgba(0, 243, 255, 0.1) !important; color: var(--accent-cyan) !important; border: 1px solid var(--accent-cyan) !important; }
-        .badge-new      { background: rgba(255, 255, 255, 0.04) !important; color: #fff !important; border: 1px solid rgba(255, 255, 255, 0.2) !important; }
-        .badge-pending  { background: rgba(150, 0, 255, 0.1) !important; color: #b16eff !important; border: 1px solid #b16eff !important; }
+        /* 全バッジ共通スタイル：枠線を完全消去して今風のフラットデザイン化 */
+        .badge {
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0.35rem 0.65rem !important;
+            border-radius: 6px !important;
+            font-weight: 800 !important;
+            font-size: 0.72rem !important;
+            letter-spacing: 0.5px;
+        }
+
+        /* 各種ステータス色のブラッシュアップ */
+        .badge-critical { background: rgba(255, 0, 127, 0.14) !important; color: var(--accent-magenta) !important; }
+        .badge-overdue  { background: rgba(255, 245, 0, 0.1) !important; color: #fff500 !important; }
+        .badge-safe     { background: rgba(0, 243, 255, 0.08) !important; color: var(--accent-cyan) !important; }
+        .badge-new      { background: rgba(255, 255, 255, 0.06) !important; color: #eee !important; }
+        .badge-pending  { background: rgba(150, 0, 255, 0.1) !important; color: #b16eff !important; }
+        .badge-physics  { background: rgba(0, 243, 255, 0.08) !important; color: var(--accent-cyan) !important; }
+        .badge-math     { background: rgba(0, 255, 120, 0.08) !important; color: #00ff78 !important; }
 
         @media (max-width: 1024px) { .size-high, .size-medium { grid-column: span 6; } .size-mini { grid-column: span 3; } }
         @media (max-width: 640px) { .bento-grid { grid-template-columns: 1fr; grid-auto-rows: auto; } .size-high, .size-medium, .size-mini { grid-column: span 1; grid-row: auto; } header { flex-direction: column; align-items: flex-start; gap: 1rem; } .card-thumbnail-wrapper { width: 85px; height: 85px; min-width: 85px; } }
@@ -383,7 +413,6 @@
             }
         }
 
-        // 💡 正しい現行ブレイン「gemini-2.5-flash」のエンドポイントに完全復旧
         const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
         const SYSTEM_INSTRUCTION = `
@@ -395,7 +424,7 @@
           "short_title": "問題の要約タイトル",
           "extracted_text": "読み取った正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと",
           "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
-          "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇架書き形式（1., 2.など）で出力すること"
+          "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
         }
         `;
 
@@ -518,7 +547,8 @@
                     
                     let subjectText = p.subject || "未分類";
                     let fieldText = p.field || "未分類";
-                    let badgeSubjectClass = subjectText.includes("物理") ? "badge-physics" : (subjectText.includes("数学") ? "badge-math" : "badge-pending");
+                    
+                    let badgeSubjectClass = subjectText.includes("物理") ? "badge-physics" : (subjectText.includes("数学") ? "badge-math" : "badge-new");
 
                     if (p.lastAttemptAt && p.lastResult === true) {
                         const attemptDateStr = new Date(p.lastAttemptAt).toDateString();
@@ -562,11 +592,17 @@
                         criticalDueCount++;
                     }
 
+                    // 💡【改良】画像があるかないかでサムネイルHTMLの分岐を制御
                     let thumbnailHtml = "";
                     if (p.imageData) {
                         thumbnailHtml = `<div class="card-thumbnail-wrapper"><img src="${p.imageData}"></div>`;
                     } else {
-                        thumbnailHtml = `<div class="card-thumbnail-wrapper" style="color:var(--text-muted);"><span class="badge-subject-fallback">📝</span></div>`;
+                        // 文字登録問題の場合、問題テキストの冒頭部分をMathJax対応の縮小ボードで綺麗にはめ込む
+                        let textPreview = p.title || "No data";
+                        thumbnailHtml = `
+                            <div class="card-thumbnail-wrapper">
+                                <div class="card-thumbnail-text-preview tex2jax_process">${textPreview}</div>
+                            </div>`;
                     }
 
                     let cardHtml = `
@@ -579,7 +615,7 @@
                                             <span class="badge ${badgeSubjectClass}">${subjectText} // ${fieldText}</span>
                                             <span class="badge ${timeBadgeClass}">${timeBadgeText}</span>
                                         </div>
-                                        <h2 class="card-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.short_title}</h2>
+                                        <h2 class="card-title tex2jax_process" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.short_title}</h2>
                                     </div>
                                     <div class="card-meta" style="margin-top: 0.4rem; padding-top: 0.3rem; border-top: 1px solid rgba(255,255,255,0.03);">
                                         <div style="font-size:0.75rem; color:var(--text-muted);">同期中</div>
@@ -605,6 +641,11 @@
                 document.getElementById("retention-rate-display").textContent = `${retentionRate}%`;
                 document.getElementById("retention-bar-display").style.width = `${retentionRate}%`;
                 document.getElementById("due-count-display").textContent = `本日要対応: ${criticalDueCount} 問`;
+
+                // 💡【最重要】動的カードが画面に出揃った直後に、MathJaxに数式の再描画を命令
+                if (window.MathJax && window.MathJax.typesetPromise) {
+                    window.MathJax.typesetPromise([dynamicArea]).catch((err) => console.log(err.message));
+                }
             });
         }
 
@@ -758,7 +799,7 @@
             selectedImageBase64 = null;
         }
 
-        // イベント登録を実行
+        // 各種イベントリスナー登録
         const modal = document.getElementById("add-problem-modal");
         const openBtn = document.getElementById("open-modal-btn");
         const closeBtn = document.getElementById("close-modal-btn");
