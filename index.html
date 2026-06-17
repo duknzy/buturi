@@ -217,7 +217,7 @@
             object-fit: cover;
         }
 
-        /* ✨【新設】画像がないテキスト問題用のプレビューボードCSS */
+        /* 画像がないテキスト問題用のプレビューボードCSS */
         .card-thumbnail-text-preview {
             font-size: 0.62rem !important;
             color: var(--text-bright-muted);
@@ -234,7 +234,6 @@
             background: #06060a;
             font-family: monospace;
         }
-        /* サムネイル内の一時的なMathJax数式サイズの最適化調整 */
         .card-thumbnail-text-preview mjx-container {
             font-size: 0.68rem !important;
             margin: 0 !important;
@@ -260,6 +259,28 @@
         .badge-pending  { background: rgba(150, 0, 255, 0.1) !important; color: #b16eff !important; }
         .badge-physics  { background: rgba(0, 243, 255, 0.08) !important; color: var(--accent-cyan) !important; }
         .badge-math     { background: rgba(0, 255, 120, 0.08) !important; color: #00ff78 !important; }
+
+        /* ✨【新設】分野フィルターボタンの近未来的フラットデザインスタイル */
+        .filter-btn {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-bright-muted);
+            border: none;
+            padding: 0.45rem 0.9rem;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .filter-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+        }
+        .filter-btn.active {
+            background: rgba(0, 243, 255, 0.14) !important;
+            color: var(--accent-cyan) !important;
+            box-shadow: 0 0 12px rgba(0, 243, 255, 0.15);
+        }
 
         @media (max-width: 1024px) { .size-high, .size-medium { grid-column: span 6; } .size-mini { grid-column: span 3; } }
         @media (max-width: 640px) { .bento-grid { grid-template-columns: 1fr; grid-auto-rows: auto; } .size-high, .size-medium, .size-mini { grid-column: span 1; grid-row: auto; } header { flex-direction: column; align-items: flex-start; gap: 1rem; } .card-thumbnail-wrapper { width: 85px; height: 85px; min-width: 85px; } }
@@ -293,6 +314,9 @@
                 Googleアカウントでサインイン
             </button>
         </div>
+
+        <div id="category-filter-bar" class="glass-card" style="display: none; padding: 1rem 1.4rem; border-radius: 14px; border-color: #22222a; flex-wrap: wrap; gap: 0.6rem; align-items: center; margin-bottom: -0.5rem;">
+            </div>
 
         <main class="bento-grid" id="main-dashboard-grid" style="display: none;">
             
@@ -433,6 +457,10 @@
         let selectedImageMimeType = null;
         let previewTimeout = null; 
 
+        // 分類フィルター制御用のステート
+        let lastCloudProblemsSnapshot = {};
+        let currentActiveFilter = "ALL";
+
         // カーソル位置に数式記号を挿入するロジック
         window.insertMathSymbol = function(startTag, endTag = "") {
             const textarea = document.getElementById('problem-text-input');
@@ -493,6 +521,7 @@
             const registerBtn = document.getElementById("open-modal-btn");
             const loginNotice = document.getElementById("login-required-notice");
             const mainGrid = document.getElementById("main-dashboard-grid");
+            const filterBar = document.getElementById("category-filter-bar");
 
             if (user) {
                 currentUser = user;
@@ -508,6 +537,7 @@
                 registerBtn.style.display = "block";
                 loginNotice.style.display = "none";
                 mainGrid.style.display = "grid";
+                filterBar.style.display = "flex"; // フィルターバーを有効化
 
                 listenToCloudData(user.uid);
             } else {
@@ -518,6 +548,7 @@
                 registerBtn.style.display = "none";
                 loginNotice.style.display = "block";
                 mainGrid.style.display = "none";
+                filterBar.style.display = "none";
             }
         });
 
@@ -528,125 +559,172 @@
             const userProblemsRef = ref(database, 'users/' + uid + '/problems');
             
             onValue(userProblemsRef, (snapshot) => {
-                const allData = snapshot.val() || {};
-                const dynamicArea = document.getElementById("dynamic-cards-area");
-                dynamicArea.innerHTML = "";
+                // 生データをバックアップして再レンダリングパイプに繋ぐ
+                lastCloudProblemsSnapshot = snapshot.val() || {};
+                rebuildFilterBarAndCards();
+            });
+        }
+
+        // ✨【新設】クラウド内の全データから一意のジャンルを全自動生成＆カードの絞り込みを行うコアロジック
+        function rebuildFilterBarAndCards() {
+            const filterBar = document.getElementById("category-filter-bar");
+            const dynamicArea = document.getElementById("dynamic-cards-area");
+            if (!filterBar || !dynamicArea) return;
+
+            // 1. クラウド内のデータから重複のない分類（教科 // 分野）を自動で抽出
+            const detectedCategories = new Set();
+            Object.keys(lastCloudProblemsSnapshot).forEach(id => {
+                const p = lastCloudProblemsSnapshot[id];
+                const sub = p.subject || "未分類";
+                const fld = p.field || "未分類";
+                detectedCategories.add(`${sub} // ${fld}`);
+            });
+
+            // 2. フィルターバーのHTMLをフラットデザインで組み立て
+            let filterHtml = `<span style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-right: 0.4rem; letter-spacing: 0.5px;">🔍 CLASSIFY // 分類フィルター:</span>`;
+            
+            // すべて表示ボタンの追加
+            const allActive = currentActiveFilter === "ALL" ? "active" : "";
+            filterHtml += `<button type="button" class="filter-btn ${allActive}" data-target="ALL">✨ すべて表示</button>`;
+
+            // 自動抽出されたジャンルボタンの追加
+            detectedCategories.forEach(cat => {
+                const catActive = currentActiveFilter === cat ? "active" : "";
+                filterHtml += `<button type="button" class="filter-btn ${catActive}" data-target="${cat}">${cat}</button>`;
+            });
+
+            filterBar.innerHTML = filterHtml;
+
+            // 3. フィルターボタンにクリックイベントを一発紐付け
+            filterBar.querySelectorAll(".filter-btn").forEach(btn => {
+                btn.addEventListener("click", (e) => {
+                    currentActiveFilter = e.target.getAttribute("data-target");
+                    // フィルター情報を書き換えて高速再レンダリング
+                    rebuildFilterBarAndCards();
+                });
+            });
+
+            // 4. カードのレンダリング処理（および全体統計値の算出）
+            dynamicArea.innerHTML = "";
+            let dynamicTotalCount = 0;
+            let solvedTodayCount = 0;
+            let criticalDueCount = 0;
+            let safeCount = 0;
+            let totalProblemEntries = 0;
+
+            const todayStr = new Date().toDateString();
+
+            Object.keys(lastCloudProblemsSnapshot).forEach(id => {
+                totalProblemEntries++;
+                let p = lastCloudProblemsSnapshot[id];
+                dynamicTotalCount += Number(p.errorCount || 0);
                 
-                let dynamicTotalCount = 0;
-                let solvedTodayCount = 0;
-                let criticalDueCount = 0;
-                let safeCount = 0;
-                let totalProblemEntries = 0;
+                let subjectText = p.subject || "未分類";
+                let fieldText = p.field || "未分類";
+                let thisProblemCat = `${subjectText} // ${fieldText}`;
+                
+                let badgeSubjectClass = subjectText.includes("物理") ? "badge-physics" : (subjectText.includes("数学") ? "badge-math" : "badge-new");
 
-                const todayStr = new Date().toDateString();
-
-                Object.keys(allData).forEach(id => {
-                    totalProblemEntries++;
-                    let p = allData[id];
-                    dynamicTotalCount += Number(p.errorCount || 0);
-                    
-                    let subjectText = p.subject || "未分類";
-                    let fieldText = p.field || "未分類";
-                    
-                    let badgeSubjectClass = subjectText.includes("物理") ? "badge-physics" : (subjectText.includes("数学") ? "badge-math" : "badge-new");
-
-                    if (p.lastAttemptAt && p.lastResult === true) {
-                        const attemptDateStr = new Date(p.lastAttemptAt).toDateString();
-                        if (attemptDateStr === todayStr) {
-                            solvedTodayCount++;
-                        }
+                if (p.lastAttemptAt && p.lastResult === true) {
+                    const attemptDateStr = new Date(p.lastAttemptAt).toDateString();
+                    if (attemptDateStr === todayStr) {
+                        solvedTodayCount++;
                     }
+                }
 
-                    let timeBadgeText = "🆕 NEW // 未挑戦";
-                    let timeBadgeClass = "badge-new";
+                let timeBadgeText = "🆕 NEW // 未挑戦";
+                let timeBadgeClass = "badge-new";
 
-                    if (p.lastAttemptAt) {
-                        const lastTime = new Date(p.lastAttemptAt).getTime();
-                        const nowTime = new Date().getTime();
-                        const diffDays = (nowTime - lastTime) / (1000 * 60 * 60 * 24);
+                if (p.lastAttemptAt) {
+                    const lastTime = new Date(p.lastAttemptAt).getTime();
+                    const nowTime = new Date().getTime();
+                    const diffDays = (nowTime - lastTime) / (1000 * 60 * 60 * 24);
 
-                        const difficulty = Number(p.errorCount || 1);
-                        
-                        let optimalInterval = 7; 
-                        if (difficulty === 1) optimalInterval = 4;
-                        if (difficulty === 2) optimalInterval = 2;
-                        if (difficulty >= 3)  optimalInterval = 1; 
+                    const difficulty = Number(p.errorCount || 1);
+                    
+                    let optimalInterval = 7; 
+                    if (difficulty === 1) optimalInterval = 4;
+                    if (difficulty === 2) optimalInterval = 2;
+                    if (difficulty >= 3)  optimalInterval = 1; 
 
-                        if (p.errorCount === 0 || p.lastResult === true) {
-                            timeBadgeText = "✨ SAFE // 克服済";
-                            timeBadgeClass = "badge-safe";
-                            safeCount++;
-                        } else if (diffDays >= (optimalInterval * 1.5)) {
-                            timeBadgeText = "⚠️ OVERDUE // 忘却危機";
-                            timeBadgeClass = "badge-overdue";
-                            criticalDueCount++;
-                        } else if (diffDays >= optimalInterval) {
-                            timeBadgeText = "🔥 CRITICAL // 要復習";
-                            timeBadgeClass = "badge-critical";
-                            criticalDueCount++;
-                        } else {
-                            timeBadgeText = "⏳ PENDING // 定着中";
-                            timeBadgeClass = "badge-pending";
-                        }
-                    } else {
+                    if (p.errorCount === 0 || p.lastResult === true) {
+                        timeBadgeText = "✨ SAFE // 克服済";
+                        timeBadgeClass = "badge-safe";
+                        safeCount++;
+                    } else if (diffDays >= (optimalInterval * 1.5)) {
+                        timeBadgeText = "⚠️ OVERDUE // 忘却危機";
+                        timeBadgeClass = "badge-overdue";
                         criticalDueCount++;
-                    }
-
-                    // 💡【改良】画像があるかないかでサムネイルHTMLの分岐を制御
-                    let thumbnailHtml = "";
-                    if (p.imageData) {
-                        thumbnailHtml = `<div class="card-thumbnail-wrapper"><img src="${p.imageData}"></div>`;
+                    } else if (diffDays >= optimalInterval) {
+                        timeBadgeText = "🔥 CRITICAL // 要復習";
+                        timeBadgeClass = "badge-critical";
+                        criticalDueCount++;
                     } else {
-                        // 文字登録問題の場合、問題テキストの冒頭部分をMathJax対応の縮小ボードで綺麗にはめ込む
-                        let textPreview = p.title || "No data";
-                        thumbnailHtml = `
-                            <div class="card-thumbnail-wrapper">
-                                <div class="card-thumbnail-text-preview tex2jax_process">${textPreview}</div>
-                            </div>`;
+                        timeBadgeText = "⏳ PENDING // 定着中";
+                        timeBadgeClass = "badge-pending";
                     }
+                } else {
+                    criticalDueCount++;
+                }
 
-                    let cardHtml = `
-                        <div class="squircle-card size-medium" onclick="location.href='problem.html?id=${p.id}'" style="border-color: var(--accent-cyan); border-left: 4px solid var(--accent-cyan); cursor: pointer; padding: 1.1rem 1.4rem;">
-                            <div class="card-inner-layout">
-                                ${thumbnailHtml}
-                                <div class="card-main-text-zone">
-                                    <div class="card-content-top">
-                                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.4rem; flex-wrap: wrap;">
-                                            <span class="badge ${badgeSubjectClass}">${subjectText} // ${fieldText}</span>
-                                            <span class="badge ${timeBadgeClass}">${timeBadgeText}</span>
-                                        </div>
-                                        <h2 class="card-title tex2jax_process" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.short_title}</h2>
+                // 💡【新設】アクティブなフィルターと一致しない問題はカード生成をスキップして非表示化
+                if (currentActiveFilter !== "ALL" && thisProblemCat !== currentActiveFilter) {
+                    return; 
+                }
+
+                let thumbnailHtml = "";
+                if (p.imageData) {
+                    thumbnailHtml = `<div class="card-thumbnail-wrapper"><img src="${p.imageData}"></div>`;
+                } else {
+                    let textPreview = p.title || "No data";
+                    thumbnailHtml = `
+                        <div class="card-thumbnail-wrapper">
+                            <div class="card-thumbnail-text-preview tex2jax_process">${textPreview}</div>
+                        </div>`;
+                }
+
+                let cardHtml = `
+                    <div class="squircle-card size-medium" onclick="location.href='problem.html?id=${p.id}'" style="border-color: var(--accent-cyan); border-left: 4px solid var(--accent-cyan); cursor: pointer; padding: 1.1rem 1.4rem;">
+                        <div class="card-inner-layout">
+                            ${thumbnailHtml}
+                            <div class="card-main-text-zone">
+                                <div class="card-content-top">
+                                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.4rem; flex-wrap: wrap;">
+                                        <span class="badge ${badgeSubjectClass}">${subjectText} // ${fieldText}</span>
+                                        <span class="badge ${timeBadgeClass}">${timeBadgeText}</span>
                                     </div>
-                                    <div class="card-meta" style="margin-top: 0.4rem; padding-top: 0.3rem; border-top: 1px solid rgba(255,255,255,0.03);">
-                                        <div style="font-size:0.75rem; color:var(--text-muted);">同期中</div>
-                                        <div class="error-count warning-text" style="font-size:0.95rem;">誤答数: <span class="num-display">${String(p.errorCount).padStart(2, '0')}</span></div>
-                                    </div>
+                                    <h2 class="card-title tex2jax_process" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.short_title}</h2>
+                                </div>
+                                <div class="card-meta" style="margin-top: 0.4rem; padding-top: 0.3rem; border-top: 1px solid rgba(255,255,255,0.03);">
+                                    <div style="font-size:0.75rem; color:var(--text-muted);">同期中</div>
+                                    <div class="error-count warning-text" style="font-size:0.95rem;">誤答数: <span class="num-display">${String(p.errorCount).padStart(2, '0')}</span></div>
                                 </div>
                             </div>
                         </div>
-                    `;
-                    dynamicArea.insertAdjacentHTML("beforeend", cardHtml);
-                });
-
-                const totalDisplay = document.getElementById("total-errors-display");
-                if (totalDisplay) totalDisplay.textContent = String(dynamicTotalCount).padStart(2, '0');
-
-                const solvedDisplay = document.getElementById("solved-today-display");
-                if (solvedDisplay) solvedDisplay.textContent = String(solvedTodayCount).padStart(2, '0');
-
-                let retentionRate = 100;
-                if (totalProblemEntries > 0) {
-                    retentionRate = Math.round((safeCount / totalProblemEntries) * 100);
-                }
-                document.getElementById("retention-rate-display").textContent = `${retentionRate}%`;
-                document.getElementById("retention-bar-display").style.width = `${retentionRate}%`;
-                document.getElementById("due-count-display").textContent = `本日要対応: ${criticalDueCount} 問`;
-
-                // 💡【最重要】動的カードが画面に出揃った直後に、MathJaxに数式の再描画を命令
-                if (window.MathJax && window.MathJax.typesetPromise) {
-                    window.MathJax.typesetPromise([dynamicArea]).catch((err) => console.log(err.message));
-                }
+                    </div>
+                `;
+                dynamicArea.insertAdjacentHTML("beforeend", cardHtml);
             });
+
+            // 統計パネルの表示を更新
+            const totalDisplay = document.getElementById("total-errors-display");
+            if (totalDisplay) totalDisplay.textContent = String(dynamicTotalCount).padStart(2, '0');
+
+            const solvedDisplay = document.getElementById("solved-today-display");
+            if (solvedDisplay) solvedDisplay.textContent = String(solvedTodayCount).padStart(2, '0');
+
+            let retentionRate = 100;
+            if (totalProblemEntries > 0) {
+                retentionRate = Math.round((safeCount / totalProblemEntries) * 100);
+            }
+            document.getElementById("retention-rate-display").textContent = `${retentionRate}%`;
+            document.getElementById("retention-bar-display").style.width = `${retentionRate}%`;
+            document.getElementById("due-count-display").textContent = `本日要対応: ${criticalDueCount} 問`;
+
+            // カードが出揃った後に、新設されたカード内の数式（プレビュー含む）を一撃で数式に描画変換
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise([dynamicArea]).catch((err) => console.log(err.message));
+            }
         }
 
         async function analyzeAndAddProblem(userRawText) {
