@@ -89,9 +89,10 @@
                 <span style="font-weight: 900; letter-spacing: -1px; color: var(--accent-cyan)">RE:MIND // SESSION</span>
                 <span style="color: var(--text-muted); font-size: var(--fs-sm);" id="problem-id-display">PROBLEM ID: --</span>
                 
-                <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: 0.5rem; border-left: 1px solid #1a2a35; padding-left: 1rem;">
+                <div style="display: flex; align-items: center; gap: 0.4rem; margin-left: 0.5rem; border-left: 1px solid #1a2a35; padding-left: 1rem;">
                     <span id="problem-title-display" style="font-weight: 800; color: #fff; font-size: 0.95rem;">問題名: 読込中...</span>
                     <button type="button" id="edit-title-btn" style="background: transparent; border: 1px solid #22222a; color: var(--accent-cyan); font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 6px; cursor: pointer; font-weight: 800;">✏️ 名前変更</button>
+                    <button type="button" id="delete-prob-btn" style="background: transparent; border: 1px solid #2a0000; color: #ff4545; font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 6px; cursor: pointer; font-weight: 800;">🗑️ 問題を削除</button>
                 </div>
             </div>
             <div>
@@ -245,15 +246,13 @@
             onValue(probRef, (snapshot) => {
                 const data = snapshot.val();
                 if (!data) {
-                    alert("指定された問題が見つかりません。");
-                    location.href = "index.html";
+                    // 削除直後にリスナーが動いた場合のすれ違いエラーを優しく回避
                     return;
                 }
 
                 currentProblemData = data;
 
                 document.getElementById("problem-id-display").textContent = "PROBLEM ID: " + currentProblemData.id;
-                // 問題名を画面上部に反映
                 document.getElementById("problem-title-display").textContent = "問題名: " + (currentProblemData.short_title || "未設定");
                 
                 let rawAnswer = currentProblemData.answerFormula || "解答データなし";
@@ -307,7 +306,7 @@
 
         async function runOnDemandAnalysis() {
             if (!loginUid || !currentProblemData.imageData) {
-                alert("解析可能な画像データが見つかりません。直接文字だけで登録した問題の場合は、画像がないためVision解析できません。");
+                alert("解析可能な画像データが見つかりません。");
                 return;
             }
 
@@ -448,18 +447,11 @@
 
             const recentHistory = chatHistory.slice(1).slice(-4);
             const optimizedMessages = [
-    { 
-        "role": "system", 
-        "content": SYSTEM_INSTRUCTION_BASE + `
-        【あなたが導くべきゴール（Geminiの解析結果）】
-        ・この問題の分野: ${currentProblemData.field}
-        ・生徒がハマりやすい罠: ${currentProblemData.trap_description}
-        ・模範解答と解説: ${currentProblemData.answerFormula}
-        この答えを絶対に直接教えずに、ソクラテス式に導いてください。`
-    },
-    chatHistory[0], 
-    ...recentHistory
-];
+                { "role": "system", "content": SYSTEM_INSTRUCTION_BASE },
+                chatHistory[0], 
+                ...recentHistory
+            ];
+
             try {
                 const response = await fetch(DEEPSEEK_API_URL, {
                     method: "POST",
@@ -487,7 +479,7 @@
                 updateChatUI(studentMessage, aiJson);
             } catch (error) { 
                 console.error(error);
-                alert("DeepSeekブレインとの通信に失敗しました。\n原因: " + error.message + "\n\n※DeepSeekのAPIキーが正しくセットされているか確認してください。"); 
+                alert("DeepSeekブレインとの通信に失敗しました。\n原因: " + error.message); 
             }
             finally { statusBadge.textContent = "AI TUTOR // ACTIVE"; statusBadge.style.color = "var(--accent-cyan)"; }
         }
@@ -509,7 +501,7 @@
         function triggerNeonExplosion() { const colors = ["#00f3ff", "#ff007f", "#fff500"]; const startX = canvas.width / 2, startY = canvas.height * 0.8; for (let i = 0; i < 150; i++) particles.push(new Particle(startX, startY, colors[Math.floor(Math.random() * colors.length)])); animateParticles(); }
         function animateParticles() { if (particles.length === 0) { ctx.clearRect(0, 0, canvas.width, canvas.height); return; } ctx.clearRect(0, 0, canvas.width, canvas.height); for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].alpha <= 0) particles.splice(i, 1); } requestAnimationFrame(animateParticles); }
 
-        // 各種イベント一括バインドエリア（タイミングのズレを防ぐため、即時バインド）
+        // 各種コントロールバインド（即時実行でタイミングのズレを防御）
         const sendBtn = document.querySelector(".chat-input-wrapper button");
         const inputField = document.querySelector(".chat-input");
         const showAnswerBtn = document.getElementById("show-answer-btn");
@@ -517,6 +509,7 @@
         const revealZone = document.getElementById("answer-reveal-zone");
         const onDemandBtn = document.getElementById("on-demand-analyze-btn");
         const editTitleBtn = document.getElementById("edit-title-btn");
+        const deleteProbBtn = document.getElementById("delete-prob-btn");
 
         if (sendBtn && inputField) {
             sendBtn.addEventListener("click", () => { const t = inputField.value.trim(); if (t) { inputField.value = ""; sendMessageToDeepSeek(t); } });
@@ -533,34 +526,46 @@
             onDemandBtn.addEventListener("click", () => runOnDemandAnalysis());
         }
 
-        // 【新設】「名前変更」ボタンをクリックしたときの処理
         if (editTitleBtn) {
             editTitleBtn.addEventListener("click", async () => {
                 if (!loginUid || !currentProblemData.id) return;
-                
                 const currentName = currentProblemData.short_title || "";
-                // お馴染みの入力ポップアップを起動
-                const newName = prompt("新しい問題名（ダッシュボードのカードに表示される名前）を入力してください:", currentName);
-                
-                if (newName === null) return; // キャンセルされたら何もしない
+                const newName = prompt("新しい問題名を入力してください:", currentName);
+                if (newName === null) return;
                 const trimmedName = newName.trim();
-                if (!trimmedName) {
-                    alert("エラー: 問題の名前を空にすることはできません。");
-                    return;
-                }
+                if (!trimmedName) { alert("エラー: 問題の名前を空にすることはできません。"); return; }
 
                 try {
-                    // ローカルデータを書き換え、Firebaseへ同期保存
                     currentProblemData.short_title = trimmedName;
                     const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
                     await set(probRef, currentProblemData);
-                    
-                    // 画面上の表記をリロードなしで即座にアップデート
                     document.getElementById("problem-title-display").textContent = "問題名: " + trimmedName;
-                    alert("🎉 問題の名前を変更しました！ダッシュボード側にも反映されます。");
+                    alert("🎉 問題の名前を変更しました！");
+                } catch (error) { console.error(error); alert("保存に失敗しました。"); }
+            });
+        }
+
+        // 🗑️【新設】「問題を削除」ボタンをクリックしたときのクラウド完全消去処理
+        if (deleteProbBtn) {
+            deleteProbBtn.addEventListener("click", async () => {
+                if (!loginUid || !PROBLEM_ID) return;
+                
+                // 誤爆防止のダブルチェック
+                const confirmDelete = confirm("⚠️ 本当にこの問題を削除しますか？\n\nこの操作を実行すると、登録されたテキスト、写真、およびAIの解析履歴がクラウド(Firebase)から完全に抹消され、二度と復元できません。");
+                if (!confirmDelete) return;
+
+                try {
+                    // Firebase上の該当ノードのパスを指定
+                    const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
+                    // 値に null をセットすることで、Firebase databaseからノードを完全削除（消去）
+                    await set(probRef, null);
+                    
+                    alert("🗑️ 問題を完全に削除しました。ダッシュボードに戻ります。");
+                    // 削除完了後は自動的にダッシュボードトップへ安全にリダイレクト
+                    location.href = "index.html";
                 } catch (error) {
-                    console.error("名前変更エラー:", error);
-                    alert("クラウドへの保存に失敗しました。ネットワークを確認してください。");
+                    console.error("削除処理中に致命的なエラーが発生しました:", error);
+                    alert("クラウドからの削除処理に失敗しました。ネットワークの接続状態を確認してください。");
                 }
             });
         }
