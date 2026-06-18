@@ -124,8 +124,9 @@
         const auth = getAuth(app);
         const database = getDatabase(app);
 
-        let GEMINI_API_KEY = localStorage.getItem("RE_MIND_GEMINI_KEY");
-        const GEMINI_API_URL = `${proto}generativelanguage${d}googleapis${d}com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    // ✨【変更】DeepSeek APIの設定（キーは必要に応じてローカルストレージに保存してください）
+        let DEEPSEEK_API_KEY = localStorage.getItem("RE_MIND_DEEPSEEK_KEY") || localStorage.getItem("RE_MIND_GEMINI_KEY");
+        const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
 
         let selectedQuestions = [];
         let currentQuestionIndex = 0;
@@ -142,27 +143,6 @@
             }
         });
 
-        // ✨【新設】クラウドキャッシュ確認＆AI生成パイプライン
-        function setupDailySprintAI(uid) {
-            const now = new Date();
-            const todayStr = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
-            
-            // クラウド上に「今日の問題」が既にキャッシュされているかチェック
-            const sprintCacheRef = ref(database, 'users/' + uid + '/daily_sprint/' + todayStr);
-            
-            onValue(sprintCacheRef, async (snapshot) => {
-                const cacheData = snapshot.val();
-                if (cacheData && cacheData.questions) {
-                    // 既に今日1回作っていたら、それを流用（リロード対策）
-                    selectedQuestions = cacheData.questions;
-                    startSprintTimer();
-                } else {
-                    // 今日まだ作ってないなら、あなたの弱点データを集計してAIに生成させる
-                    await generateSprintWithAI(uid, todayStr, sprintCacheRef);
-                }
-            }, { onlyOnce: true });
-        }
-
         // ✨【新設】誤答自動スキャン＆プロンプトインジェクション生成処理
         async function generateSprintWithAI(uid, todayStr, sprintCacheRef) {
             const problemsRef = ref(database, 'users/' + uid + '/problems');
@@ -171,7 +151,6 @@
                 const allProblems = snapshot.val() || {};
                 let weakFields = [];
                 
-                // クラウド内の全問題から、過去に間違えたことのある数学の単元を自動抽出
                 Object.keys(allProblems).forEach(id => {
                     const p = allProblems[id];
                     if (p.subject && p.subject.includes("数学") && (p.errorCount > 0 || p.lastResult === false)) {
@@ -179,25 +158,29 @@
                     }
                 });
                 
-                // 重複を排除して、直近の苦手トップ5を抽出
                 weakFields = [...new Set(weakFields)].slice(0, 5);
                 const weakFieldsText = weakFields.length > 0 ? weakFields.join(", ") : "特になし（全体からバランスよく出題してください）";
 
+                // DeepSeekの推論モード（Reasoning）向けに最適化したプロンプト
                 const systemPrompt = `
-あなたは高校数学の非常に優秀なAI教師です。生徒の計算力と即戦力を鍛えるため、本日の【数学II】の計算特訓タイムアタック問題を【厳密に10問】作成してください。
-出力は必ず指定されたJSONフォーマットの形式（配列）のみにしてください。不要な説明文やMarkdown枠（\`\`\`json など）は絶対に含めないでください。
+あなたは日本の高校数学（特に数学II）の教育に精通した、極めて優秀なAI数学教師です。
+生徒の数学的思考力と計算力を限界まで引き上げるため、本日の【数学II】の計算特訓タイムアタック問題を【厳密に10問】作成してください。
+
+【⚠️ 出力形式の絶対ルール（超厳重）】
+- 出力は、一切の説明、前置き、挨拶、およびMarkdownのコードブロック（\`\`\`json や \`\`\`）を含まない、**純粋なJSON配列の文字列のみ**としてください。
+- レスポンスの最初の文字は \`[\` であり、最後の文字は \`]\` でなければなりません。そのまま JSON.parse() でパースできる形式にしてください。
 
 【出題テーマ・難易度】
-1. 対象範囲：【数学II】の全範囲（式と証明、複素数と方程式、図形と方程式、三角関数、指数・対数関数、微分・積分）。
-2. 難易度：【ちょいむず】（教科書の章末問題〜共通テスト、中堅私大・国公立の小問レベル）。ただの単純計算ではなく、公式の組み合わせや、展開・因数分解の一工夫、置き換えのテクニックが必要な「少しひねりのある良質な計算・標準問題」にしてください。
-3. 所要時間：1問あたり3〜5分程度で手計算（紙とペン）で完結するもの。
+1. 対象範囲：【数学II】の全範囲（式と証明、複素数と方程式、図形と方程式、三角関数、指数・対数関数、微分・積分）から、特定の分野に偏らないようバランスよく10問を構成。
+2. 生徒の現在の苦手分野：${weakFieldsText} （※この分野は優先的に含めてください）
+3. 難易度設定：教科書の章末問題〜共通テスト、中堅〜上位国公立・私大の小問レベル（「ちょいむず」）。
+4. 質的アプローチ：DeepSeekの高度な推論能力を活かし、単なる数字が大きくて面倒なだけの計算ではなく、公式の鮮やかな組み合わせ、対称性の利用、適切な文字の置き換え（置換）、因数分解の一工夫など、数学的な「視点や気付き」を必要とする少しひねりのある良質な計算・標準問題にしてください。紙とペンを使い、1問あたり3〜5分程度で完結するもの。
 
-【出題・構成ルール】
-1. 数学IIの各分野からバランスよく合計10問を構成してください。
-2. 問題文(title)や答え(answer)、解説(steps)に含まれる数式や変数は、必ず前後に $ または $$ をつけて美しいLaTeX数式形式にしてください。
-3. steps（解説）は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、計算過程や使った公式が明確にわかる見やすい箇条書き形式にしてください。
+【数式・解説ルール】
+1. 数式フォーマット：問題文(title)、答え(answer)、解説(steps)に含まれる数式や変数は、必ず前後に $ または $$ をつけて美しいLaTeX数式形式にしてください。
+2. 解説の構造化：steps（解説）は1行に詰め込まず、計算過程や使用した公式、思考のステップごとに必ず改行コード（\\n）を挟んで、論理の飛躍がない見やすい箇条書き形式にしてください。
 
-【JSONフォーマット（厳守）】
+【JSONフォーマット】
 [
   {
     "id": "AI_SPRINT_${Date.now()}_1",
@@ -205,26 +188,36 @@
     "field": "分野名（例: 三角関数）",
     "title": "問題文（数式は$ $で挟む）",
     "answer": "最終的な正しい答え（数式は$ $で挟む）",
-    "steps": "ステップごとの解説（\\nで改行を挟む）"
+    "steps": "ステップごとの解説（\\\\nで改行を挟む）"
   }
 ]
 `;
 
                 try {
-                    const response = await fetch(GEMINI_API_URL, {
+                    // DeepSeek APIへのリクエスト（推論モデル deepseek-reasoning を指定）
+                    const response = await fetch(DEEPSEEK_API_URL, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: { 
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
+                        },
                         body: JSON.stringify({
-                            "contents": [{ "parts": [{ "text": systemPrompt }] }],
-                            "generationConfig": { "responseMimeType": "application/json", "temperature": 0.4 }
+                            "model": "deepseek-reasoning",
+                            "messages": [
+                                { "role": "user", "content": systemPrompt }
+                            ]
+                            // 注: deepseek-reasoningでは温度(temperature)やresponse_formatの変更は推奨/サポートされていないため省略します
                         })
                     });
 
                     if (!response.ok) throw new Error(`HTTPエラー: ${response.status}`);
                     const data = await response.json();
-                    let rawJsonText = data.candidates[0].content.parts[0].text.trim();
+                    
+                    // DeepSeekのAPIでは、思考プロセスは「reasoning_content」に入り、
+                    // クライアントへの最終回答は「content」に入ります（<think>タグ自体は通常ここには含まれません）
+                    let rawJsonText = data.choices[0].message.content.trim();
 
-                    // 有害なラッパーを剥ぎ取る
+                    // 万が一Markdownのコードブロックが含まれていた場合のトリミング処理
                     if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
                     else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
                     if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
@@ -259,12 +252,11 @@
 
                 } catch (error) {
                     console.error("AI問題生成エラー:", error);
-                    alert("⚠️ AIによるオーダーメイド問題生成に失敗しました（Googleサーバー混雑の可能性があります）。\n\nバックアップの固定問題ノックを開始します。");
+                    alert("⚠️ DeepSeekによる問題生成に失敗しました。\n\nバックアップの固定問題ノックを開始します。");
                     
-                    // 万が一のバックアップ固定問題
                     selectedQuestions = [
-                        { id: "BK_01", subject: "数学I", field: "数と式", title: "次の式を展開せよ：$(2x+3)^2$", answer: "$4x^2+12x+9$", steps: "1. 展開公式 $(a+b)^2 = a^2+2ab+b^2$ を適用。\\n2. $4x^2 + 2(2x)(3) + 9 = 4x^2+12x+9$。" },
-                        { id: "BK_02", subject: "数学I", field: "2次関数", title: "$y=x^2-6x+10$ の頂点を求めよ。", answer: "$(3, 1)$", steps: "1. 平方完成：$y=(x-3)^2-9+10 = (x-3)^2+1$。\\n2. よって頂点は $(3,1)$。" }
+                        { id: "BK_01", subject: "数学II", field: "三角関数", title: "$\sin \theta + \cos \theta = \frac{1}{2}$ のとき、$\sin^3 \theta + \cos^3 \theta$ の値を求めよ。", answer: "$\frac{11}{16}$", steps: "1. 両辺を2乗して $\sin \theta \cos \theta$ を求める。\\n$1 + 2\sin \theta \cos \theta = \frac{1}{4} \implies \sin \theta \cos \theta = -\frac{3}{8}$。\\n2. 因数分解公式 $a^3+b^3=(a+b)(a^2-ab+b^2)$ に代入。\\n$\frac{1}{2} \times (1 - (-\frac{3}{8})) = \frac{1}{2} \times \frac{11}{8} = \frac{11}{16}$。" },
+                        { id: "BK_02", subject: "数学II", field: "指数・対数関数", title: "方程式 $\log_2 x + \log_2 (x-2) = 3$ を解け。", answer: "$x = 4$", steps: "1. 真数条件より $x > 0$ かつ $x-2 > 0$、よって $x > 2$。\\n2. 対数の性質より $\log_2 \{x(x-2)\} = 3 \implies x(x-2) = 2^3 = 8$。\\n3. 整理して $x^2 - 2x - 8 = 0 \implies (x-4)(x+2) = 0$。\\n4. 真数条件 $x > 2$ より、 $x = 4$。" }
                     ];
                     startSprintTimer();
                 }
