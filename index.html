@@ -754,7 +754,7 @@
             }
 
             try {
-                // DeepSeekのChat Completions APIにリクエストを送信
+              // DeepSeekのChat Completions APIにリクエストを送信
                 const response = await fetch(DEEPSEEK_API_URL, {
                     method: "POST",
                     headers: { 
@@ -762,7 +762,7 @@
                         "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
                     },
                     body: JSON.stringify({
-                        "model": "deepseek-reasoning", // 推論モード（DeepSeek-R1）を指定
+                        "model": "deepseek-reasoner", // ✨「er」に修正
                         "messages": [
                             { "role": "system", "content": SYSTEM_INSTRUCTION },
                             { "role": "user", "content": promptContent }
