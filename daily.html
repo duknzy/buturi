@@ -160,7 +160,7 @@
             }, { onlyOnce: true });
         }
 
-        // ✨ 誤答自動スキャン＆DeepSeek（推論モード）問題作成処理
+        // ✨ 誤答自動スキャン＆DeepSeek（最新V4・Thinkingモード）問題作成処理
         async function generateSprintWithAI(uid, todayStr, sprintCacheRef) {
             const problemsRef = ref(database, 'users/' + uid + '/problems');
             
@@ -168,7 +168,6 @@
                 const allProblems = snapshot.val() || {};
                 let weakFields = [];
                 
-                // クラウド内の全問題から、過去に間違えたことのある数学の単元を自動抽出
                 Object.keys(allProblems).forEach(id => {
                     const p = allProblems[id];
                     if (p.subject && p.subject.includes("数学") && (p.errorCount > 0 || p.lastResult === false)) {
@@ -176,14 +175,13 @@
                     }
                 });
                 
-                // 重複を排除して、直近の苦手トップ5を抽出
                 weakFields = [...new Set(weakFields)].slice(0, 5);
-                const weakFieldsText = weakFields.length > 0 ? weakFields.join(", ") : "特なし（全体からバランスよく出題してください）";
+                const weakFieldsText = weakFields.length > 0 ? weakFields.join(", ") : "特になし（全体からバランスよく出題してください）";
 
-                // DeepSeekの推論モード（Reasoning / R1）向けに最適化した数式プロンプト
+                // DeepSeekの推論力を引き出すプロンプト
                 const systemPrompt = `
 あなたは日本の高校数学（特に数学II）の教育に精通した、極めて優秀なAI数学教師です。
-生徒の数学的思考力と計算力を限界まで引き上げるため、本日の【数学II】の計算特訓タイムアタック問題を【厳密に10問】作成してください。
+生徒の数学目的思考力と計算力を限界まで引き上げるため、本日の【数学II】の計算特訓タイムアタック問題を【厳密に10問】作成してください。
 
 【⚠️ 出力形式の絶対ルール（超厳重）】
 - 出力は、一切の説明、前置き、挨拶、およびMarkdownのコードブロック（\`\`\`json や \`\`\`）を含まない、**純粋なJSON配列の文字列のみ**としてください。
@@ -193,7 +191,7 @@
 1. 対象範囲：【数学II】の全範囲（式と証明、複素数と方程式、図形と方程式、三角関数、指数・対数関数、微分・積分）から、特定の分野に偏らないようバランスよく10問を構成。
 2. 生徒の現在の苦手分野：${weakFieldsText} （※この分野は優先的に含めてください）
 3. 難易度設定：教科書の章末問題〜共通テスト、中堅〜上位国公立・私大の小問レベル（「ちょいむず」）。
-4. 質的アプローチ：DeepSeekの高度な推論能力を活かし、単なる数字が大きくて面倒なだけの計算ではなく、公式の鮮やかな組み合わせ、対称性の利用、適切な文字の置き換え（置換）、因数分解の一工夫など、数学的な「視点や気付き」を必要とする少しひねりのある良質な計算・標準問題にしてください。紙とペンを使い、1問あたり3〜5分程度で完結するもの。
+4. 質的アプローチ：単なる数字が大きくて面倒なだけの計算ではなく、公式の鮮やかな組み合わせ、対称性の利用、適切な文字の置き換え（置換）、因数分解の一工夫など、数学的な「視点や気付き」を必要とする少しひねりのある良質な計算・標準問題にしてください。紙とペンを使い、1問あたり3〜5分程度で完結するもの。
 
 【数式・解説ルール】
 1. 数式フォーマット：問題文(title)、答え(answer)、解説(steps)に含まれる数式や変数は、必ず前後に $ または $$ をつけて美しいLaTeX数式形式にしてください。
@@ -213,26 +211,49 @@
 `;
 
                 try {
-                    // DeepSeek APIへのリクエスト（正しくは deepseek-reasoner）
+                    // 🛡️【キーの防衛チェック】キーが空、または"null"という文字列になっていないか検証
+                    if (!DEEPSEEK_API_KEY || DEEPSEEK_API_KEY === "null" || DEEPSEEK_API_KEY.trim() === "") {
+                        throw new Error("DeepSeekのAPIキーがブラウザに設定されていません。ダッシュボード画面の下部にある『APIキー消去』ボタンを一度押し、再読み込みして正しいキーを登録し直してください。");
+                    }
+
+                    // 🚀【仕様変更】最新のDeepSeek V4「Thinking Mode（思考モード）」の公式リクエスト構造に刷新
                     const response = await fetch(DEEPSEEK_API_URL, {
                         method: "POST",
                         headers: { 
                             "Content-Type": "application/json",
-                            "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
+                            "Authorization": `Bearer ${DEEPSEEK_API_KEY.trim()}`
                         },
                         body: JSON.stringify({
-                            "model": "deepseek-reasoner", // ✨「er」に修正
+                            "model": "deepseek-v4-flash", // ✨最新のV4モデルを指定
                             "messages": [
+                                { "role": "system", "content": "あなたは優秀なAI数学教師です。指定されたJSONフォーマットの配列のみを厳密に返してください。" },
                                 { "role": "user", "content": systemPrompt }
-                            ]
+                            ],
+                            "extra_body": {
+                                "thinking": { "type": "enabled" } // ✨公式の思考プロセス（推論）有効化フラグ
+                            }
                         })
                     });
 
-                    if (!response.ok) throw new Error(`HTTPエラー: ${response.status}`);
+                    // 🔍【デバッグ強化】400等のエラー時、DeepSeekが返した「本当の理由」を生で剥ぎ取る処理
+                    if (!response.ok) {
+                        let detailedError = `HTTPステータス: ${response.status}`;
+                        try {
+                            const errJson = await response.json();
+                            if (errJson && errJson.error && errJson.error.message) {
+                                detailedError = errJson.error.message; // サーバーからの具体的なエラーメッセージ
+                            } else {
+                                detailedError = JSON.stringify(errJson);
+                            }
+                        } catch (e) {
+                            try { detailedError = await response.text(); } catch(tErr) {}
+                        }
+                        throw new Error(detailedError);
+                    }
+
                     const data = await response.json();
                     let rawJsonText = data.choices[0].message.content.trim();
 
-                    // Markdownのラップを剥ぎ取る
                     if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
                     else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
                     if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
@@ -260,18 +281,18 @@
                         throw new Error("AIの応答配列が異常です。");
                     }
 
-                    // 生成した問題をクラウドに今日のキャッシュとして保存
                     await set(sprintCacheRef, { questions: aiQuestions, generatedAt: new Date().toISOString() });
                     selectedQuestions = aiQuestions;
                     startSprintTimer();
 
                 } catch (error) {
                     console.error("AI問題生成エラー:", error);
-                    alert("⚠️ DeepSeekによる問題生成に失敗しました。\n\nバックアップの固定問題ノックを開始します。");
+                    // エラーメッセージのなかに具体的な理由（キーの間違い、残高不足など）が表示されます
+                    alert("⚠️ DeepSeekによる問題生成に失敗しました。\n\n【エラー内容】\n" + error.message + "\n\n※バックアップの固定問題ノックを開始します。");
                     
                     selectedQuestions = [
                         { id: "BK_01", subject: "数学II", field: "三角関数", title: "$\sin \theta + \cos \theta = \frac{1}{2}$ のとき、$\sin^3 \theta + \cos^3 \theta$ の値を求めよ。", answer: "$\frac{11}{16}$", steps: "1. 両辺を2乗して $\sin \theta \cos \theta$ を求める。\\n$1 + 2\sin \theta \cos \theta = \frac{1}{4} \implies \sin \theta \cos \theta = -\frac{3}{8}$。\\n2. 因数分解公式 $a^3+b^3=(a+b)(a^2-ab+b^2)$ に代入。\\n$\frac{1}{2} \times (1 - (-\frac{3}{8})) = \frac{1}{2} \times \frac{11}{8} = \frac{11}{16}$。" },
-                        { id: "BK_02", subject: "数学II", field: "指数・対数関数", title: "方程式 $\log_2 x + \log_2 (x-2) = 3$ を解け。", answer: "$x = 4$", steps: "1. 真数条件より $x > 0$ かつ $x-2 > 0$、よって $x > 2$。\\n2. 対数の性質より $\log_2 \{x(x-2)\} = 3 \implies x(x-2) = 2^3 = 8$。\\n3. 整理して $x^2 - 2x - 8 = 0 \implies (x-4)(x+2) = 0$。\\n4. 真数条件 $x > 2$ より、 $x = 4$。" }
+                        { id: "BK_02", subject: "数学II", field: "指数・対数関数", title: "方程式 $\log_2 x + \log_2 (x-2) = 3$ を解け。", answer: "$x = 4$", steps: "1. 真数条件より $x > 0$ かつ $x-2 > 0$、よって $x > 2$。\\n2. 对数の性質より $\log_2 \{x(x-2)\} = 3 \implies x(x-2) = 2^3 = 8$。\\n3. 整理して $x^2 - 2x - 8 = 0 \implies (x-4)(x+2) = 0$。\\n4. 真数条件 $x > 2$ より、 $x = 4$。" }
                     ];
                     startSprintTimer();
                 }
