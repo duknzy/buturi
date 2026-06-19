@@ -213,7 +213,7 @@
 `;
 
                 try {
-                    // DeepSeek APIへのリクエスト（推論モデル deepseek-reasoning を指定）
+                    // DeepSeek APIへのリクエスト（正しくは deepseek-reasoner）
                     const response = await fetch(DEEPSEEK_API_URL, {
                         method: "POST",
                         headers: { 
@@ -221,7 +221,7 @@
                             "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
                         },
                         body: JSON.stringify({
-                            "model": "deepseek-reasoning",
+                            "model": "deepseek-reasoner", // ✨「er」に修正
                             "messages": [
                                 { "role": "user", "content": systemPrompt }
                             ]
