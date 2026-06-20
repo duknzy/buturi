@@ -426,46 +426,35 @@
         const database = getDatabase(app);
         const provider = new GoogleAuthProvider();
 
-        // 🔑【修正】GeminiとDeepSeekの両方のキーをローカルストレージから管理
+        // 🔑【ハイブリッド管理】Gemini(画像用) と DeepSeek(スプリント用) の両方のキーを読み込む
         let GEMINI_API_KEY = localStorage.getItem("RE_MIND_GEMINI_KEY");
         let DEEPSEEK_API_KEY = localStorage.getItem("RE_MIND_DEEPSEEK_KEY");
 
-        // キーがなければポップアップで入力させる
+        // キーがなければ、ここでそれぞれの入力ポップアップを表示してブラウザに記憶させる
         if (!GEMINI_API_KEY) {
-            GEMINI_API_KEY = prompt("GeminiのAPIキーを入力してください（デイリースプリント等で使用します）:");
+            GEMINI_API_KEY = prompt("【画像解析用】GeminiのAPIキーを入力してください（写真からの問題登録で使用します）:");
             if (GEMINI_API_KEY) localStorage.setItem("RE_MIND_GEMINI_KEY", GEMINI_API_KEY);
         }
         if (!DEEPSEEK_API_KEY) {
-            DEEPSEEK_API_KEY = prompt("DeepSeekのAPIキーを入力してください（誤答問題の自動解析で使用します）:");
-            if (DEEPSEEK_API_KEY) {
-                localStorage.setItem("RE_MIND_DEEPSEEK_KEY", DEEPSEEK_API_KEY);
-            } else {
-                alert("⚠️ DeepSeekのAPIキーが登録されないと、問題の自動解析エンジンは実行できません。");
-            }
+            DEEPSEEK_API_KEY = prompt("【計算特訓用】DeepSeekのAPIキーを入力してください（本日の計算スプリント問題作成で使用します）:");
+            if (DEEPSEEK_API_KEY) localStorage.setItem("RE_MIND_DEEPSEEK_KEY", DEEPSEEK_API_KEY);
         }
 
-        // ✨【新設】DeepSeek APIのエンドポイントを設定
-        const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
+        // ✨ 写真解析は画像認識に強い Gemini API のエンドポイントを使用
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
-        // DeepSeekの推論能力を最大限に活かすシステムプロンプト
         const SYSTEM_INSTRUCTION = `
-あなたは日本の高校数学・物理の教育に精通した「誤答分析エキスパートAI」です。
-提出された問題のデータ（ユーザーの入力メモや問題文）を深く分析し、論理的な解説と罠の抽出を行ってください。
-
-【⚠️ 出力形式の絶対ルール】
-- 出力は、一切の説明やMarkdownのコードブロック（\`\`\`json や \`\`\`）を含まない、**純粋なJSONオブジェクトの文字列のみ**としてください。
-- レスポンスの最初の文字は \`{\` であり、最後の文字は \`}\` でなければなりません。
-
-【JSONフォーマット（厳守）】
-{
-  "subject": "物理" または "数学",
-  "field": "分野名（例: 三角関数、力学など）",
-  "short_title": "問題の要約タイトル（15文字以内）",
-  "extracted_text": "正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと",
-  "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠、計算ミスの傾向の解説文",
-  "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
-}
-`;
+        あなたは高校数学・物理の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
+        出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
+        {
+          "subject": "物理" または "数学",
+          "field": "分野名",
+          "short_title": "問題の要約タイトル",
+          "extracted_text": "読み取った正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと",
+          "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
+          "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
+        }
+        `;
 
         let currentUser = null;
         let selectedImageBase64 = null;
@@ -726,59 +715,54 @@
             }
         }
 
-        // 🛠【修正】解析処理を DeepSeek API (Reasoning) に全面書き換え
+        // 📸【Gemini復帰】写真の画像認識が必要なので、ここはGemini Visionをそのまま叩く
         async function analyzeAndAddProblem(userRawText) {
             if (!currentUser) {
                 alert("エラー: ログイン状態が確認できません。Google接続してください。");
                 return;
             }
-            if (!DEEPSEEK_API_KEY) {
-                alert("DeepSeekのAPIキーが設定されていません。下のボタンからキーを設定してください。");
+            if (!GEMINI_API_KEY) {
+                alert("GeminiのAPIキーが登録されていません。下のボタンからキーをリセットして登録してください。");
                 return;
             }
             
             const submitBtn = document.getElementById("analyze-submit-btn");
             const quickBtn = document.getElementById("quick-submit-btn");
             
-            submitBtn.textContent = "DeepSeekが思考・解析中...";
+            submitBtn.textContent = "Gemini Visionが画像を分析中...";
             submitBtn.disabled = true;
             quickBtn.disabled = true;
 
-            // DeepSeek用のテキストプロンプトを構築
-            let promptContent = `【解析対象データ】\nユーザー入力テキスト:\n${userRawText || "なし"}`;
-            
-            // ⚠️ 補足: DeepSeek-R1 (Reasoning) はネイティブなマルチモーダル（画像直接読み込み）のAPI公開範囲に制限がある場合が多いため、
-            // テキスト、もしくは画像がある場合はその旨をプロンプトで補足し、テキスト情報を主軸に超強力な推論を走らせます。
-            if (selectedImageBase64) {
-                promptContent += `\n\n※ユーザーは問題の写真画像もアップロードしています。入力されたテキスト情報をベースに、高校数学・物理の標準的な問題パターンから不足情報を補完し、超高度な推論で完璧な模範解答を作成してください。`;
+            let parts = [{ "text": "提出されたデータを解析し、最終的な『正しい答え（model_answer）』も含めて指定のJSONで返してください。" }];
+            if (userRawText) parts[0].text += `\nユーザーの入力メモ: ${userRawText}`;
+            if (selectedImageBase64 && selectedImageMimeType) {
+                parts.push({ "inlineData": { "mimeType": selectedImageMimeType, "data": selectedImageBase64 } });
             }
 
             try {
-              // DeepSeekのChat Completions APIにリクエストを送信
-                const response = await fetch(DEEPSEEK_API_URL, {
+                const response = await fetch(GEMINI_API_URL, {
                     method: "POST",
-                    headers: { 
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
-                    },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        "model": "deepseek-reasoner", // ✨「er」に修正
-                        "messages": [
-                            { "role": "system", "content": SYSTEM_INSTRUCTION },
-                            { "role": "user", "content": promptContent }
-                        ]
+                        "contents": [{ "parts": parts }],
+                        "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION }] },
+                        "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
                     })
                 });
 
                 if (!response.ok) {
                     const errorErr = await response.json().catch(() => ({}));
-                    throw new Error(errorErr.error?.message || `HTTPエラー ステータス: ${response.status}`);
+                    throw new Error(errorErr.error?.message || `HTTPエラー ステータスコード: ${response.status}`);
                 }
 
                 const data = await response.json();
-                let rawJsonText = data.choices[0].message.content.trim();
+                
+                if (!data.candidates || data.candidates.length === 0) {
+                    throw new Error("AIから有効な応答が得られませんでした。");
+                }
 
-                // Markdownのラップを剥ぎ取る
+                let rawJsonText = data.candidates[0].content.parts[0].text.trim();
+
                 if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
                 else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
                 if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
@@ -822,7 +806,7 @@
 
             } catch (error) {
                 console.error("AI解析エラー発生:", error);
-                alert("❌ DeepSeekによる自動解析に失敗しました！\n\n【原因】:\n" + error.message + "\n\nキーが正しいか、または残高があるか確認してください。");
+                alert("❌ AI自動解析に失敗しました！\n\n【原因】:\n" + error.message);
             } finally {
                 submitBtn.textContent = "AI自動解析を実行";
                 submitBtn.disabled = false;
@@ -952,5 +936,6 @@
             });
         }
    </script>
+
 </body>
 </html>
