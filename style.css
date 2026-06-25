@@ -82,3 +82,22 @@ body::before {
     box-shadow: 3px 3px 0px #008b94;
 }
 .tactile-btn:active { transform: scale(0.94) translate(1px, 1px); }
+/* PCなどの大画面（横幅768px以上）のときだけ、問題写真のサイズを制限する */
+@media (min-width: 768px) {
+    /* 画像を包んでいるエリアの設定 */
+    .problem-image-zone {
+        display: flex;
+        justify-content: center; /* 画像を中央寄せにする */
+        margin-bottom: 1.5rem;
+    }
+
+    /* 実際の画像タグのサイズ制限 */
+    .problem-image-zone img {
+        max-width: 500px;    /* 横幅は最大でも500pxに抑える（お好みで調整してください） */
+        max-height: 400px;   /* 縦に長くなりすぎないように制限 */
+        width: auto;         /* 縦横比を崩さない */
+        height: auto;        /* 縦横比を崩さない */
+        object-fit: contain; /* 枠内に綺麗に収める */
+        border-radius: 12px; /* 角を少し丸めてマイルドにする */
+    }
+}
