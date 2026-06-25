@@ -82,22 +82,23 @@ body::before {
     box-shadow: 3px 3px 0px #008b94;
 }
 .tactile-btn:active { transform: scale(0.94) translate(1px, 1px); }
-/* PCなどの大画面（横幅768px以上）のときだけ、問題写真のサイズを制限する */
-@media (min-width: 768px) {
-    /* 画像を包んでいるエリアの設定 */
-    .problem-image-zone {
-        display: flex;
-        justify-content: center; /* 画像を中央寄せにする */
-        margin-bottom: 1.5rem;
+
+
+/* ==========================================================================
+   【新設】PC大画面表示における、問題写真のサイズ肥大化防止設定
+   ========================================================================== */
+@media screen and (min-width: 768px) {
+    /* 画像を囲むグレーの枠自体が縦に伸びすぎるのを防ぐ */
+    html body .physics-figure-box {
+        max-height: 450px !important;
+        margin-top: 1rem !important;
     }
 
-    /* 実際の画像タグのサイズ制限 */
-    .problem-image-zone img {
-        max-width: 500px;    /* 横幅は最大でも500pxに抑える（お好みで調整してください） */
-        max-height: 400px;   /* 縦に長くなりすぎないように制限 */
-        width: auto;         /* 縦横比を崩さない */
-        height: auto;        /* 縦横比を崩さない */
-        object-fit: contain; /* 枠内に綺麗に収める */
-        border-radius: 12px; /* 角を少し丸めてマイルドにする */
+    /* 画像に直書きされている width:100%; height:100% を強制上書きして縮める */
+    html body .physics-figure-box img {
+        max-width: 500px !important;  /* 横幅の上限（お好みで400pxなどに縮めてもOK） */
+        max-height: 420px !important; /* 枠からはみ出さない縦幅の上限 */
+        width: auto !important;       /* 縦横比を固定 */
+        height: auto !important;      /* 縦横比を固定 */
     }
 }
