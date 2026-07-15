@@ -24,21 +24,38 @@
     </script>
 
     <style>
+
+        /* 💡 全体画面が絶対に縦に伸びないように強制ロック（デスクトップ時のみ） */
+        body {
+            height: 100vh;
+            overflow: hidden;
+        }
+
         .squircle-tile { border: 1px solid var(--accent-cyan); box-shadow: 4px 4px 0px rgba(0, 243, 255, 0.1); }
         .workspace-container { max-width: 1500px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; height: calc(100vh - 3rem); }
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1a2a35; padding-bottom: 1rem; }
-        .bento-grid { display: grid; grid-template-columns: repeat(12, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 1.5rem; flex-grow: 1; }
+        
+        /* 💡 Grid全体の高さをヘッダーや隙間を考慮したサイズに厳密固定 */
+        .bento-grid { 
+            display: grid; 
+            grid-template-columns: repeat(12, 1fr); 
+            grid-template-rows: 1fr auto; /* Row2をautoにしつつ、Row1を最大展開 */
+            gap: 1.5rem; 
+            flex-grow: 1; 
+            height: calc(100vh - 10rem); 
+            min-height: 0; /* 親からのはみ出しをカット */
+        }
         
         .main-question-tile  { grid-column: span 8; grid-row: span 1; display: flex; flex-direction: column; }
         
-        /* チャット自体をFlexコンテナ化し、1画面の高さに固定してはみ出た分をスクロールさせる設定 */
+        /* 💡 チャット全体のコンテナの高さが無限に伸びるのをGridレベルで防ぐ */
         .ai-sidebar-tile      { 
             grid-column: span 4; 
             grid-row: span 2; 
             display: flex; 
             flex-direction: column; 
             height: 100%; 
-            min-height: 0; /* CSS Gridの高さ無限伸び防止ハック */
+            min-height: 0; 
             overflow: hidden; 
         }
         
@@ -54,7 +71,19 @@
         }
 
         .glass-sidebar { background: var(--card-bg-glass); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(0, 243, 255, 0.25); }
-        .chat-history { flex-grow: 1; overflow-y: auto; margin: 1rem 0; display: flex; flex-direction: column; gap: 1rem; padding-right: 0.5rem; }
+        
+        /* 💡 チャット履歴。min-height: 0 で中身に引っ張られる限界を消し、スクロールを強制 */
+        .chat-history { 
+            flex-grow: 1; 
+            overflow-y: auto; 
+            margin: 1rem 0; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 1rem; 
+            padding-right: 0.5rem; 
+            min-height: 0; 
+        }
+       
         .chat-bubble { padding: 0.8rem 1rem; border-radius: 16px; font-size: var(--fs-md); line-height: 1.4; max-width: 90%; }
         .bubble-ai { background: rgba(26, 26, 40, 0.5); border-left: 3px solid var(--accent-cyan); color: var(--text-bright-muted); align-self: flex-start; }
         .bubble-user { background: rgba(255, 0, 127, 0.1); border-right: 3px solid var(--accent-magenta); color: var(--text-main); align-self: flex-end; }
