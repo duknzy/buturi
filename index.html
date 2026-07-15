@@ -217,27 +217,51 @@
             object-fit: cover;
         }
 
-        /* 画像がないテキスト問題用のプレビューボードCSS */
-        .card-thumbnail-text-preview {
-            font-size: 0.62rem !important;
-            color: var(--text-bright-muted);
-            padding: 0.5rem;
-            line-height: 1.3;
-            word-break: break-all;
-            overflow: hidden;
-            display: -webkit-box;
-            -webkit-line-clamp: 5;
-            -webkit-box-orient: vertical;
-            text-align: left;
+        /* 🌌【新設】画像がない問題用の近未来的ネオンエンブレム */
+        .card-thumbnail-neon-preview {
             width: 100%;
             height: 100%;
-            background: #06060a;
-            font-family: monospace;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            background: #020205;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            position: relative;
+            overflow: hidden;
         }
-        .card-thumbnail-text-preview mjx-container {
-            font-size: 0.68rem !important;
-            margin: 0 !important;
-            display: inline-block !important;
+        .card-thumbnail-neon-preview span {
+            font-size: 1.3rem;
+            position: relative;
+            z-index: 2;
+            font-style: italic;
+        }
+        /* 数学（エメラルドグリーンのネオン） */
+        .glow-math {
+            background: radial-gradient(circle at center, rgba(0, 255, 120, 0.15) 0%, #030a05 100%) !important;
+            border: 1px solid rgba(0, 255, 120, 0.3) !important;
+        }
+        .glow-math span {
+            color: #00ff78;
+            text-shadow: 0 0 8px rgba(0, 255, 120, 0.8);
+        }
+        /* 物理（シアンブルーのネオン） */
+        .glow-physics {
+            background: radial-gradient(circle at center, rgba(0, 243, 255, 0.15) 0%, #02080a 100%) !important;
+            border: 1px solid rgba(0, 243, 255, 0.3) !important;
+        }
+        .glow-physics span {
+            color: var(--accent-cyan);
+            text-shadow: 0 0 8px rgba(0, 243, 255, 0.8);
+        }
+        /* 未分類（マゼンタピンクのネオン） */
+        .glow-purple {
+            background: radial-gradient(circle at center, rgba(255, 0, 127, 0.15) 0%, #0a0206 100%) !important;
+            border: 1px solid rgba(255, 0, 127, 0.3) !important;
+        }
+        .glow-purple span {
+            color: var(--accent-magenta);
+            text-shadow: 0 0 8px rgba(255, 0, 127, 0.8);
         }
 
         /* 全バッジ共通スタイル：枠線を完全消去して今風のフラットデザイン化 */
@@ -666,10 +690,23 @@
                 if (p.imageData) {
                     thumbnailHtml = `<div class="card-thumbnail-wrapper"><img src="${p.imageData}"></div>`;
                 } else {
-                    let textPreview = p.title || "No data";
+                    // 科目（subjectText）を判定して、表示するエンブレム記号と光の色を自動決定
+                    let symbol = "？";
+                    let glowClass = "glow-purple";
+                    
+                    if (subjectText.includes("数学")) {
+                        symbol = "$f(x)$";
+                        glowClass = "glow-math";
+                    } else if (subjectText.includes("物理")) {
+                        symbol = "$\\vec{F}$";
+                        glowClass = "glow-physics";
+                    }
+                    
                     thumbnailHtml = `
                         <div class="card-thumbnail-wrapper">
-                            <div class="card-thumbnail-text-preview tex2jax_process">${textPreview}</div>
+                            <div class="card-thumbnail-neon-preview ${glowClass} tex2jax_process">
+                                <span>${symbol}</span>
+                            </div>
                         </div>`;
                 }
 
