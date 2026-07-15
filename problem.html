@@ -276,11 +276,49 @@
                 }
 
                 const figBox = document.getElementById("figure-box");
-                if (currentProblemData.imageData) {
-                    figBox.innerHTML = '<img src="' + currentProblemData.imageData + '" style="width:100%; height:100%; object-fit:contain; border-radius:12px;">';
-                } else {
-                    figBox.innerHTML = '<div style="padding:2rem; text-align:center; color:var(--text-muted);">' + currentProblemData.title + '</div>';
-                }
+
+// 1. 基本表示は、AIが綺麗に文字起こしした「extracted_text (title)」をMathJaxで美しく表示[cite: 1, 2]
+let contentHtml = `
+    <div class="tex2jax_process" style="padding: 2rem; font-size: 1.2rem; line-height: 1.8; text-align: left; width: 100%; height: 100%; overflow-y: auto;">
+        ${currentProblemData.title}
+    </div>
+`;
+
+// 2. もし元の画像データがある場合は、右下などに「元の写真を見る」トグルボタンを配置[cite: 2]
+if (currentProblemData.imageData) {
+    contentHtml += `
+        <div style="position: absolute; bottom: 1rem; right: 1rem; z-index: 10;">
+            <button type="button" id="toggle-photo-btn" class="tactile-btn" style="background: var(--accent-magenta); font-size: 0.8rem; padding: 0.4rem 0.8rem; box-shadow: 2px 2px 0px #9e004f;">
+                📸 元の写真を表示
+            </button>
+        </div>
+        <div id="original-photo-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; border-radius: 12px; overflow: hidden;">
+            <img src="${currentProblemData.imageData}" style="width: 100%; height: 100%; object-fit: contain;">
+        </div>
+    `;
+}
+
+figBox.innerHTML = contentHtml;
+
+// トグルボタンの動作イベントをバインド[cite: 2]
+if (currentProblemData.imageData) {
+    const toggleBtn = document.getElementById("toggle-photo-btn");
+    const photoOverlay = document.getElementById("original-photo-overlay");
+    
+    toggleBtn.addEventListener("click", () => {
+        if (photoOverlay.style.display === "none") {
+            photoOverlay.style.display = "block";
+            toggleBtn.textContent = "📝 問題文に戻る";
+            toggleBtn.style.background = "var(--accent-cyan)";
+            toggleBtn.style.boxShadow = "2px 2px 0px #008b94";
+        } else {
+            photoOverlay.style.display = "none";
+            toggleBtn.textContent = "📸 元の写真を表示";
+            toggleBtn.style.background = "var(--accent-magenta)";
+            toggleBtn.style.boxShadow = "2px 2px 0px #9e004f";
+        }
+    });
+}
                 
                 if (currentProblemData.subject === "未分類") {
                     document.getElementById("initial-ai-bubble").textContent = "この問題は未解析ストックです。右上の『⚡ この問題をAI解析する』を押すと、Gemini Visionが起動して完全に対話可能になります！";
