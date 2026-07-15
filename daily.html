@@ -100,7 +100,12 @@
         </div>
     </div>
 
+
+    
+    
     <script type="module">
+        import { dailyProblemBank } from "./daily-data.js";
+
         const proto = "https" + "://";
         const d = ".";
         const fbBase = proto + "www" + d + "gstatic" + d + "com/firebasejs/10.12.0/";
@@ -284,15 +289,17 @@
                     selectedQuestions = aiQuestions;
                     startSprintTimer();
 
+                // ──────────────────────────────────────────────────────────
+// 【差し替え】予備問題バンクからランダムに10問選出するロジックに更新
+// ──────────────────────────────────────────────────────────
                 } catch (error) {
                     console.error("AI問題生成エラー:", error);
-                    // エラーメッセージのなかに具体的な理由（キーの間違い、残高不足など）が表示されます
-                    alert("⚠️ DeepSeekによる問題生成に失敗しました。\n\n【エラー内容】\n" + error.message + "\n\n※バックアップの固定問題ノックを開始します。");
+                    alert("⚠️ DeepSeekによる問題生成に失敗しました。\n\n【エラー内容】\n" + error.message + "\n\n※予備問題データベース（200問）からランダムに10問選出して特訓を開始します！");
                     
-                    selectedQuestions = [
-                        { id: "BK_01", subject: "数学II", field: "三角関数", title: "$\sin \theta + \cos \theta = \frac{1}{2}$ のとき、$\sin^3 \theta + \cos^3 \theta$ の値を求めよ。", answer: "$\frac{11}{16}$", steps: "1. 両辺を2乗して $\sin \theta \cos \theta$ を求める。\\n$1 + 2\sin \theta \cos \theta = \frac{1}{4} \implies \sin \theta \cos \theta = -\frac{3}{8}$。\\n2. 因数分解公式 $a^3+b^3=(a+b)(a^2-ab+b^2)$ に代入。\\n$\frac{1}{2} \times (1 - (-\frac{3}{8})) = \frac{1}{2} \times \frac{11}{8} = \frac{11}{16}$。" },
-                        { id: "BK_02", subject: "数学II", field: "指数・対数関数", title: "方程式 $\log_2 x + \log_2 (x-2) = 3$ を解け。", answer: "$x = 4$", steps: "1. 真数条件より $x > 0$ かつ $x-2 > 0$、よって $x > 2$。\\n2. 对数の性質より $\log_2 \{x(x-2)\} = 3 \implies x(x-2) = 2^3 = 8$。\\n3. 整理して $x^2 - 2x - 8 = 0 \implies (x-4)(x+2) = 0$。\\n4. 真数条件 $x > 2$ より、 $x = 4$。" }
-                    ];
+                    // 200問の予備問題バンクからランダムにシャッフルして10問を抽出
+                    const shuffled = [...dailyProblemBank].sort(() => 0.5 - Math.random());
+                    selectedQuestions = shuffled.slice(0, 10);
+
                     startSprintTimer();
                 }
             }, { onlyOnce: true });
