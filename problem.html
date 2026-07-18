@@ -175,13 +175,13 @@
                             <button type="button" class="tactile-btn btn-incorrect" id="btn-judge-wrong">❌ 間違えた（再挑戦）</button>
                             <button type="button" class="tactile-btn btn-correct" id="btn-judge-right">🎉 合ってた（克服！）</button>
                         </div>
-                        <button type="button" class="tactile-btn" id="activate-ai-question-btn" style="width: 100%; margin-top: 1.2rem; background: #111; color: var(--accent-cyan); border: 1px solid var(--accent-cyan); box-shadow: 3px 3px 0px rgba(0,243,255,0.2);">
-        💡 解説が納得いかないのでAIに質問する
-    </button>
-</div>
-                    </div>
-                </div>
-            </section>
+                        <div style="display: flex; gap: 1rem; margin-top: 1.2rem; width: 100%;">
+                            <button type="button" class="tactile-btn" id="activate-ai-question-btn" ...>💡 AIに質問する</button>
+                            <button type="button" class="tactile-btn" id="regenerate-analysis-btn" ...>🔄 解説を再生成する</button>
+                        </div>
+                    </div> <!-- 👈 ここで answer-reveal-zone が閉じる -->
+                </div> <!-- 👈 ここで self-check-container が閉じる -->
+        </section> <!-- 👈 ここで answer-formula-tile が閉じる -->
         </main>
     </div>
 
@@ -695,6 +695,128 @@
                     { "role": "assistant", "content": `{"ai_response": "解説のどの部分が納得いかなかったですか？何でも質問してください！", "current_step_label": "質問受付中"}` }
                 ];
             });
+        }
+
+        // 🔄 【追加】AIに超精密なプロンプトで解説をやり直させるロジック
+        const REGEN_SYSTEM_INSTRUCTION = `
+        あなたは高校数学・物理の「超精密な誤答分析・解説生成AI」です。
+        先ほど生成された解説の計算精度、または数式レンダリング（LaTeX記法）に不備があったため、今回は【最高精度・厳密フォーマット】で解説を再生成してください。
+
+        【最重要：数式フォーマットの絶対規律】
+        1. 本文中に登場するすべての数式、変数(x, y, a, b, c等)、関数、数値、演算記号(⇒、等号、プラスマイナス)、分数(\\frac)、点(\\cdot)は、単一の文字であっても【必ず漏れなく】前後に $ または $$ をつけて完全なLaTeX形式にしてください。
+        2. $ で囲まれていない生の「\\frac」や「\\cdot」などの記法が本文中に露出することは絶対に許されません。
+        3. 解説文は、手順ごとに必ず改行コード（\\n）を適切に挟んで、論理の飛躍がない見やすい箇条書き形式（1., 2.など）で出力してください。
+
+        出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
+        {
+          "subject": "物理" または "数学",
+          "field": "分野名",
+          "short_title": "問題の要約タイトル",
+          "extracted_text": "読み取った正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと",
+          "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
+          "model_answer": "最終的な正しい答えと、ステップごとの分かりやすい超詳細な解説。数式や変数を記述する場合は、必ず前後に $ または $$ をつけること"
+        }
+        `.trim();
+
+        async function runRegenerateAnalysis() {
+            if (!loginUid || (!currentProblemData.imageData && !currentProblemData.title)) {
+                alert("再解析可能なデータが見つかりません。");
+                return;
+            }
+
+            const regenBtn = document.getElementById("regenerate-analysis-btn");
+            if (!regenBtn) return;
+            
+            const originalText = regenBtn.textContent;
+            regenBtn.textContent = "⚙️ 超精密に再考中...";
+            regenBtn.disabled = true;
+
+            let parts = [
+                { "text": "提出されたデータを、より正確な計算と完璧な$記号（LaTeX）の囲みを用いて、指定のJSONで再出力してください。解説が途中で壊れないよう細心の注意を払ってください。" }
+            ];
+
+            if (currentProblemData.title) {
+                parts[0].text += `\n\n【対象の問題文】\n${currentProblemData.title}`;
+            }
+
+            if (currentProblemData.imageData) {
+                try {
+                    let base64Raw = currentProblemData.imageData.split(",")[1];
+                    let mimeType = currentProblemData.imageData.split(",")[0].split(":")[1].split(";")[0];
+                    parts.push({ "inlineData": { "mimeType": mimeType, "data": base64Raw } });
+                } catch (e) {
+                    console.error("画像のデコードに失敗したため、テキスト主体で再解析します。");
+                }
+            }
+
+            try {
+                const response = await fetch(GEMINI_API_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        "contents": [{ "parts": parts }],
+                        "systemInstruction": { "parts": [{ "text": REGEN_SYSTEM_INSTRUCTION }] },
+                        "generationConfig": { 
+                            "responseMimeType": "application/json", 
+                            "temperature": 0.1 // 💡 温度をガッツリ下げて、AIの気まぐれな出力を抑え、堅実・論理的にさせます
+                        }
+                    })
+                });
+
+                if (!response.ok) throw new Error(`HTTPエラー: ${response.status}`);
+
+                const data = await response.json();
+                let rawJsonText = data.candidates[0].content.parts[0].text.trim();
+
+                if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
+                else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
+                if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
+                rawJsonText = rawJsonText.trim();
+
+                const fixJsonEscapes = (str) => {
+                    let inString = false; let result = "";
+                    for (let i = 0; i < str.length; i++) {
+                        let c = str[i];
+                        if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
+                        else if (c === '\\' && inString) {
+                            let next = str[i+1];
+                            if (next === '"') { result += '\\"'; i++; }
+                            else if (next === '\\') { result += '\\\\'; i++; }
+                            else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
+                            else { result += '\\\\'; }
+                        } else { result += c; }
+                    }
+                    return result;
+                };
+
+                const aiResult = JSON.parse(fixJsonEscapes(rawJsonText));
+
+                currentProblemData.title = aiResult.extracted_text || currentProblemData.title;
+                currentProblemData.short_title = aiResult.short_title || currentProblemData.short_title;
+                currentProblemData.subject = aiResult.subject || currentProblemData.subject;
+                currentProblemData.field = aiResult.field || currentProblemData.field;
+                currentProblemData.trap_description = aiResult.trap_description || "";
+                currentProblemData.answerFormula = aiResult.model_answer || currentProblemData.answerFormula;
+
+                // Firebaseのデータを上書き保存して同期
+                const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
+                await set(probRef, currentProblemData);
+
+                alert("⚡ AIによる解説のリフレッシュが完了しました！");
+                window.location.reload();
+
+            } catch (error) {
+                console.error(error);
+                alert("再解析の実行中にエラーが発生しました。\n原因: " + error.message);
+                regenBtn.textContent = originalText;
+                regenBtn.disabled = false;
+            }
+        }
+
+        // リスナーバインド
+        const regenBtnEl = document.getElementById("regenerate-analysis-btn");
+        if (regenBtnEl) {
+            regenBtnEl.addEventListener("click", runRegenerateAnalysis);
         }
    </script>
 </body>
