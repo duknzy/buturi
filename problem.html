@@ -24,13 +24,68 @@
     </script>
 
     <style>
-
+        /* 🌌 全画面フィット型・サイバーパンクダッシュボードCSS */
+        html, body {
+            height: 100vh;
+            overflow: hidden; /* 画面全体のスクロールを禁止 */
+            padding: 1rem 2rem;
+        }
         
-       
-        .chat-bubble { padding: 0.8rem 1rem; border-radius: 16px; font-size: var(--fs-md); line-height: 1.4; max-width: 90%; }
+        .workspace-container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* 💻 PC大画面用の最強3分割タイル配置 */
+        @media screen and (min-width: 1101px) {
+            .bento-grid {
+                display: grid;
+                grid-template-columns: 1.2fr 0.8fr; /* 左60% : 右40% */
+                grid-template-rows: 180px 1fr;    /* 問題エリアは上部に固定、解説が残りを埋める */
+                gap: 1.5rem;
+                flex-grow: 1;
+                height: 0; /* 子要素の独立スクロールを有効化する魔法のコード */
+                min-height: 0;
+            }
+            .main-question-tile {
+                grid-column: 1;
+                grid-row: 1;
+                overflow-y: auto;
+            }
+            .answer-formula-tile {
+                grid-column: 1;
+                grid-row: 2;
+                overflow-y: auto; /* 解説が長くてもここだけがスクロールする */
+            }
+            .ai-sidebar-tile {
+                grid-column: 2;
+                grid-row: 1 / span 2; /* 右側を縦いっぱいにぶち抜く */
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+            }
+            .chat-history {
+                flex-grow: 1;
+                overflow-y: auto; /* チャット履歴だけが独立スクロール */
+            }
+        }
+
+        /* 📱 スマホ・タブレット用のレスポンシブ（従来通り縦並び） */
+        @media (max-width: 1100px) {
+            html, body { overflow: auto; height: auto; }
+            .workspace-container { height: auto; }
+            .bento-grid { grid-template-rows: auto; }
+            .main-question-tile, .answer-formula-tile, .ai-sidebar-tile { grid-column: span 12; }
+            .ai-sidebar-tile { height: 400px; }
+        }
+
+        /* 共通コンポーネント */
+        .chat-bubble { padding: 0.8rem 1rem; border-radius: 16px; font-size: var(--fs-md); line-height: 1.4; max-width: 90%; margin-bottom: 0.8rem; }
         .bubble-ai { background: rgba(26, 26, 40, 0.5); border-left: 3px solid var(--accent-cyan); color: var(--text-bright-muted); align-self: flex-start; }
         .bubble-user { background: rgba(255, 0, 127, 0.1); border-right: 3px solid var(--accent-magenta); color: var(--text-main); align-self: flex-end; }
-        .chat-input-wrapper { display: flex; gap: 0.5rem; border-top: 1px solid #1a2a35; padding-top: 1rem; }
+        .chat-input-wrapper { display: flex; gap: 0.5rem; border-top: 1px solid #1a2a35; padding-top: 1rem; margin-top: auto; }
         .chat-input { flex-grow: 1; background: #000; border: 1px solid #222; padding: 0.6rem 1rem; color: #fff; border-radius: 10px; }
         .self-check-container { display: flex; flex-direction: column; gap: 1rem; width: 100%; margin-top: 0.5rem; }
         .reveal-btn-area { display: flex; width: 100%; }
@@ -39,28 +94,15 @@
             display: none; flex-direction: column; gap: 1rem; width: 100%; 
             background: rgba(255,255,255,0.01); padding: 1.5rem; border-radius: 16px; 
             border: 1px dashed #222; margin-top: 0.5rem;
-            max-height: 450px; overflow-y: auto;
         }
         
-        .model-answer-text { 
-            font-size: 1.05rem; 
-            color: var(--text-bright-muted); 
-            font-weight: 500; 
-            margin-bottom: 0.5rem; 
-            white-space: pre-wrap; 
-            line-height: 1.8;      
-            letter-spacing: 0.5px;
-        }
-        
+        .model-answer-text { font-size: 1.05rem; color: var(--text-bright-muted); font-weight: 500; margin-bottom: 0.5rem; white-space: pre-wrap; line-height: 1.8; letter-spacing: 0.5px; }
         .judgment-buttons { display: flex; gap: 1.5rem; width: 100%; }
         .btn-correct { background: var(--accent-cyan) !important; box-shadow: 4px 4px 0px #008b94 !important; flex: 1; height: 54px; font-size: 1.1rem; }
         .btn-incorrect { background: var(--accent-magenta) !important; color: #000 !important; box-shadow: 4px 4px 0px #9e004f !important; flex: 1; height: 54px; font-size: 1.1rem; }
         #neon-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 99999; display: block; }
-        
         .btn-analyze-now { background: #111 !important; color: var(--accent-cyan) !important; border: 1px solid var(--accent-cyan) !important; box-shadow: 3px 3px 0px rgba(0,243,255,0.2) !important; font-size: 0.85rem; padding: 0.3rem 0.8rem; border-radius: 8px; cursor: pointer; display: none; font-weight: 800; }
         .btn-analyze-now:hover { background: rgba(0,243,255,0.05) !important; }
-
-        @media (max-width: 1100px) { .workspace-container { height: auto; } .bento-grid { grid-template-rows: auto; } .main-question-tile, .answer-formula-tile, .ai-sidebar-tile { grid-column: span 12; } .ai-sidebar-tile { height: 400px; } }
     </style>
 </head>
 <body>
@@ -229,15 +271,12 @@
             }
         });
 
-        function loadCloudProblemSession(uid) {
+       function loadCloudProblemSession(uid) {
             const probRef = ref(database, 'users/' + uid + '/problems/' + PROBLEM_ID);
             
             onValue(probRef, (snapshot) => {
                 const data = snapshot.val();
-                if (!data) {
-                    // 削除直後にリスナーが動いた場合のすれ違いエラーを優しく回避
-                    return;
-                }
+                if (!data) return;
 
                 currentProblemData = data;
 
@@ -245,7 +284,6 @@
                 document.getElementById("problem-title-display").textContent = "問題名: " + (currentProblemData.short_title || "未設定");
                 
                 let rawAnswer = currentProblemData.answerFormula || "解答データなし";
-                // 💡 文字列としての \\n や \n をしっかり <br> タグに変換して改行を有効化
                 let formattedAnswer = rawAnswer
                     .replace(/\\n/g, '<br>')
                     .replace(/\n/g, '<br>')
@@ -255,7 +293,6 @@
                     .replace(/(したがって、)/g, '<br><br>$1')   
                     .trim();
 
-                // 💡 textContent から innerHTML に変更することで数式と改行のバグを解消！
                 document.getElementById("target-model-answer").innerHTML = formattedAnswer;
                 
                 const badge = document.getElementById("question-badge");
@@ -271,7 +308,6 @@
                 const figBox = document.getElementById("figure-box");
                 let contentHtml = "";
 
-                // 1. AI未解析問題（クイック登録）の場合[cite: 2]
                 if (currentProblemData.subject === "未分類") {
                     if (currentProblemData.imageData) {
                         contentHtml = `
@@ -286,33 +322,20 @@
                         contentHtml = `<div style="padding:2rem; text-align:center; color:var(--text-muted);">${currentProblemData.title}</div>`;
                     }
                 } 
-                // 2. AI解析済みの問題の場合
                 else {
+                    // 💡 無駄な背景グラデーションや、元枠と喧嘩していた absolute/padding を排除。
+                    // 💡 純粋に問題文テキストだけを美しく引き立たせるスマートな構造に変更。
                     contentHtml = `
                         <div class="tex2jax_process" style="
-                            position: absolute;
-                            top: 0; left: 0;
-                            width: 100%; height: 100%;
-                            padding: 2.5rem; 
-                            font-size: 1.45rem; 
+                            color: var(--text-main); 
+                            font-size: 1.35rem; 
                             font-weight: 700;
-                            line-height: 1.8; 
+                            line-height: 1.7; 
                             text-align: left; 
-                            overflow-y: auto;
-                            display: flex;
-                            flex-direction: column;
-                            justify-content: flex-start;
-                            align-items: flex-start;
-                            background: radial-gradient(circle at top left, rgba(0, 243, 255, 0.05) 0%, #020205 100%);
-                            border-radius: 12px;
-                            box-sizing: border-box;
+                            width: 100%;
+                            padding: 0.5rem 0;
                         ">
-                            <div style="font-size: 0.7rem; letter-spacing: 2px; color: var(--accent-cyan); font-weight: 900; margin-bottom: 2rem; border-bottom: 2px solid var(--accent-cyan); padding-bottom: 0.3rem; text-transform: uppercase; width: fit-content; font-family: monospace;">
-                                // SYSTEM // EXTRACTED MISSION QUESTION
-                            </div>
-                            <div style="color: var(--text-main); text-shadow: 0 0 10px rgba(255,255,255,0.05); width: 100%; flex-grow: 1;">
-                                ${currentProblemData.title}
-                            </div>
+                            ${currentProblemData.title}
                         </div>
                     `;
 
@@ -329,7 +352,6 @@
 
                 figBox.innerHTML = contentHtml;
 
-                // 3. フルスクリーンポップアップ（ライトボックス）の動的処理[cite: 2]
                 if (currentProblemData.subject !== "未分類" && currentProblemData.imageData) {
                     const toggleBtn = document.getElementById("toggle-photo-btn");
                     if (toggleBtn) {
@@ -352,7 +374,6 @@
                     }
                 }
                 
-                // 💡 AIの初期文言を「まずは解説を読んでね」というスタンスに変更
                 if (currentProblemData.subject === "未分類") {
                     document.getElementById("initial-ai-bubble").textContent = "この問題は未解析ストックです。右上の『⚡ この問題をAI解析する』を押すと、Gemini Visionが起動して完全に対話可能になります！";
                     document.getElementById("current-step").textContent = "ステップ0: 未解析";
@@ -362,15 +383,11 @@
                 }
 
                 const showAnsBtn = document.getElementById("show-answer-btn");
-                showAnsBtn.textContent = "👁 模範解答を表示して答え合わせする";
-                showAnsBtn.disabled = false;
-
-                if (chatHistory.length === 0) {
-                    chatHistory = [
-                        { "role": "user", "content": "【問題文】 " + currentProblemData.title },
-                        { "role": "assistant", "content": `{"ai_response": "問題を確認しました。どこから考えてみましょうか？", "current_step_label": "ステップ1: 状況の整理"}` }
-                    ];
+                if (showAnsBtn) {
+                    showAnsBtn.textContent = "👁 模範解答を表示して答え合わせする";
+                    showAnsBtn.disabled = false;
                 }
+
                 if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise();
             }, { onlyOnce: true });
         }
