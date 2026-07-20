@@ -104,6 +104,43 @@
         #neon-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 99999; display: block; }
         .btn-analyze-now { background: #111 !important; color: var(--accent-cyan) !important; border: 1px solid var(--accent-cyan) !important; box-shadow: 3px 3px 0px rgba(0,243,255,0.2) !important; font-size: 0.85rem; padding: 0.3rem 0.8rem; border-radius: 8px; cursor: pointer; display: none; font-weight: 800; }
         .btn-analyze-now:hover { background: rgba(0,243,255,0.05) !important; }
+        /* 🧠 気づきメモ用モーダル（ポップアップ）CSS */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100000;
+        }
+        .modal-content {
+            width: 90%;
+            max-width: 550px;
+            background: rgba(10, 10, 18, 0.95);
+            border: 1px solid var(--accent-cyan);
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.25);
+            padding: 1.8rem;
+        }
+        .modal-textarea {
+            width: 100%;
+            background: #000;
+            border: 1px solid #22222a;
+            color: #fff;
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            resize: none;
+            line-height: 1.6;
+            font-family: inherit;
+        }
+        .modal-textarea:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -177,13 +214,40 @@
                             <button type="button" class="tactile-btn btn-correct" id="btn-judge-right">🎉 合ってた（克服！）</button>
                         </div>
                         <div style="display: flex; gap: 1rem; margin-top: 1.2rem; width: 100%;">
-                            <button type="button" class="tactile-btn" id="activate-ai-question-btn" ...>💡 AIに質問する</button>
-                            <button type="button" class="tactile-btn" id="regenerate-analysis-btn" ...>🔄 解説を再生成する</button>
+                            <button type="button" class="tactile-btn" id="activate-ai-question-btn" style="flex: 1; background: #111; color: var(--accent-cyan); border: 1px solid var(--accent-cyan); box-shadow: 3px 3px 0px rgba(0,243,255,0.2);">
+                                💡 AIに質問する
+                            </button>
+                            <button type="button" class="tactile-btn" id="regenerate-analysis-btn" style="flex: 1; background: #111; color: var(--accent-yellow); border: 1px solid var(--accent-yellow); box-shadow: 3px 3px 0px rgba(255,245,0,0.2);">
+                                🔄 解説を再生成する
+                            </button>
                         </div>
-                    </div> <!-- 👈 ここで answer-reveal-zone が閉じる -->
+
+                        <!-- 🧠【追加】気づきメモモーダルを呼ぶボタン -->
+                        <button type="button" class="tactile-btn" id="open-insight-modal-btn" style="width: 100%; margin-top: 0.8rem; background: rgba(0, 243, 255, 0.05); color: var(--accent-cyan); border: 1px dashed var(--accent-cyan); box-shadow: none;">
+                            🧠 この問題で得た「気づき・極意」をメモする
+                        </button>
+                    </div>
                 </div> <!-- 👈 ここで self-check-container が閉じる -->
         </section> <!-- 👈 ここで answer-formula-tile が閉じる -->
         </main>
+    </div>
+
+    <!-- 🧠【追加】気づきメモ用ポップアップ（モーダル） -->
+    <div class="modal-overlay" id="insight-modal">
+        <div class="squircle-tile modal-content glass-card">
+            <div class="tile-header-group">
+                <span class="badge badge-ai" style="color: var(--accent-cyan);">MEMORY LOG // 気づき・極意ノート</span>
+                <h3 style="font-size: 1.2rem; font-weight: 800; margin-top: 0.4rem;" id="insight-modal-title">この問題の気づきメモ</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.2rem;">解法パターンや引っかかった罠、次に活かしたいテクニックを記録しておこう。</p>
+            </div>
+
+            <textarea class="modal-textarea" id="insight-text-input" placeholder="例: 頂点フォームより2点代入の方が圧倒的に速い！ / x²+y² を見たら極座標表示を疑う" style="height: 120px; margin-top: 1rem;"></textarea>
+
+            <div style="display: flex; gap: 0.8rem; justify-content: flex-end; width: 100%; margin-top: 1.2rem;">
+                <button type="button" class="tactile-btn tactile-btn-secondary" id="close-insight-modal-btn">キャンセル</button>
+                <button type="button" class="tactile-btn" id="save-insight-btn" style="background: var(--accent-cyan); box-shadow: 3px 3px 0px #008b94;">💾 クラウドに保存</button>
+            </div>
+        </div>
     </div>
 
    <script type="module">
@@ -818,6 +882,81 @@
         const regenBtnEl = document.getElementById("regenerate-analysis-btn");
         if (regenBtnEl) {
             regenBtnEl.addEventListener("click", runRegenerateAnalysis);
+        }
+
+        // 🧠【新設】気づきメモ（ポップアップモーダル）制御ロジック
+        const insightModal = document.getElementById("insight-modal");
+        const openInsightBtn = document.getElementById("open-insight-modal-btn");
+        const closeInsightBtn = document.getElementById("close-insight-modal-btn");
+        const saveInsightBtn = document.getElementById("save-insight-btn");
+        const insightTextInput = document.getElementById("insight-text-input");
+        const insightModalTitle = document.getElementById("insight-modal-title");
+
+        // 1. モーダルを開く処理
+        if (openInsightBtn && insightModal) {
+            openInsightBtn.addEventListener("click", () => {
+                if (currentProblemData.short_title) {
+                    insightModalTitle.textContent = `【${currentProblemData.short_title}】の気づきメモ`;
+                }
+                insightTextInput.value = currentProblemData.insight || "";
+                insightModal.style.display = "flex";
+                insightTextInput.focus();
+            });
+        }
+
+        // 2. モーダルを閉じる処理
+        if (closeInsightBtn && insightModal) {
+            closeInsightBtn.addEventListener("click", () => {
+                insightModal.style.display = "none";
+            });
+        }
+
+        if (insightModal) {
+            insightModal.addEventListener("click", (e) => {
+                if (e.target === insightModal) {
+                    insightModal.style.display = "none";
+                }
+            });
+        }
+
+        // 3. メモをFirebaseに保存する処理
+        if (saveInsightBtn) {
+            saveInsightBtn.addEventListener("click", async () => {
+                if (!loginUid || !PROBLEM_ID) {
+                    alert("ログイン情報または問題IDが見つかりません。");
+                    return;
+                }
+
+                const memoText = insightTextInput.value.trim();
+                saveInsightBtn.textContent = "⚙️ 保存中...";
+                saveInsightBtn.disabled = true;
+
+                try {
+                    currentProblemData.insight = memoText;
+                    currentProblemData.insightUpdatedAt = new Date().toISOString();
+
+                    const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
+                    await set(probRef, currentProblemData);
+
+                    if (memoText) {
+                        openInsightBtn.textContent = "🧠 メモ記録済み（クリックで編集）";
+                        openInsightBtn.style.background = "rgba(0, 243, 255, 0.15)";
+                    } else {
+                        openInsightBtn.textContent = "🧠 この問題で得た「気づき・極意」をメモする";
+                        openInsightBtn.style.background = "rgba(0, 243, 255, 0.05)";
+                    }
+
+                    alert("🎉 気づきメモをクラウドに保存しました！");
+                    insightModal.style.display = "none";
+
+                } catch (error) {
+                    console.error("メモ保存エラー:", error);
+                    alert("保存に失敗しました。ネットワークの状態を確認してください。");
+                } finally {
+                    saveInsightBtn.textContent = "💾 クラウドに保存";
+                    saveInsightBtn.disabled = false;
+                }
+            });
         }
    </script>
 </body>
