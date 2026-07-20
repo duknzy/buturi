@@ -306,6 +306,30 @@
             box-shadow: 0 0 12px rgba(0, 243, 255, 0.15);
         }
 
+        /* 🧠 気づき一覧モーダル用CSS */
+        .insight-card-item {
+            background: rgba(5, 5, 8, 0.8);
+            border: 1px solid rgba(0, 243, 255, 0.2);
+            border-left: 4px solid var(--accent-cyan);
+            border-radius: 12px;
+            padding: 1.2rem;
+            margin-bottom: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .insight-card-item:hover {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 243, 255, 0.05);
+            transform: translateX(3px);
+        }
+        .badge-insight {
+            background: rgba(0, 243, 255, 0.15) !important;
+            color: var(--accent-cyan) !important;
+        }
+
         @media (max-width: 1024px) { .size-high, .size-medium { grid-column: span 6; } .size-mini { grid-column: span 3; } }
         @media (max-width: 640px) { .bento-grid { grid-template-columns: 1fr; grid-auto-rows: auto; } .size-high, .size-medium, .size-mini { grid-column: span 1; grid-row: auto; } header { flex-direction: column; align-items: flex-start; gap: 1rem; } .card-thumbnail-wrapper { width: 85px; height: 85px; min-width: 85px; } }
     </style>
@@ -320,8 +344,13 @@
             </div>
             <div class="auth-status-container">
                 <button type="button" class="tactile-btn" id="open-modal-btn" style="background: var(--accent-magenta); box-shadow: 3px 3px 0px #9e004f; display:none;">
-                    ＋ 誤答問題を登録
-                </button>
+    ＋ 誤答問題を登録
+</button>
+
+<!-- 🧠【追加】全問題の気づき一覧モーダルを開くボタン -->
+<button type="button" class="tactile-btn" id="open-insight-list-btn" style="background: rgba(0, 243, 255, 0.1); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); box-shadow: 3px 3px 0px rgba(0,243,255,0.2); display:none;">
+    🧠 気づき一覧
+</button>
                 <button type="button" class="tactile-btn" onclick="location.href='daily.html'" style="background: linear-gradient(135deg, var(--accent-magenta), #9e004f); box-shadow: 3px 3px 0px rgba(255, 0, 127, 0.3);">
                     🏁 本日の計算スプリント(10問)に挑戦
                 </button>
@@ -379,6 +408,7 @@
         </main>
     </div>
 
+    <!-- 1. 問題登録モーダル -->
     <div class="modal-overlay" id="add-problem-modal">
         <div class="squircle-tile modal-content glass-card">
             <div class="tile-header-group">
@@ -429,6 +459,27 @@
             </div>
         </div>
     </div>
+
+    <!-- 🧠 2. 全問題の気づき・極意一覧モーダル（外側へ並列配置） -->
+    <div class="modal-overlay" id="insight-list-modal">
+        <div class="squircle-tile modal-content glass-card" style="max-width: 700px; max-height: 85vh; display: flex; flex-direction: column;">
+            <div class="tile-header-group">
+                <span class="badge badge-ai" style="color: var(--accent-cyan);">MEMORY LOG // 全極意・気づき一覧</span>
+                <h3 style="font-size: 1.3rem; font-weight: 800; margin-top: 0.3rem;">獲得した知識・解法パターン</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem;">これまでに各問題でメモした気づきの一覧です。クリックで該当問題へジャンプできます。</p>
+            </div>
+
+            <div id="insight-list-container" style="overflow-y: auto; flex-grow: 1; margin-top: 1.2rem; padding-right: 0.4rem;">
+                <!-- JSで動的にメモカードが生成されます -->
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 1.2rem; border-top: 1px solid #22222a; padding-top: 0.8rem;">
+                <button type="button" class="tactile-btn tactile-btn-secondary" id="close-insight-list-btn">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+
 
    <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -562,6 +613,7 @@
                 document.getElementById("logout-btn").addEventListener("click", () => signOut(auth));
                 
                 registerBtn.style.display = "block";
+document.getElementById("open-insight-list-btn").style.display = "block"; // 💡 追加
                 loginNotice.style.display = "none";
                 mainGrid.style.display = "grid";
                 filterBar.style.display = "flex"; 
@@ -573,6 +625,7 @@
                 document.getElementById("header-login-btn").addEventListener("click", doLogin);
                 
                 registerBtn.style.display = "none";
+                document.getElementById("open-insight-list-btn").style.display = "none"; // 💡 非表示処理を追加
                 loginNotice.style.display = "block";
                 mainGrid.style.display = "none";
                 filterBar.style.display = "none";
@@ -713,6 +766,12 @@
                 // ──────────────────────────────────────────────────────────
 // 【変更後】
 // ──────────────────────────────────────────────────────────
+// 🧠 気づきメモが存在する場合はバッジを表示
+                let insightBadgeHtml = "";
+                if (p.insight && p.insight.trim() !== "") {
+                    insightBadgeHtml = `<span class="badge badge-insight">🧠 メモあり</span>`;
+                }
+
                 let cardHtml = `
                     <div class="squircle-card size-medium" onclick="location.href='problem.html?id=${p.id}'" style="border-color: var(--accent-cyan); border-left: 4px solid var(--accent-cyan); cursor: pointer; padding: 1.1rem 1.4rem;">
                         <div class="card-inner-layout">
@@ -723,6 +782,7 @@
                                     <div style="display: flex; gap: 0.5rem; margin-bottom: 0.4rem; flex-wrap: wrap;">
                                         <span class="badge ${badgeSubjectClass}">${subjectText} // ${fieldText}</span>
                                         <span class="badge ${timeBadgeClass}">${timeBadgeText}</span>
+                                        ${insightBadgeHtml} <!-- 💡 ここに追加！ -->
                                     </div>
                                     <h2 class="card-title tex2jax_process" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.short_title}</h2>
                                     
@@ -979,6 +1039,74 @@
                 const text = textInput.value.trim();
                 if (!text && !selectedImageBase64) { alert("写真を選択するかメモを入力してください。"); return; }
                 quickAddProblem(text);
+            });
+        }
+
+        // 🧠【新設】全気づき一覧モーダル制御ロジック
+        const insightListModal = document.getElementById("insight-list-modal");
+        const openInsightListBtn = document.getElementById("open-insight-list-btn");
+        const closeInsightListBtn = document.getElementById("close-insight-list-btn");
+        const insightListContainer = document.getElementById("insight-list-container");
+
+        function renderInsightList() {
+            if (!insightListContainer) return;
+            insightListContainer.innerHTML = "";
+
+            let count = 0;
+            Object.keys(lastCloudProblemsSnapshot).forEach(id => {
+                const p = lastCloudProblemsSnapshot[id];
+                if (p.insight && p.insight.trim() !== "") {
+                    count++;
+                    const subject = p.subject || "未分類";
+                    const field = p.field || "未分類";
+                    const shortTitle = p.short_title || "無題の問題";
+
+                    const itemHtml = `
+                        <div class="insight-card-item" onclick="location.href='problem.html?id=${p.id}'">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.4rem;">
+                                <span class="badge badge-physics" style="font-size: 0.7rem;">${subject} // ${field}</span>
+                                <span style="font-size: 0.8rem; font-weight: 800; color: var(--accent-cyan);">📌 ${shortTitle} ➔</span>
+                            </div>
+                            <div class="tex2jax_process" style="font-size: 0.95rem; color: var(--text-main); line-height: 1.6; white-space: pre-wrap; font-weight: 600;">
+                                ${p.insight}
+                            </div>
+                        </div>
+                    `;
+                    insightListContainer.insertAdjacentHTML("beforeend", itemHtml);
+                }
+            });
+
+            if (count === 0) {
+                insightListContainer.innerHTML = `
+                    <div style="padding: 3rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+                        まだ「気づきメモ」が登録されていません。<br>各問題の解答セッションで得た知識を記録してみましょう！
+                    </div>
+                `;
+            }
+
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise([insightListContainer]).catch(err => console.log(err.message));
+            }
+        }
+
+        if (openInsightListBtn && insightListModal) {
+            openInsightListBtn.addEventListener("click", () => {
+                renderInsightList();
+                insightListModal.style.display = "flex";
+            });
+        }
+
+        if (closeInsightListBtn && insightListModal) {
+            closeInsightListBtn.addEventListener("click", () => {
+                insightListModal.style.display = "none";
+            });
+        }
+
+        if (insightListModal) {
+            insightListModal.addEventListener("click", (e) => {
+                if (e.target === insightListModal) {
+                    insightListModal.style.display = "none";
+                }
             });
         }
    </script>
