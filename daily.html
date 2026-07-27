@@ -176,7 +176,7 @@
                 Object.keys(allProblems).forEach(id => {
                     const p = allProblems[id];
                     if (p.subject && p.subject.includes("数学") && (p.errorCount > 0 || p.lastResult === false)) {
-                        if (p.field) weakFields.push(p.field);
+                        if (p.field && !p.field.includes("軌跡")) weakFields.push(p.field);
                     }
                 });
                 
@@ -187,6 +187,9 @@
                 const systemPrompt = `
 あなたは日本の高校数学（特に数学II）の教育に精通した、極めて優秀なAI数学教師です。
 生徒の数学目的思考力と計算力を限界まで引き上げるため、本日の【数学I,II,III,】の計算特訓タイムアタック問題を【厳密に10問】作成してください。
+
+【🚫 除外分野・禁止事項】
+- 「軌跡」「軌跡と領域」に関する問題は完全に除外してください。タイムアタックに適した、純粋な式変形や計算・展開・評価問題のみを選定すること。
 
 【⚠️ 出力形式の絶対ルール（超厳重）】
 - 出力は、一切の説明、前置き、挨拶、およびMarkdownのコードブロック（\`\`\`json や \`\`\`）を含まない、**純粋なJSON配列の文字列のみ**としてください。
