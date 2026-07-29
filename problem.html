@@ -104,6 +104,46 @@
         #neon-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 99999; display: block; }
         .btn-analyze-now { background: #111 !important; color: var(--accent-cyan) !important; border: 1px solid var(--accent-cyan) !important; box-shadow: 3px 3px 0px rgba(0,243,255,0.2) !important; font-size: 0.85rem; padding: 0.3rem 0.8rem; border-radius: 8px; cursor: pointer; display: none; font-weight: 800; }
         .btn-analyze-now:hover { background: rgba(0,243,255,0.05) !important; }
+
+        /* 🧠【新設】解答生成AIエンジン選択トグル（Gemini / DeepSeek） */
+        .engine-toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 0.6rem;
+        }
+        .engine-toggle-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+        .engine-btn {
+            background: #0a0a0a;
+            border: 1px solid #22222a;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            font-weight: 800;
+            padding: 0.35rem 0.8rem;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 150ms ease;
+            letter-spacing: 0.3px;
+        }
+        .engine-btn:hover { border-color: var(--border-glow); color: var(--text-bright-muted); }
+        .engine-btn.active[data-engine="gemini"] {
+            background: rgba(0, 243, 255, 0.12);
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            box-shadow: 2px 2px 0px rgba(0,243,255,0.15);
+        }
+        .engine-btn.active[data-engine="deepseek"] {
+            background: rgba(255, 245, 0, 0.1);
+            border-color: var(--accent-yellow);
+            color: var(--accent-yellow);
+            box-shadow: 2px 2px 0px rgba(255,245,0,0.15);
+        }
         /* 🧠 気づきメモ用モーダル（ポップアップ）CSS */
         .modal-overlay {
             position: fixed;
@@ -171,6 +211,7 @@
                 <div class="tile-header-group" style="display: flex; justify-content: space-between; align-items: center; width:100%;">
                     <span class="badge badge-physics" id="question-badge">LOADING...</span>
                     <button type="button" class="btn-analyze-now" id="on-demand-analyze-btn">⚡ この問題をAI解析する</button>
+                    <span id="analyze-engine-hint" style="display:none; font-size:0.7rem; color:var(--text-muted); font-weight:700; margin-left:0.3rem;"></span>
                 </div>
                 
                 <div class="physics-figure-box" id="figure-box"></div>
@@ -180,6 +221,12 @@
                 <div class="tile-header-group">
                     <span class="badge badge-ai" id="ai-status">AI TUTOR // ACTIVE</span>
                     <h3 style="font-size: var(--fs-md); font-weight: 800;" id="current-step">INITIALIZING...</h3>
+
+                    <div class="engine-toggle-group" id="engine-toggle-group">
+                        <span class="engine-toggle-label">🧠 解答生成AI:</span>
+                        <button type="button" class="engine-btn" id="engine-btn-gemini" data-engine="gemini">✨ Gemini</button>
+                        <button type="button" class="engine-btn" id="engine-btn-deepseek" data-engine="deepseek">🐋 DeepSeek</button>
+                    </div>
                 </div>
 
                 <div class="chat-history">
@@ -218,7 +265,7 @@
                                 💡 AIに質問する
                             </button>
                             <button type="button" class="tactile-btn" id="regenerate-analysis-btn" style="flex: 1; background: #111; color: var(--accent-yellow); border: 1px solid var(--accent-yellow); box-shadow: 3px 3px 0px rgba(255,245,0,0.2);">
-                                🔄 解説を再生成する
+                                🔄 解説を再生成する <span id="regen-engine-hint" style="font-size:0.65rem; opacity:0.8;"></span>
                             </button>
                         </div>
 
@@ -288,9 +335,46 @@
             if (DEEPSEEK_API_KEY) localStorage.setItem("RE_MIND_DEEPSEEK_KEY", DEEPSEEK_API_KEY);
         }
 
-        const GEMINI_API_URL = `${proto}generativelanguage${d}googleapis${d}com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const GEMINI_API_URL = `${proto}generativelanguage${d}googleapis${d}com/v1beta/models/gemini-3.1-pro-preview:generateContent?key=${GEMINI_API_KEY}`;
         const DEEPSEEK_API_URL = proto + "api" + d + "deepseek" + d + "com/v1/chat/completions";
-        const MODEL_NAME = "deepseek-chat";
+        const MODEL_NAME = "deepseek-v4-pro";
+
+        // 🧠【新設】解答生成AIエンジンの選択状態管理（Gemini / DeepSeek）
+        // 「この問題をAI解析する」「解説を再生成する」「AIに質問する」の3機能すべてが、この選択に従う。
+        let ACTIVE_ENGINE = localStorage.getItem("RE_MIND_ACTIVE_ENGINE") || "gemini";
+
+        function getEngineLabel(engine) {
+            return engine === "deepseek" ? "🐋 DeepSeek" : "✨ Gemini";
+        }
+
+        function setActiveEngine(engine) {
+            ACTIVE_ENGINE = engine;
+            localStorage.setItem("RE_MIND_ACTIVE_ENGINE", engine);
+            updateEngineToggleUI();
+        }
+
+        function updateEngineToggleUI() {
+            const geminiBtn = document.getElementById("engine-btn-gemini");
+            const deepseekBtn = document.getElementById("engine-btn-deepseek");
+            if (geminiBtn) geminiBtn.classList.toggle("active", ACTIVE_ENGINE === "gemini");
+            if (deepseekBtn) deepseekBtn.classList.toggle("active", ACTIVE_ENGINE === "deepseek");
+
+            const analyzeHint = document.getElementById("analyze-engine-hint");
+            if (analyzeHint) {
+                analyzeHint.textContent = `(${getEngineLabel(ACTIVE_ENGINE)}で解析)`;
+                analyzeHint.style.display = "inline";
+            }
+            const regenHint = document.getElementById("regen-engine-hint");
+            if (regenHint) regenHint.textContent = `(${getEngineLabel(ACTIVE_ENGINE)})`;
+        }
+
+        function initEngineToggle() {
+            const geminiBtn = document.getElementById("engine-btn-gemini");
+            const deepseekBtn = document.getElementById("engine-btn-deepseek");
+            if (geminiBtn) geminiBtn.addEventListener("click", () => setActiveEngine("gemini"));
+            if (deepseekBtn) deepseekBtn.addEventListener("click", () => setActiveEngine("deepseek"));
+            updateEngineToggleUI();
+        }
 
         const GEMINI_SYSTEM_INSTRUCTION = `
         あなたは高校数学・物理の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
@@ -440,7 +524,7 @@
                 }
                 
                 if (currentProblemData.subject === "未分類") {
-                    document.getElementById("initial-ai-bubble").textContent = "この問題は未解析ストックです。右上の『⚡ この問題をAI解析する』を押すと、Gemini Visionが起動して完全に対話可能になります！";
+                    document.getElementById("initial-ai-bubble").textContent = "この問題は未解析ストックです。右上の『⚡ この問題をAI解析する』を押すと、選択中のAI（Gemini / DeepSeek）が起動して完全に対話可能になります！";
                     document.getElementById("current-step").textContent = "ステップ0: 未解析";
                 } else {
                     document.getElementById("initial-ai-bubble").textContent = "クラウド連携完了。まずは左下の『模範解答』を確認してください。もし納得いかない部分があれば、質問ボタンから何でも聞いてください！";
@@ -457,6 +541,102 @@
             }, { onlyOnce: true });
         }
 
+        // 🧠【共通ヘルパー】AIの生テキストからJSONを安全に取り出す
+        function fixJsonEscapes(str) {
+            let inString = false; let result = "";
+            for (let i = 0; i < str.length; i++) {
+                let c = str[i];
+                if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
+                else if (c === '\\' && inString) {
+                    let next = str[i+1];
+                    if (next === '"') { result += '\\"'; i++; }
+                    else if (next === '\\') { result += '\\\\'; i++; }
+                    else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
+                    else { result += '\\\\'; }
+                } else { result += c; }
+            }
+            return result;
+        }
+
+        function stripCodeFence(text) {
+            let t = text.trim();
+            if (t.startsWith("```json")) t = t.substring(7);
+            else if (t.startsWith("```")) t = t.substring(3);
+            if (t.endsWith("```")) t = t.substring(0, t.length - 3);
+            return t.trim();
+        }
+
+        /**
+         * 解答（model_answer）生成の共通呼び出し関数。
+         * ACTIVE_ENGINE（"gemini" or "deepseek"）に応じて呼び出し先を切り替える。
+         * ※ DeepSeekは画像を直接読めないため、画像のみでまだ問題文（title）が未確定の場合はエラーにする。
+         */
+        async function callAnalysisEngine(instructionText, systemInstruction) {
+            if (ACTIVE_ENGINE === "deepseek") {
+                if (currentProblemData.imageData && !currentProblemData.title) {
+                    throw new Error("DeepSeekは画像を直接読み取れません。先に✨Geminiで一度解析して問題文を文字起こしするか、問題文を手動で入力してから再度お試しください。");
+                }
+                const response = await fetch(DEEPSEEK_API_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + DEEPSEEK_API_KEY
+                    },
+                    body: JSON.stringify({
+                        "model": MODEL_NAME,
+                        "messages": [
+                            { "role": "system", "content": systemInstruction },
+                            { "role": "user", "content": instructionText }
+                        ],
+                        "temperature": 0.3,
+                        "response_format": { "type": "json_object" }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errBody = await response.json().catch(() => ({}));
+                    throw new Error(errBody.error?.message || `HTTPエラー: ${response.status}`);
+                }
+
+                const data = await response.json();
+                let rawText = data.choices[0].message.content;
+                if (rawText.includes("</think>")) rawText = rawText.split("</think>")[1].trim();
+                return JSON.parse(fixJsonEscapes(stripCodeFence(rawText)));
+
+            } else {
+                // ✨ Gemini（画像入力対応）
+                let parts = [{ "text": instructionText }];
+                if (currentProblemData.imageData) {
+                    try {
+                        let base64Raw = currentProblemData.imageData.split(",")[1];
+                        let mimeType = currentProblemData.imageData.split(",")[0].split(":")[1].split(";")[0];
+                        parts.push({ "inlineData": { "mimeType": mimeType, "data": base64Raw } });
+                    } catch (e) {
+                        console.error("画像の読み込みに失敗したため、テキストのみで解析を実行します。");
+                    }
+                }
+
+                const response = await fetch(GEMINI_API_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        "contents": [{ "parts": parts }],
+                        "systemInstruction": { "parts": [{ "text": systemInstruction }] },
+                        "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errBody = await response.json().catch(() => ({}));
+                    throw new Error(errBody.error?.message || `HTTPエラー: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const rawText = data.candidates[0].content.parts[0].text.trim();
+                return JSON.parse(fixJsonEscapes(stripCodeFence(rawText)));
+            }
+        }
+
         async function runOnDemandAnalysis() {
             // 画像も問題文テキストも両方ない場合はエラー
             if (!loginUid || (!currentProblemData.imageData && !currentProblemData.title)) {
@@ -465,71 +645,20 @@
             }
 
             const analyzeBtn = document.getElementById("on-demand-analyze-btn");
-            analyzeBtn.textContent = "⚙️ 爆速解析中...";
+            const originalBtnText = analyzeBtn.textContent;
+            analyzeBtn.textContent = `⚙️ ${getEngineLabel(ACTIVE_ENGINE)}で爆速解析中...`;
             analyzeBtn.disabled = true;
 
             // 基本の指示文
-            let parts = [
-                { "text": "提出されたデータを解析し、最終的な『正しい答え（model_answer）』も含めて指定のJSONで返してください。" }
-            ];
+            let instructionText = "提出されたデータを解析し、最終的な『正しい答え（model_answer）』も含めて指定のJSONで返してください。";
 
-            // 1. 手動登録された問題文があれば、テキストをプロンプトに追加[cite: 2]
+            // 手動登録された問題文があれば、テキストをプロンプトに追加
             if (currentProblemData.title) {
-                parts[0].text += `\n\n【解析対象の問題文】\n${currentProblemData.title}`;
-            }
-
-            // 2. もし画像が存在するなら、画像データも一緒に追加する[cite: 2]
-            if (currentProblemData.imageData) {
-                try {
-                    let base64Raw = currentProblemData.imageData.split(",")[1];
-                    let mimeType = currentProblemData.imageData.split(",")[0].split(":")[1].split(";")[0];
-                    parts.push({ "inlineData": { "mimeType": mimeType, "data": base64Raw } });
-                } catch (e) {
-                    console.error("画像の読み込みに失敗したため、テキストのみで解析を実行します。");
-                }
+                instructionText += `\n\n【解析対象の問題文】\n${currentProblemData.title}`;
             }
 
             try {
-                const response = await fetch(GEMINI_API_URL, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        "contents": [{ "parts": parts }],
-                        "systemInstruction": { "parts": [{ "text": GEMINI_SYSTEM_INSTRUCTION }] },
-                        "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
-                    })
-                });
-
-                if (!response.ok) {
-                    const errorErr = await response.json().catch(() => ({}));
-                    throw new Error(errorErr.error?.message || `HTTPエラー: ${response.status}`);
-                }
-
-                const data = await response.json();
-                let rawJsonText = data.candidates[0].content.parts[0].text.trim();
-
-                if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
-                else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
-                if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
-                rawJsonText = rawJsonText.trim();
-
-                const fixJsonEscapes = (str) => {
-                    let inString = false; let result = "";
-                    for (let i = 0; i < str.length; i++) {
-                        let c = str[i];
-                        if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
-                        else if (c === '\\' && inString) {
-                            let next = str[i+1];
-                            if (next === '"') { result += '\\"'; i++; }
-                            else if (next === '\\') { result += '\\\\'; i++; }
-                            else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
-                            else { result += '\\\\'; }
-                        } else { result += c; }
-                    }
-                    return result;
-                };
-
-                const aiResult = JSON.parse(fixJsonEscapes(rawJsonText));
+                const aiResult = await callAnalysisEngine(instructionText, GEMINI_SYSTEM_INSTRUCTION);
 
                 currentProblemData.title = aiResult.extracted_text || currentProblemData.title;
                 currentProblemData.short_title = aiResult.short_title || "解析問題";
@@ -537,17 +666,18 @@
                 currentProblemData.field = aiResult.field || "手動管理";
                 currentProblemData.trap_description = aiResult.trap_description || "";
                 currentProblemData.answerFormula = aiResult.model_answer || "解説データなし";
+                currentProblemData.lastAnswerEngine = ACTIVE_ENGINE;
 
                 const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
                 await set(probRef, currentProblemData);
 
-                alert("⚡ AI解析が完了しました！セッションをリロードします。");
+                alert(`⚡ ${getEngineLabel(ACTIVE_ENGINE)}によるAI解析が完了しました！セッションをリロードします。`);
                 window.location.reload();
 
             } catch (error) {
                 console.error(error);
                 alert("オンデマンド解析に失敗しました。\n原因: " + error.message);
-                analyzeBtn.textContent = "⚡ この問題をAI解析する";
+                analyzeBtn.textContent = originalBtnText;
                 analyzeBtn.disabled = false;
             }
         }
@@ -600,53 +730,81 @@
             return JSON.parse(result);
         }
 
-        async function sendMessageToDeepSeek(studentMessage) {
+        async function sendMessageToTutor(studentMessage) {
             if (currentProblemData.subject === "未分類") {
                 alert("対話を始める前に、まずは右上のボタンからAI解析を実行してください。");
                 return;
             }
 
             const statusBadge = document.getElementById("ai-status");
-            statusBadge.textContent = "AI TUTOR // THINKING...";
+            statusBadge.textContent = `AI TUTOR // ${getEngineLabel(ACTIVE_ENGINE)} THINKING...`;
             statusBadge.style.color = "var(--accent-magenta)";
             
             chatHistory.push({ "role": "user", "content": studentMessage });
 
             const recentHistory = chatHistory.slice(1).slice(-4);
-            const optimizedMessages = [
-                { "role": "system", "content": SYSTEM_INSTRUCTION_BASE },
-                chatHistory[0], 
-                ...recentHistory
-            ];
+            const conversationMessages = [chatHistory[0], ...recentHistory];
 
             try {
-                const response = await fetch(DEEPSEEK_API_URL, {
-                    method: "POST",
-                    headers: { 
-                        "Content-Type": "application/json",
-                        "Authorization": "Bearer " + DEEPSEEK_API_KEY
-                    },
-                    body: JSON.stringify({
-                        "model": MODEL_NAME,
-                        "messages": optimizedMessages,
-                        "temperature": 0.5,
-                        "response_format": { "type": "json_object" }
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTPエラー コード: ${response.status}`);
-                }
+                let aiJson;
 
-                const data = await response.json();
-                let rawOutput = data.choices[0].message.content;
-                const aiJson = cleanDeepSeekResponse(rawOutput);
+                if (ACTIVE_ENGINE === "deepseek") {
+                    const optimizedMessages = [
+                        { "role": "system", "content": SYSTEM_INSTRUCTION_BASE },
+                        ...conversationMessages
+                    ];
+                    const response = await fetch(DEEPSEEK_API_URL, {
+                        method: "POST",
+                        headers: { 
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + DEEPSEEK_API_KEY
+                        },
+                        body: JSON.stringify({
+                            "model": MODEL_NAME,
+                            "messages": optimizedMessages,
+                            "temperature": 0.5,
+                            "response_format": { "type": "json_object" }
+                        })
+                    });
+
+                    if (!response.ok) throw new Error(`HTTPエラー コード: ${response.status}`);
+
+                    const data = await response.json();
+                    const rawOutput = data.choices[0].message.content;
+                    aiJson = cleanDeepSeekResponse(rawOutput);
+
+                } else {
+                    // ✨ Gemini
+                    const geminiContents = conversationMessages.map(m => ({
+                        role: m.role === "assistant" ? "model" : "user",
+                        parts: [{ text: m.content }]
+                    }));
+
+                    const response = await fetch(GEMINI_API_URL, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            "contents": geminiContents,
+                            "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION_BASE }] },
+                            "generationConfig": { "responseMimeType": "application/json", "temperature": 0.5 }
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errBody = await response.json().catch(() => ({}));
+                        throw new Error(errBody.error?.message || `HTTPエラー: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    const rawOutput = data.candidates[0].content.parts[0].text;
+                    aiJson = JSON.parse(fixJsonEscapes(stripCodeFence(rawOutput)));
+                }
 
                 chatHistory.push({ "role": "assistant", "content": JSON.stringify(aiJson) });
                 updateChatUI(studentMessage, aiJson);
             } catch (error) { 
                 console.error(error);
-                alert("DeepSeekブレインとの通信に失敗しました。\n原因: " + error.message); 
+                alert(`${getEngineLabel(ACTIVE_ENGINE)}ブレインとの通信に失敗しました。\n原因: ` + error.message); 
             }
             finally { statusBadge.textContent = "AI TUTOR // ACTIVE"; statusBadge.style.color = "var(--accent-cyan)"; }
         }
@@ -669,6 +827,7 @@
         function animateParticles() { if (particles.length === 0) { ctx.clearRect(0, 0, canvas.width, canvas.height); return; } ctx.clearRect(0, 0, canvas.width, canvas.height); for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].alpha <= 0) particles.splice(i, 1); } requestAnimationFrame(animateParticles); }
 
         // 各種コントロールバインド（即時実行でタイミングのズレを防御）
+        initEngineToggle();
         const sendBtn = document.querySelector(".chat-input-wrapper button");
         const inputField = document.querySelector(".chat-input");
         const showAnswerBtn = document.getElementById("show-answer-btn");
@@ -679,8 +838,8 @@
         const deleteProbBtn = document.getElementById("delete-prob-btn");
 
         if (sendBtn && inputField) {
-            sendBtn.addEventListener("click", () => { const t = inputField.value.trim(); if (t) { inputField.value = ""; sendMessageToDeepSeek(t); } });
-            inputField.addEventListener("keypress", (e) => { if (e.key === "Enter") { const t = inputField.value.trim(); if (t) { inputField.value = ""; sendMessageToDeepSeek(t); } } });
+            sendBtn.addEventListener("click", () => { const t = inputField.value.trim(); if (t) { inputField.value = ""; sendMessageToTutor(t); } });
+            inputField.addEventListener("keypress", (e) => { if (e.key === "Enter") { const t = inputField.value.trim(); if (t) { inputField.value = ""; sendMessageToTutor(t); } } });
         }
         if (showAnswerBtn && revealWrap && revealZone) {
             showAnswerBtn.addEventListener("click", () => { revealWrap.style.display = "none"; revealZone.style.display = "flex"; if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise(); });
@@ -792,69 +951,18 @@
             const regenBtn = document.getElementById("regenerate-analysis-btn");
             if (!regenBtn) return;
             
-            const originalText = regenBtn.textContent;
-            regenBtn.textContent = "⚙️ 超精密に再考中...";
+            const originalText = regenBtn.innerHTML;
+            regenBtn.textContent = `⚙️ ${getEngineLabel(ACTIVE_ENGINE)}で超精密に再考中...`;
             regenBtn.disabled = true;
 
-            let parts = [
-                { "text": "提出されたデータを、より正確な計算と完璧な$記号（LaTeX）の囲みを用いて、指定のJSONで再出力してください。解説が途中で壊れないよう細心の注意を払ってください。" }
-            ];
+            let instructionText = "提出されたデータを、より正確な計算と完璧な$記号（LaTeX）の囲みを用いて、指定のJSONで再出力してください。解説が途中で壊れないよう細心の注意を払ってください。";
 
             if (currentProblemData.title) {
-                parts[0].text += `\n\n【対象の問題文】\n${currentProblemData.title}`;
-            }
-
-            if (currentProblemData.imageData) {
-                try {
-                    let base64Raw = currentProblemData.imageData.split(",")[1];
-                    let mimeType = currentProblemData.imageData.split(",")[0].split(":")[1].split(";")[0];
-                    parts.push({ "inlineData": { "mimeType": mimeType, "data": base64Raw } });
-                } catch (e) {
-                    console.error("画像のデコードに失敗したため、テキスト主体で再解析します。");
-                }
+                instructionText += `\n\n【対象の問題文】\n${currentProblemData.title}`;
             }
 
             try {
-                const response = await fetch(GEMINI_API_URL, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        "contents": [{ "parts": parts }],
-                        "systemInstruction": { "parts": [{ "text": REGEN_SYSTEM_INSTRUCTION }] },
-                        "generationConfig": { 
-                            "responseMimeType": "application/json", 
-                            "temperature": 0.1 // 💡 温度をガッツリ下げて、AIの気まぐれな出力を抑え、堅実・論理的にさせます
-                        }
-                    })
-                });
-
-                if (!response.ok) throw new Error(`HTTPエラー: ${response.status}`);
-
-                const data = await response.json();
-                let rawJsonText = data.candidates[0].content.parts[0].text.trim();
-
-                if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
-                else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
-                if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
-                rawJsonText = rawJsonText.trim();
-
-                const fixJsonEscapes = (str) => {
-                    let inString = false; let result = "";
-                    for (let i = 0; i < str.length; i++) {
-                        let c = str[i];
-                        if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
-                        else if (c === '\\' && inString) {
-                            let next = str[i+1];
-                            if (next === '"') { result += '\\"'; i++; }
-                            else if (next === '\\') { result += '\\\\'; i++; }
-                            else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
-                            else { result += '\\\\'; }
-                        } else { result += c; }
-                    }
-                    return result;
-                };
-
-                const aiResult = JSON.parse(fixJsonEscapes(rawJsonText));
+                const aiResult = await callAnalysisEngine(instructionText, REGEN_SYSTEM_INSTRUCTION);
 
                 currentProblemData.title = aiResult.extracted_text || currentProblemData.title;
                 currentProblemData.short_title = aiResult.short_title || currentProblemData.short_title;
@@ -862,18 +970,19 @@
                 currentProblemData.field = aiResult.field || currentProblemData.field;
                 currentProblemData.trap_description = aiResult.trap_description || "";
                 currentProblemData.answerFormula = aiResult.model_answer || currentProblemData.answerFormula;
+                currentProblemData.lastAnswerEngine = ACTIVE_ENGINE;
 
                 // Firebaseのデータを上書き保存して同期
                 const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
                 await set(probRef, currentProblemData);
 
-                alert("⚡ AIによる解説のリフレッシュが完了しました！");
+                alert(`⚡ ${getEngineLabel(ACTIVE_ENGINE)}による解説のリフレッシュが完了しました！`);
                 window.location.reload();
 
             } catch (error) {
                 console.error(error);
                 alert("再解析の実行中にエラーが発生しました。\n原因: " + error.message);
-                regenBtn.textContent = originalText;
+                regenBtn.innerHTML = originalText;
                 regenBtn.disabled = false;
             }
         }
