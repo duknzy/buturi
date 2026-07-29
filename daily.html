@@ -223,7 +223,7 @@
                         throw new Error("DeepSeekのAPIキーがブラウザに設定されていません。ダッシュボード画面の下部にある『APIキー消去』ボタンを一度押し、再読み込みして正しいキーを登録し直してください。");
                     }
 
-                    // 🚀【仕様変更】最新のDeepSeek V4「Thinking Mode（思考モード）」の公式リクエスト構造に刷新
+                    // 🚀【仕様変更】最新のDeepSeek V4「Pro」＋「Thinking Mode（思考モード）」の公式リクエスト構造に刷新
                     const response = await fetch(DEEPSEEK_API_URL, {
                         method: "POST",
                         headers: { 
@@ -231,7 +231,7 @@
                             "Authorization": `Bearer ${DEEPSEEK_API_KEY.trim()}`
                         },
                         body: JSON.stringify({
-                            "model": "deepseek-v4-flash", // ✨最新のV4モデルを指定
+                            "model": "deepseek-v4-pro", // ✨最上位のV4 Proモデルを指定（精度最優先）
                             "messages": [
                                 { "role": "system", "content": "あなたは優秀なAI数学教師です。指定されたJSONフォーマットの配列のみを厳密に返してください。" },
                                 { "role": "user", "content": systemPrompt }
