@@ -693,7 +693,8 @@
           "short_title": "問題の要約タイトル",
           "extracted_text": "読み取った正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと",
           "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
-          "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
+          "strategy_pattern": "【最重要】この問題固有の数値や図形には一切触れず、①問題文のどの特徴（キーワード・条件・図形の形）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ（例:『垂直条件が出たら内積=0を疑う』『分点の位置ベクトルはAD:DB=OA:ODの比から係数を決める』など）、③なぜそのアプローチが有効なのか、を一般化して説明すること。これは『解き方の地図』であり、具体的な計算はここに書かない。2〜4文程度。数式を含む場合は$で囲むこと",
+          "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。冒頭でstrategy_patternに書いた定石に軽く触れてから、それに沿って具体的な数値・文字で計算を進めること。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
         }
         `;
 
@@ -1121,6 +1122,7 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                     subject: aiResult.subject || "未分類",
                     field: aiResult.field || "手動管理",
                     trap_description: aiResult.trap_description || "",
+                    strategyPattern: aiResult.strategy_pattern || "",
                     errorCount: 1,
                     lastAttemptAt: new Date().toISOString(),
                     lastResult: false,
