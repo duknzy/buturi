@@ -294,6 +294,89 @@
             border: 1px solid rgba(255, 255, 255, 0.08) !important;
         }
 
+        /* 📋【新設】問題一覧：緊急度セクション見出し */
+        .problem-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: var(--text-bright-muted);
+            letter-spacing: 0.5px;
+            padding: 0.5rem 0.2rem;
+            margin-top: 0.6rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .problem-section-header:first-child { margin-top: 0; }
+        .problem-section-count {
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            font-weight: 800;
+            padding: 0.15rem 0.55rem;
+            border-radius: 10px;
+        }
+
+        /* 📋【新設】問題一覧：コンパクトなリスト行表示 */
+        .problem-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: var(--card-bg-glass);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 0.7rem 1rem;
+            cursor: pointer;
+            transition: all 150ms ease;
+        }
+        .problem-row:hover {
+            background: rgba(255, 255, 255, 0.03);
+            transform: translateX(3px);
+        }
+        .row-thumb {
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #020204;
+        }
+        .row-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .row-thumb-icon span { font-size: 0.9rem; font-style: italic; font-weight: 900; }
+        .row-main { flex-grow: 1; min-width: 0; }
+        .row-badges { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.3rem; }
+        .row-title {
+            font-weight: 800;
+            font-size: 0.95rem;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .row-preview {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .row-stat {
+            flex-shrink: 0;
+            text-align: center;
+            min-width: 52px;
+        }
+        .row-stat-number { font-size: 1.5rem; font-weight: 900; line-height: 1; }
+        .row-stat-label { font-size: 0.65rem; color: var(--text-muted); font-weight: 700; margin-top: 0.2rem; }
+
+        @media (max-width: 640px) {
+            .row-preview { display: none; }
+            .row-thumb { width: 36px; height: 36px; min-width: 36px; }
+        }
+
         /* ✨【新設】分野フィルターボタンの近未来的フラットデザインスタイル */
         .filter-btn {
             background: rgba(255, 255, 255, 0.03);
@@ -475,7 +558,7 @@
                 </div>
             </div>
 
-            <div id="dynamic-cards-area" style="display: contents;"></div>
+            <div id="dynamic-cards-area" style="grid-column: span 12; display: flex; flex-direction: column; gap: 0.6rem;"></div>
 
             <div class="squircle-card size-mini" style="background: linear-gradient(135deg, #050508, #150015); border-color: rgba(255, 0, 127, 0.2);">
                 <div class="mini-label" style="color: var(--accent-magenta);">TOTAL ERRORS</div>
@@ -787,7 +870,7 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                 fieldRow.style.display = "none";
             }
 
-            // 4. 問題カードの描画処理（フィルタリング適用）
+            // 4. 問題一覧の描画処理（フィルタリング適用＋緊急度別セクション分け＋リスト行表示）
             dynamicArea.innerHTML = "";
             let dynamicTotalCount = 0;
             let solvedTodayCount = 0;
@@ -795,6 +878,25 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
             let safeCount = 0;
             let totalProblemEntries = 0;
             const todayStr = new Date().toDateString();
+
+            // 🎨 緊急度→色のマッピング（枠線・誤答数の数字色に共通利用）
+            const urgencyColorMap = {
+                "badge-overdue":  "var(--accent-yellow)",
+                "badge-critical": "var(--accent-magenta)",
+                "badge-new":      "#888",
+                "badge-pending":  "#b16eff",
+                "badge-safe":     "var(--accent-cyan)"
+            };
+
+            // 🗂️ セクションの表示順（上ほど緊急）と、行を溜めるバケツ
+            const sectionOrder = [
+                { key: "badge-overdue",  label: "⚠️ 忘却危機 // OVERDUE" },
+                { key: "badge-critical", label: "🔥 要復習 // CRITICAL" },
+                { key: "badge-new",      label: "🆕 未挑戦 // NEW" },
+                { key: "badge-pending",  label: "⏳ 定着中 // PENDING" },
+                { key: "badge-safe",     label: "✨ 克服済 // SAFE" }
+            ];
+            const buckets = { "badge-overdue": [], "badge-critical": [], "badge-new": [], "badge-pending": [], "badge-safe": [] };
 
             Object.keys(lastCloudProblemsSnapshot).forEach(id => {
                 let p = lastCloudProblemsSnapshot[id];
@@ -854,39 +956,24 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                     criticalDueCount++;
                 }
 
-                let thumbnailHtml = "";
+                // 🖼️ サムネイル（リスト行用の小型版）
+                let thumbHtml = "";
                 if (p.imageData) {
-                    thumbnailHtml = `<div class="card-thumbnail-wrapper"><img src="${p.imageData}"></div>`;
+                    thumbHtml = `<div class="row-thumb"><img src="${p.imageData}"></div>`;
                 } else {
                     let symbol = "？";
                     let glowClass = "glow-purple";
                     if (subjectText.includes("数学")) { symbol = "$f(x)$"; glowClass = "glow-math"; }
                     else if (subjectText.includes("物理")) { symbol = "$\\vec{F}$"; glowClass = "glow-physics"; }
-                    
-                    thumbnailHtml = `
-                        <div class="card-thumbnail-wrapper">
-                            <div class="card-thumbnail-neon-preview ${glowClass} tex2jax_process">
-                                <span>${symbol}</span>
-                            </div>
-                        </div>`;
+                    thumbHtml = `<div class="row-thumb row-thumb-icon ${glowClass} tex2jax_process"><span>${symbol}</span></div>`;
                 }
 
                 let insightBadgeHtml = "";
                 if (p.insight && p.insight.trim() !== "") {
-                    insightBadgeHtml = `<span class="badge badge-insight">🧠 メモあり</span>`;
+                    insightBadgeHtml = `<span class="badge badge-insight">🧠</span>`;
                 }
 
-                // 🎨【追加】枠線の色を緊急度バッジに連動させる
-                const urgencyBorderColorMap = {
-                    "badge-critical": "var(--accent-magenta)",
-                    "badge-overdue": "var(--accent-yellow)",
-                    "badge-safe": "var(--accent-cyan)",
-                    "badge-pending": "#b16eff",
-                    "badge-new": "#555"
-                };
-                const cardBorderColor = urgencyBorderColorMap[timeBadgeClass] || "var(--accent-cyan)";
-
-                // 🧩【追加】分野バッジをカンマ区切りで個別チップに分割
+                // 🧩 分野バッジをカンマ区切りで個別チップに分割
                 const fieldChipsHtml = fieldText
                     .split(",")
                     .map(f => f.trim())
@@ -894,31 +981,46 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                     .map(f => `<span class="badge field-chip">${f}</span>`)
                     .join("");
 
-                let cardHtml = `
-                    <div class="squircle-card size-medium" onclick="location.href='problem.html?id=${p.id}'" style="border-color: ${cardBorderColor}; border-left: 4px solid ${cardBorderColor}; cursor: pointer; padding: 1.1rem 1.4rem;">
-                        <div class="card-inner-layout">
-                            ${thumbnailHtml}
-                            <div class="card-main-text-zone" style="flex-grow: 1; min-width: 0;">
-                                <div class="card-content-top">
-                                    <div style="display: flex; gap: 0.4rem; margin-bottom: 0.4rem; flex-wrap: wrap;">
-                                        <span class="badge ${badgeSubjectClass}">${subjectText}</span>
-                                        ${fieldChipsHtml}
-                                        <span class="badge ${timeBadgeClass}">${timeBadgeText}</span>
-                                        ${insightBadgeHtml}
-                                    </div>
-                                    <h2 class="card-title tex2jax_process" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.short_title}</h2>
-                                    <p class="tex2jax_process" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.45rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-weight: 500; letter-spacing: 0.3px; line-height: 1.5;">${p.title}</p>
-                                </div>
-                                <div class="card-meta" style="margin-top: 0.4rem; padding-top: 0.3rem; border-top: 1px solid rgba(255,255,255,0.03);">
-                                    <div style="font-size:0.75rem; color:var(--text-muted);">同期中</div>
-                                    <div class="error-count warning-text" style="font-size:0.95rem;">誤答数: <span class="num-display">${String(p.errorCount).padStart(2, '0')}</span></div>
-                                </div>
+                const rowColor = urgencyColorMap[timeBadgeClass] || "var(--accent-cyan)";
+
+                const rowHtml = `
+                    <div class="problem-row" onclick="location.href='problem.html?id=${p.id}'" style="border-left: 4px solid ${rowColor};">
+                        ${thumbHtml}
+                        <div class="row-main">
+                            <div class="row-badges">
+                                <span class="badge ${badgeSubjectClass}">${subjectText}</span>
+                                ${fieldChipsHtml}
+                                ${insightBadgeHtml}
                             </div>
+                            <div class="row-title tex2jax_process">${p.short_title}</div>
+                            <div class="row-preview tex2jax_process">${p.title}</div>
+                        </div>
+                        <div class="row-stat" style="color: ${rowColor};">
+                            <div class="row-stat-number">${String(p.errorCount).padStart(2, '0')}</div>
+                            <div class="row-stat-label">誤答</div>
                         </div>
                     </div>
                 `;
-                dynamicArea.insertAdjacentHTML("beforeend", cardHtml);
+
+                if (buckets[timeBadgeClass]) buckets[timeBadgeClass].push(rowHtml);
             });
+
+            // 🗂️ 緊急度セクションごとに見出し＋行を描画
+            sectionOrder.forEach(section => {
+                const rows = buckets[section.key];
+                if (!rows || rows.length === 0) return;
+                dynamicArea.insertAdjacentHTML("beforeend", `
+                    <div class="problem-section-header">
+                        <span>${section.label}</span>
+                        <span class="problem-section-count">${rows.length}</span>
+                    </div>
+                `);
+                rows.forEach(rowHtml => dynamicArea.insertAdjacentHTML("beforeend", rowHtml));
+            });
+
+            if (totalProblemEntries === 0) {
+                dynamicArea.innerHTML = `<div style="padding: 3rem 1rem; text-align: center; color: var(--text-muted);">条件に一致する問題が見つかりませんでした。</div>`;
+            }
 
             // 集計スコアの更新
             const totalDisplay = document.getElementById("total-errors-display");
