@@ -254,6 +254,11 @@
                     </div>
 
                     <div class="reveal-zone" id="answer-reveal-zone">
+                        <div id="strategy-pattern-box" style="display:none; background: rgba(255, 245, 0, 0.06); border: 1px dashed var(--accent-yellow); border-radius: 14px; padding: 1rem 1.2rem; margin-bottom: 1.2rem;">
+                            <div style="font-size:0.8rem; color: var(--accent-yellow); font-weight:800; margin-bottom:0.4rem;">🧭 考え方の定石 // まずこう考える</div>
+                            <div class="model-answer-text" id="target-strategy-pattern" style="font-size:0.95rem; line-height:1.7; color:var(--text-bright-muted);"></div>
+                        </div>
+
                         <div style="font-size:0.8rem; color:var(--text-muted); font-weight:800; margin-bottom:0.2rem;">MODEL ANSWER</div>
                         <div class="model-answer-text" id="target-model-answer"></div>
                         <div class="judgment-buttons">
@@ -385,7 +390,8 @@
           "short_title": "問題の要約タイトル",
           "extracted_text": "読み取った正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと",
           "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
-          "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
+          "strategy_pattern": "【最重要】この問題固有の数値や図形には一切触れず、①問題文のどの特徴（キーワード・条件・図形の形）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ（例:『垂直条件が出たら内積=0を疑う』『分点の位置ベクトルはAD:DB=OA:ODの比から係数を決める』など）、③なぜそのアプローチが有効なのか、を一般化して説明すること。これは『解き方の地図』であり、具体的な計算はここに書かない。2〜4文程度。数式を含む場合は$で囲むこと",
+          "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。冒頭でstrategy_patternに書いた定石に軽く触れてから、それに沿って具体的な数値・文字で計算を進めること。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
         }
         `;
 
@@ -443,6 +449,19 @@
                     .trim();
 
                 document.getElementById("target-model-answer").innerHTML = formattedAnswer;
+
+                const strategyBox = document.getElementById("strategy-pattern-box");
+                const strategyText = currentProblemData.strategyPattern;
+                if (strategyText && strategyText.trim()) {
+                    let formattedStrategy = strategyText
+                        .replace(/\\n/g, '<br>')
+                        .replace(/\n/g, '<br>')
+                        .trim();
+                    document.getElementById("target-strategy-pattern").innerHTML = formattedStrategy;
+                    strategyBox.style.display = "block";
+                } else {
+                    strategyBox.style.display = "none";
+                }
                 
                 const badge = document.getElementById("question-badge");
                 badge.textContent = currentProblemData.subject + " // " + currentProblemData.field + " // 誤答回数: " + String(currentProblemData.errorCount).padStart(2, '0');
@@ -665,6 +684,7 @@
                 currentProblemData.subject = aiResult.subject || "未分類";
                 currentProblemData.field = aiResult.field || "手動管理";
                 currentProblemData.trap_description = aiResult.trap_description || "";
+                currentProblemData.strategyPattern = aiResult.strategy_pattern || "";
                 currentProblemData.answerFormula = aiResult.model_answer || "解説データなし";
                 currentProblemData.lastAnswerEngine = ACTIVE_ENGINE;
 
@@ -914,8 +934,11 @@
                 activateAiBtn.style.display = "none"; 
                 
                 // 4. AIへ渡す前提文脈（コンテキスト）に問題と模範解答をセット
+                const strategyContext = currentProblemData.strategyPattern
+                    ? "\n\n【考え方の定石】\n" + currentProblemData.strategyPattern
+                    : "";
                 chatHistory = [
-                    { "role": "user", "content": "【問題文】\n" + currentProblemData.title + "\n\n【模範解答と解説】\n" + currentProblemData.answerFormula },
+                    { "role": "user", "content": "【問題文】\n" + currentProblemData.title + strategyContext + "\n\n【模範解答と解説】\n" + currentProblemData.answerFormula },
                     { "role": "assistant", "content": `{"ai_response": "解説のどの部分が納得いかなかったですか？何でも質問してください！", "current_step_label": "質問受付中"}` }
                 ];
             });
@@ -938,7 +961,8 @@
           "short_title": "問題の要約タイトル",
           "extracted_text": "読み取った正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと",
           "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
-          "model_answer": "最終的な正しい答えと、ステップごとの分かりやすい超詳細な解説。数式や変数を記述する場合は、必ず前後に $ または $$ をつけること"
+          "strategy_pattern": "【最重要】この問題固有の数値や図形には一切触れず、①問題文のどの特徴（キーワード・条件・図形の形）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ、③なぜそのアプローチが有効なのか、を一般化して説明すること。これは『解き方の地図』であり、具体的な計算はここに書かない。2〜4文程度。数式を含む場合は$で囲むこと",
+          "model_answer": "最終的な正しい答えと、ステップごとの分かりやすい超詳細な解説。冒頭でstrategy_patternに書いた定石に軽く触れてから、それに沿って具体的な数値・文字で計算を進めること。数式や変数を記述する場合は、必ず前後に $ または $$ をつけること"
         }
         `.trim();
 
@@ -969,6 +993,7 @@
                 currentProblemData.subject = aiResult.subject || currentProblemData.subject;
                 currentProblemData.field = aiResult.field || currentProblemData.field;
                 currentProblemData.trap_description = aiResult.trap_description || "";
+                currentProblemData.strategyPattern = aiResult.strategy_pattern || "";
                 currentProblemData.answerFormula = aiResult.model_answer || currentProblemData.answerFormula;
                 currentProblemData.lastAnswerEngine = ACTIVE_ENGINE;
 
