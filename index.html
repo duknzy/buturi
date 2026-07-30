@@ -682,7 +682,19 @@
         }
 
         // ✨ 写真解析は画像認識に強い Gemini API のエンドポイントを使用
-        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`;
+        // 🔁【フォールバック対応】無料枠のRPD制限（1日20回など）に達したモデルから順に切り替える
+        const GEMINI_MODEL_FALLBACK_LIST = [
+            'gemini-3.6-flash',
+            'gemini-3.5-flash',
+            'gemini-3-flash',
+            'gemini-2.5-flash',
+            'gemini-3.5-flash-lite',
+            'gemini-3.1-flash-lite',
+            'gemini-2.5-flash-lite'
+        ];
+        function buildGeminiUrl(modelName) {
+            return `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+        }
 
         const SYSTEM_INSTRUCTION = `
         あなたは高校数学・物理の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
@@ -1068,23 +1080,57 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
             }
 
             try {
-                const response = await fetch(GEMINI_API_URL, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        "contents": [{ "parts": parts }],
-                        "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION }] },
-                        "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
-                    })
+                const requestBody = JSON.stringify({
+                    "contents": [{ "parts": parts }],
+                    "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION }] },
+                    "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
                 });
 
-                if (!response.ok) {
+                let data = null;
+                let usedModel = null;
+                let lastError = null;
+
+                for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
+                    submitBtn.textContent = `Gemini(${modelName})が分析中...`;
+                    let response;
+                    try {
+                        response = await fetch(buildGeminiUrl(modelName), {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: requestBody
+                        });
+                    } catch (networkErr) {
+                        // ネットワークエラー等はモデルを変えても解決しないことが多いが、念のため次のモデルへ
+                        console.error(`❌ ${modelName} で通信エラー:`, networkErr);
+                        lastError = networkErr;
+                        continue;
+                    }
+
+                    if (response.ok) {
+                        data = await response.json();
+                        usedModel = modelName;
+                        break;
+                    }
+
+                    if (response.status === 429) {
+                        console.warn(`⚠️ ${modelName} がレート制限（429）に達しました → 次のモデルへフォールバック`);
+                        lastError = new Error(`Rate limit: ${modelName}`);
+                        continue;
+                    }
+
+                    // レート制限以外（認証エラーなど）は即座に中断
                     const errorErr = await response.json().catch(() => ({}));
-                    throw new Error(errorErr.error?.message || `HTTPエラー ステータスコード: ${response.status}`);
+                    throw new Error(errorErr.error?.message || `HTTPエラー ステータスコード: ${response.status}（モデル: ${modelName}）`);
                 }
 
-                const data = await response.json();
-                
+                if (!data) {
+                    throw new Error(`全モデルが利用できませんでした（レート制限の可能性）。時間を置いて再度お試しください。\n最終エラー: ${lastError?.message || "不明"}`);
+                }
+
+                if (usedModel !== GEMINI_MODEL_FALLBACK_LIST[0]) {
+                    console.info(`ℹ️ フォールバック発生: 今回は ${usedModel} を使用しました`);
+                }
+
                 if (!data.candidates || data.candidates.length === 0) {
                     throw new Error("AIから有効な応答が得られませんでした。");
                 }

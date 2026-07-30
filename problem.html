@@ -340,7 +340,19 @@
             if (DEEPSEEK_API_KEY) localStorage.setItem("RE_MIND_DEEPSEEK_KEY", DEEPSEEK_API_KEY);
         }
 
-        const GEMINI_API_URL = `${proto}generativelanguage${d}googleapis${d}com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`;
+        // 🔁【フォールバック対応】無料枠のRPD制限（1日20回など）に達したモデルから順に切り替える
+        const GEMINI_MODEL_FALLBACK_LIST = [
+            'gemini-3.6-flash',
+            'gemini-3.5-flash',
+            'gemini-3-flash',
+            'gemini-2.5-flash',
+            'gemini-3.5-flash-lite',
+            'gemini-3.1-flash-lite',
+            'gemini-2.5-flash-lite'
+        ];
+        function buildGeminiUrl(modelName) {
+            return `${proto}generativelanguage${d}googleapis${d}com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+        }
         const DEEPSEEK_API_URL = proto + "api" + d + "deepseek" + d + "com/v1/chat/completions";
         const MODEL_NAME = "deepseek-v4-pro";
 
@@ -635,22 +647,54 @@
                     }
                 }
 
-                const response = await fetch(GEMINI_API_URL, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        "contents": [{ "parts": parts }],
-                        "systemInstruction": { "parts": [{ "text": systemInstruction }] },
-                        "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
-                    })
+                const requestBody = JSON.stringify({
+                    "contents": [{ "parts": parts }],
+                    "systemInstruction": { "parts": [{ "text": systemInstruction }] },
+                    "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
                 });
 
-                if (!response.ok) {
+                let data = null;
+                let usedModel = null;
+                let lastError = null;
+
+                for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
+                    let response;
+                    try {
+                        response = await fetch(buildGeminiUrl(modelName), {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: requestBody
+                        });
+                    } catch (networkErr) {
+                        console.error(`❌ ${modelName} で通信エラー:`, networkErr);
+                        lastError = networkErr;
+                        continue;
+                    }
+
+                    if (response.ok) {
+                        data = await response.json();
+                        usedModel = modelName;
+                        break;
+                    }
+
+                    if (response.status === 429) {
+                        console.warn(`⚠️ ${modelName} がレート制限（429）に達しました → 次のモデルへフォールバック`);
+                        lastError = new Error(`Rate limit: ${modelName}`);
+                        continue;
+                    }
+
                     const errBody = await response.json().catch(() => ({}));
-                    throw new Error(errBody.error?.message || `HTTPエラー: ${response.status}`);
+                    throw new Error(errBody.error?.message || `HTTPエラー: ${response.status}（モデル: ${modelName}）`);
                 }
 
-                const data = await response.json();
+                if (!data) {
+                    throw new Error(`全モデルが利用できませんでした（レート制限の可能性）。時間を置いて再度お試しください。\n最終エラー: ${lastError?.message || "不明"}`);
+                }
+
+                if (usedModel !== GEMINI_MODEL_FALLBACK_LIST[0]) {
+                    console.info(`ℹ️ フォールバック発生: 今回は ${usedModel} を使用しました`);
+                }
+
                 const rawText = data.candidates[0].content.parts[0].text.trim();
                 return JSON.parse(fixJsonEscapes(stripCodeFence(rawText)));
             }
@@ -800,23 +844,55 @@
                         parts: [{ text: m.content }]
                     }));
 
-                    const response = await fetch(GEMINI_API_URL, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            "contents": geminiContents,
-                            "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION_BASE }] },
-                            "generationConfig": { "responseMimeType": "application/json", "temperature": 0.5 }
-                        })
+                    const tutorRequestBody = JSON.stringify({
+                        "contents": geminiContents,
+                        "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION_BASE }] },
+                        "generationConfig": { "responseMimeType": "application/json", "temperature": 0.5 }
                     });
 
-                    if (!response.ok) {
+                    let tutorData = null;
+                    let tutorUsedModel = null;
+                    let tutorLastError = null;
+
+                    for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
+                        let response;
+                        try {
+                            response = await fetch(buildGeminiUrl(modelName), {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: tutorRequestBody
+                            });
+                        } catch (networkErr) {
+                            console.error(`❌ ${modelName} で通信エラー:`, networkErr);
+                            tutorLastError = networkErr;
+                            continue;
+                        }
+
+                        if (response.ok) {
+                            tutorData = await response.json();
+                            tutorUsedModel = modelName;
+                            break;
+                        }
+
+                        if (response.status === 429) {
+                            console.warn(`⚠️ ${modelName} がレート制限（429）に達しました → 次のモデルへフォールバック`);
+                            tutorLastError = new Error(`Rate limit: ${modelName}`);
+                            continue;
+                        }
+
                         const errBody = await response.json().catch(() => ({}));
-                        throw new Error(errBody.error?.message || `HTTPエラー: ${response.status}`);
+                        throw new Error(errBody.error?.message || `HTTPエラー: ${response.status}（モデル: ${modelName}）`);
                     }
 
-                    const data = await response.json();
-                    const rawOutput = data.candidates[0].content.parts[0].text;
+                    if (!tutorData) {
+                        throw new Error(`全モデルが利用できませんでした（レート制限の可能性）。時間を置いて再度お試しください。\n最終エラー: ${tutorLastError?.message || "不明"}`);
+                    }
+
+                    if (tutorUsedModel !== GEMINI_MODEL_FALLBACK_LIST[0]) {
+                        console.info(`ℹ️ フォールバック発生: 今回は ${tutorUsedModel} を使用しました`);
+                    }
+
+                    const rawOutput = tutorData.candidates[0].content.parts[0].text;
                     aiJson = JSON.parse(fixJsonEscapes(stripCodeFence(rawOutput)));
                 }
 
