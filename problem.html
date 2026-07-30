@@ -354,7 +354,7 @@
             return `${proto}generativelanguage${d}googleapis${d}com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
         }
         const DEEPSEEK_API_URL = proto + "api" + d + "deepseek" + d + "com/v1/chat/completions";
-        const MODEL_NAME = "deepseek-v4-pro";
+        const MODEL_NAME = "deepseek-v4-flash";
 
         // 🧠【新設】解答生成AIエンジンの選択状態管理（Gemini / DeepSeek）
         // 「この問題をAI解析する」「解説を再生成する」「AIに質問する」の3機能すべてが、この選択に従う。
@@ -620,6 +620,8 @@
                             { "role": "user", "content": instructionText }
                         ],
                         "temperature": 0.3,
+                        "thinking": { "type": "enabled" },
+                        "reasoning_effort": "high",
                         "response_format": { "type": "json_object" }
                     })
                 });
@@ -827,6 +829,8 @@
                             "model": MODEL_NAME,
                             "messages": optimizedMessages,
                             "temperature": 0.5,
+                            "thinking": { "type": "enabled" },
+                            "reasoning_effort": "high",
                             "response_format": { "type": "json_object" }
                         })
                     });
