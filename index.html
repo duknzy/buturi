@@ -657,6 +657,7 @@
 
 
    <script type="module">
+        import { getGeminiKeys, getDeepseekKeys, fetchWithKeyRotation, initApiKeyManager, clearAllKeys } from "./api-key-manager.js";
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -676,19 +677,8 @@
         const database = getDatabase(app);
         const provider = new GoogleAuthProvider();
 
-        // 🔑【ハイブリッド管理】Gemini(画像用) と DeepSeek(スプリント用) の両方のキーを読み込む
-        let GEMINI_API_KEY = localStorage.getItem("RE_MIND_GEMINI_KEY");
-        let DEEPSEEK_API_KEY = localStorage.getItem("RE_MIND_DEEPSEEK_KEY");
-
-        // キーがなければ、ここでそれぞれの入力ポップアップを表示してブラウザに記憶させる
-        if (!GEMINI_API_KEY) {
-            GEMINI_API_KEY = prompt("【画像解析用】GeminiのAPIキーを入力してください（写真からの問題登録で使用します）:");
-            if (GEMINI_API_KEY) localStorage.setItem("RE_MIND_GEMINI_KEY", GEMINI_API_KEY);
-        }
-        if (!DEEPSEEK_API_KEY) {
-            DEEPSEEK_API_KEY = prompt("【計算特訓用】DeepSeekのAPIキーを入力してください（本日の計算スプリント問題作成で使用します）:");
-            if (DEEPSEEK_API_KEY) localStorage.setItem("RE_MIND_DEEPSEEK_KEY", DEEPSEEK_API_KEY);
-        }
+        // 🔑【複数キー対応】右下の🔑ボタンから追加/削除できる管理UIを注入。未登録なら自動で開く。
+        initApiKeyManager({ needGemini: true, needDeepseek: true });
 
         // ✨ 写真解析は画像認識に強い Gemini API のエンドポイントを使用
         // 🔁【フォールバック対応】無料枠のRPD制限（1日20回など）に達したモデルから順に切り替える
@@ -701,8 +691,8 @@
             'gemini-3.1-flash-lite',
             'gemini-2.5-flash-lite'
         ];
-        function buildGeminiUrl(modelName) {
-            return `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+        function buildGeminiUrl(modelName, apiKey) {
+            return `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
         }
 
         const SYSTEM_INSTRUCTION = `
@@ -1070,8 +1060,8 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                 alert("エラー: ログイン状態が確認できません。Google接続してください。");
                 return;
             }
-            if (!GEMINI_API_KEY) {
-                alert("GeminiのAPIキーが登録されていません。下のボタンからキーをリセットして登録してください。");
+            if (getGeminiKeys().length === 0) {
+                alert("GeminiのAPIキーが登録されていません。右下の🔑ボタンから登録してください。");
                 return;
             }
             
@@ -1124,28 +1114,19 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                     submitBtn.textContent = `Gemini(${modelName})が分析中...`;
                     let response;
                     try {
-                        response = await fetch(buildGeminiUrl(modelName), {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: requestBody
-                        });
-                    } catch (networkErr) {
-                        // ネットワークエラー等はモデルを変えても解決しないことが多いが、念のため次のモデルへ
-                        console.error(`❌ ${modelName} で通信エラー:`, networkErr);
-                        lastError = networkErr;
+                        response = await fetchWithKeyRotation(getGeminiKeys(), (key) => ({
+                            url: buildGeminiUrl(modelName, key),
+                            options: {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: requestBody
+                            }
+                        }));
+                    } catch (err) {
+                        // 登録済みの全キーで失敗した場合のみ、次のモデルへフォールバック
+                        console.warn(`⚠️ ${modelName} は登録済みの全キーで失敗しました → 次のモデルへフォールバック`, err);
+                        lastError = err;
                         continue;
-                    }
-
-                    if (response.status === 429) {
-                        console.warn(`⚠️ ${modelName} がレート制限（429）に達しました → 次のモデルへフォールバック`);
-                        lastError = new Error(`Rate limit: ${modelName}`);
-                        continue;
-                    }
-
-                    if (!response.ok) {
-                        // レート制限以外（認証エラーなど）は即座に中断
-                        const errorErr = await response.json().catch(() => ({}));
-                        throw new Error(errorErr.error?.message || `HTTPエラー ステータスコード: ${response.status}（モデル: ${modelName}）`);
                     }
 
                     const candidateJson = await response.json();
@@ -1287,9 +1268,8 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
 
         if (clearKeysBtn) {
             clearKeysBtn.addEventListener("click", () => {
-                localStorage.removeItem("RE_MIND_GEMINI_KEY");
-                localStorage.removeItem("RE_MIND_DEEPSEEK_KEY");
-                alert("ブラウザに保存されていたGeminiとDeepSeekのAPIキーを完全に消去しました。\n\n再読み込み後に新しいAPIキーを入力してください。");
+                clearAllKeys();
+                alert("ブラウザに保存されていたGeminiとDeepSeekのAPIキーを全件消去しました。\n\n再読み込み後に🔑ボタンから新しいAPIキーを登録してください。");
                 location.reload();
             });
         }

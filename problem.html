@@ -303,6 +303,8 @@
     </div>
 
    <script type="module">
+        import { getGeminiKeys, getDeepseekKeys, fetchWithKeyRotation, initApiKeyManager } from "./api-key-manager.js";
+
         const proto = "https" + "://";
         const d = ".";
         const fbBase = proto + "www" + d + "gstatic" + d + "com/firebasejs/10.12.0/";
@@ -328,17 +330,8 @@
         const urlParams = new URLSearchParams(window.location.search);
         const PROBLEM_ID = urlParams.get('id');
 
-        let GEMINI_API_KEY = localStorage.getItem("RE_MIND_GEMINI_KEY");
-        let DEEPSEEK_API_KEY = localStorage.getItem("RE_MIND_DEEPSEEK_KEY");
-
-        if (!GEMINI_API_KEY) {
-            GEMINI_API_KEY = prompt("GeminiのAPIキーを入力してください:");
-            if (GEMINI_API_KEY) localStorage.setItem("RE_MIND_GEMINI_KEY", GEMINI_API_KEY);
-        }
-        if (!DEEPSEEK_API_KEY) {
-            DEEPSEEK_API_KEY = prompt("DeepSeekのAPIキーを入力してください:");
-            if (DEEPSEEK_API_KEY) localStorage.setItem("RE_MIND_DEEPSEEK_KEY", DEEPSEEK_API_KEY);
-        }
+        // 🔑【複数キー対応】右下の🔑ボタンから追加/削除できる管理UIを注入。未登録なら自動で開く。
+        initApiKeyManager({ needGemini: true, needDeepseek: true });
 
         // 🔁【フォールバック対応】無料枠のRPD制限（1日20回など）に達したモデルから順に切り替える
         const GEMINI_MODEL_FALLBACK_LIST = [
@@ -350,8 +343,8 @@
             'gemini-3.1-flash-lite',
             'gemini-2.5-flash-lite'
         ];
-        function buildGeminiUrl(modelName) {
-            return `${proto}generativelanguage${d}googleapis${d}com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+        function buildGeminiUrl(modelName, apiKey) {
+            return `${proto}generativelanguage${d}googleapis${d}com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
         }
         const DEEPSEEK_API_URL = proto + "api" + d + "deepseek" + d + "com/v1/chat/completions";
         const MODEL_NAME = "deepseek-v4-flash";
@@ -613,29 +606,29 @@
                 if (currentProblemData.imageData && !currentProblemData.title) {
                     throw new Error("DeepSeekは画像を直接読み取れません。先に✨Geminiで一度解析して問題文を文字起こしするか、問題文を手動で入力してから再度お試しください。");
                 }
-                const response = await fetch(DEEPSEEK_API_URL, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": "Bearer " + DEEPSEEK_API_KEY
-                    },
-                    body: JSON.stringify({
-                        "model": MODEL_NAME,
-                        "messages": [
-                            { "role": "system", "content": systemInstruction },
-                            { "role": "user", "content": instructionText }
-                        ],
-                        "temperature": 0.3,
-                        "thinking": { "type": "enabled" },
-                        "reasoning_effort": "high",
-                        "response_format": { "type": "json_object" }
-                    })
+                const deepseekBody = JSON.stringify({
+                    "model": MODEL_NAME,
+                    "messages": [
+                        { "role": "system", "content": systemInstruction },
+                        { "role": "user", "content": instructionText }
+                    ],
+                    "temperature": 0.3,
+                    "thinking": { "type": "enabled" },
+                    "reasoning_effort": "high",
+                    "response_format": { "type": "json_object" }
                 });
 
-                if (!response.ok) {
-                    const errBody = await response.json().catch(() => ({}));
-                    throw new Error(errBody.error?.message || `HTTPエラー: ${response.status}`);
-                }
+                const response = await fetchWithKeyRotation(getDeepseekKeys(), (key) => ({
+                    url: DEEPSEEK_API_URL,
+                    options: {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + key
+                        },
+                        body: deepseekBody
+                    }
+                }));
 
                 const data = await response.json();
                 let rawText = data.choices[0].message.content;
@@ -668,26 +661,18 @@
                 for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
                     let response;
                     try {
-                        response = await fetch(buildGeminiUrl(modelName), {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: requestBody
-                        });
-                    } catch (networkErr) {
-                        console.error(`❌ ${modelName} で通信エラー:`, networkErr);
-                        lastError = networkErr;
+                        response = await fetchWithKeyRotation(getGeminiKeys(), (key) => ({
+                            url: buildGeminiUrl(modelName, key),
+                            options: {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: requestBody
+                            }
+                        }));
+                    } catch (err) {
+                        console.warn(`⚠️ ${modelName} は登録済みの全キーで失敗しました → 次のモデルへフォールバック`, err);
+                        lastError = err;
                         continue;
-                    }
-
-                    if (response.status === 429) {
-                        console.warn(`⚠️ ${modelName} がレート制限（429）に達しました → 次のモデルへフォールバック`);
-                        lastError = new Error(`Rate limit: ${modelName}`);
-                        continue;
-                    }
-
-                    if (!response.ok) {
-                        const errBody = await response.json().catch(() => ({}));
-                        throw new Error(errBody.error?.message || `HTTPエラー: ${response.status}（モデル: ${modelName}）`);
                     }
 
                     const candidateJson = await response.json();
@@ -844,23 +829,26 @@
                         { "role": "system", "content": SYSTEM_INSTRUCTION_BASE },
                         ...conversationMessages
                     ];
-                    const response = await fetch(DEEPSEEK_API_URL, {
-                        method: "POST",
-                        headers: { 
-                            "Content-Type": "application/json",
-                            "Authorization": "Bearer " + DEEPSEEK_API_KEY
-                        },
-                        body: JSON.stringify({
-                            "model": MODEL_NAME,
-                            "messages": optimizedMessages,
-                            "temperature": 0.5,
-                            "thinking": { "type": "enabled" },
-                            "reasoning_effort": "high",
-                            "response_format": { "type": "json_object" }
-                        })
+                    const tutorDeepseekBody = JSON.stringify({
+                        "model": MODEL_NAME,
+                        "messages": optimizedMessages,
+                        "temperature": 0.5,
+                        "thinking": { "type": "enabled" },
+                        "reasoning_effort": "high",
+                        "response_format": { "type": "json_object" }
                     });
 
-                    if (!response.ok) throw new Error(`HTTPエラー コード: ${response.status}`);
+                    const response = await fetchWithKeyRotation(getDeepseekKeys(), (key) => ({
+                        url: DEEPSEEK_API_URL,
+                        options: {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": "Bearer " + key
+                            },
+                            body: tutorDeepseekBody
+                        }
+                    }));
 
                     const data = await response.json();
                     const rawOutput = data.choices[0].message.content;
@@ -886,26 +874,18 @@
                     for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
                         let response;
                         try {
-                            response = await fetch(buildGeminiUrl(modelName), {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: tutorRequestBody
-                            });
-                        } catch (networkErr) {
-                            console.error(`❌ ${modelName} で通信エラー:`, networkErr);
-                            tutorLastError = networkErr;
+                            response = await fetchWithKeyRotation(getGeminiKeys(), (key) => ({
+                                url: buildGeminiUrl(modelName, key),
+                                options: {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: tutorRequestBody
+                                }
+                            }));
+                        } catch (err) {
+                            console.warn(`⚠️ ${modelName} は登録済みの全キーで失敗しました → 次のモデルへフォールバック`, err);
+                            tutorLastError = err;
                             continue;
-                        }
-
-                        if (response.status === 429) {
-                            console.warn(`⚠️ ${modelName} がレート制限（429）に達しました → 次のモデルへフォールバック`);
-                            tutorLastError = new Error(`Rate limit: ${modelName}`);
-                            continue;
-                        }
-
-                        if (!response.ok) {
-                            const errBody = await response.json().catch(() => ({}));
-                            throw new Error(errBody.error?.message || `HTTPエラー: ${response.status}（モデル: ${modelName}）`);
                         }
 
                         const candidateJson = await response.json();

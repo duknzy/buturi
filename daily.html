@@ -108,6 +108,7 @@
     
     <script type="module">
         import { dailyProblemBank } from "./daily-data.js";
+        import { getDeepseekKeys, fetchWithKeyRotation, initApiKeyManager } from "./api-key-manager.js";
 
         const proto = "https" + "://";
         const d = ".";
@@ -132,8 +133,8 @@
         const auth = getAuth(app);
         const database = getDatabase(app);
 
-        // 🔑【変更】DeepSeek APIの設定（index.htmlの登録キーと連動させます）
-        let DEEPSEEK_API_KEY = localStorage.getItem("RE_MIND_DEEPSEEK_KEY") || localStorage.getItem("RE_MIND_GEMINI_KEY");
+        // 🔑【複数キー対応】index.html/problem.htmlと共通の管理UIを注入（未登録なら自動で開く）
+        initApiKeyManager({ needDeepseek: true });
         const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
 
         let selectedQuestions = [];
@@ -243,45 +244,35 @@
 `;
 
                 try {
-                    // 🛡️【キーの防衛チェック】キーが空、または"null"という文字列になっていないか検証
-                    if (!DEEPSEEK_API_KEY || DEEPSEEK_API_KEY === "null" || DEEPSEEK_API_KEY.trim() === "") {
-                        throw new Error("DeepSeekのAPIキーがブラウザに設定されていません。ダッシュボード画面の下部にある『APIキー消去』ボタンを一度押し、再読み込みして正しいキーを登録し直してください。");
+                    // 🛡️【キーの防衛チェック】1件も登録されていないか検証
+                    if (getDeepseekKeys().length === 0) {
+                        throw new Error("DeepSeekのAPIキーがブラウザに設定されていません。右下の🔑ボタンから登録してください。");
                     }
 
-                    // 🚀【仕様変更】最新のDeepSeek V4「Pro」＋「Thinking Mode（思考モード）」の公式リクエスト構造に刷新
-                    const response = await fetch(DEEPSEEK_API_URL, {
-                        method: "POST",
-                        headers: { 
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${DEEPSEEK_API_KEY.trim()}`
-                        },
-                        body: JSON.stringify({
-                            "model": "deepseek-v4-pro", // ✨最上位のV4 Proモデルを指定（精度最優先）
-                            "messages": [
-                                { "role": "system", "content": "あなたは優秀なAI数学教師です。指定されたJSONフォーマットの配列のみを厳密に返してください。" },
-                                { "role": "user", "content": systemPrompt }
-                            ],
-                            "extra_body": {
-                                "thinking": { "type": "enabled" } // ✨公式の思考プロセス（推論）有効化フラグ
-                            }
-                        })
+                    // 🚀 最新のDeepSeek V4「Pro」＋「Thinking Mode（思考モード）」の公式リクエスト構造
+                    // 🔁 登録済みの複数キーを順に試し、429やエラーの時は自動で次のキーへ切り替える
+                    const sprintDeepseekBody = JSON.stringify({
+                        "model": "deepseek-v4-pro", // ✨最上位のV4 Proモデルを指定（精度最優先）
+                        "messages": [
+                            { "role": "system", "content": "あなたは優秀なAI数学教師です。指定されたJSONフォーマットの配列のみを厳密に返してください。" },
+                            { "role": "user", "content": systemPrompt }
+                        ],
+                        "extra_body": {
+                            "thinking": { "type": "enabled" } // ✨公式の思考プロセス（推論）有効化フラグ
+                        }
                     });
 
-                    // 🔍【デバッグ強化】400等のエラー時、DeepSeekが返した「本当の理由」を生で剥ぎ取る処理
-                    if (!response.ok) {
-                        let detailedError = `HTTPステータス: ${response.status}`;
-                        try {
-                            const errJson = await response.json();
-                            if (errJson && errJson.error && errJson.error.message) {
-                                detailedError = errJson.error.message; // サーバーからの具体的なエラーメッセージ
-                            } else {
-                                detailedError = JSON.stringify(errJson);
-                            }
-                        } catch (e) {
-                            try { detailedError = await response.text(); } catch(tErr) {}
+                    const response = await fetchWithKeyRotation(getDeepseekKeys(), (key) => ({
+                        url: DEEPSEEK_API_URL,
+                        options: {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${key}`
+                            },
+                            body: sprintDeepseekBody
                         }
-                        throw new Error(detailedError);
-                    }
+                    }));
 
                     const data = await response.json();
                     let rawJsonText = data.choices[0].message.content.trim();
