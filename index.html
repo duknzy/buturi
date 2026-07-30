@@ -1095,7 +1095,28 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                     "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
                 });
 
-                let data = null;
+                const fixJsonEscapes = (str) => {
+                    let inString = false; let result = "";
+                    for (let i = 0; i < str.length; i++) {
+                        let c = str[i];
+                        if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
+                        else if (c === '\\' && inString) {
+                            let next = str[i+1];
+                            if (next === '"') { result += '\\"'; i++; }
+                            else if (next === '\\') { result += '\\\\'; i++; }
+                            else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
+                            else { result += '\\\\'; }
+                        } else if (inString && c.charCodeAt(0) < 0x20) {
+                            if (c === '\n') result += '\\n';
+                            else if (c === '\r') result += '\\r';
+                            else if (c === '\t') result += '\\t';
+                            else result += '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0');
+                        } else { result += c; }
+                    }
+                    return result;
+                };
+
+                let parsedResult = null;
                 let usedModel = null;
                 let lastError = null;
 
@@ -1115,59 +1136,53 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                         continue;
                     }
 
-                    if (response.ok) {
-                        data = await response.json();
-                        usedModel = modelName;
-                        break;
-                    }
-
                     if (response.status === 429) {
                         console.warn(`⚠️ ${modelName} がレート制限（429）に達しました → 次のモデルへフォールバック`);
                         lastError = new Error(`Rate limit: ${modelName}`);
                         continue;
                     }
 
-                    // レート制限以外（認証エラーなど）は即座に中断
-                    const errorErr = await response.json().catch(() => ({}));
-                    throw new Error(errorErr.error?.message || `HTTPエラー ステータスコード: ${response.status}（モデル: ${modelName}）`);
+                    if (!response.ok) {
+                        // レート制限以外（認証エラーなど）は即座に中断
+                        const errorErr = await response.json().catch(() => ({}));
+                        throw new Error(errorErr.error?.message || `HTTPエラー ステータスコード: ${response.status}（モデル: ${modelName}）`);
+                    }
+
+                    const candidateJson = await response.json();
+                    const candidateText = candidateJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                    if (!candidateText) {
+                        console.warn(`⚠️ ${modelName} が空の応答を返却しました → 次のモデルへフォールバック`);
+                        lastError = new Error(`Empty response: ${modelName}`);
+                        continue;
+                    }
+
+                    let rawJsonText = candidateText.trim();
+                    if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
+                    else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
+                    if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
+                    rawJsonText = rawJsonText.trim();
+
+                    try {
+                        parsedResult = JSON.parse(fixJsonEscapes(rawJsonText));
+                        usedModel = modelName;
+                        break;
+                    } catch (parseErr) {
+                        console.warn(`⚠️ ${modelName} の応答が不正なJSONでした → 次のモデルへフォールバック`, parseErr);
+                        lastError = parseErr;
+                        continue;
+                    }
                 }
 
-                if (!data) {
-                    throw new Error(`全モデルが利用できませんでした（レート制限の可能性）。時間を置いて再度お試しください。\n最終エラー: ${lastError?.message || "不明"}`);
+                if (!parsedResult) {
+                    throw new Error(`全モデルが利用できませんでした（レート制限または不正な応答）。時間を置いて再度お試しください。\n最終エラー: ${lastError?.message || "不明"}`);
                 }
 
                 if (usedModel !== GEMINI_MODEL_FALLBACK_LIST[0]) {
                     console.info(`ℹ️ フォールバック発生: 今回は ${usedModel} を使用しました`);
                 }
 
-                if (!data.candidates || data.candidates.length === 0) {
-                    throw new Error("AIから有効な応答が得られませんでした。");
-                }
-
-                let rawJsonText = data.candidates[0].content.parts[0].text.trim();
-
-                if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
-                else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
-                if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
-                rawJsonText = rawJsonText.trim();
-
-                const fixJsonEscapes = (str) => {
-                    let inString = false; let result = "";
-                    for (let i = 0; i < str.length; i++) {
-                        let c = str[i];
-                        if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
-                        else if (c === '\\' && inString) {
-                            let next = str[i+1];
-                            if (next === '"') { result += '\\"'; i++; }
-                            else if (next === '\\') { result += '\\\\'; i++; }
-                            else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
-                            else { result += '\\\\'; }
-                        } else { result += c; }
-                    }
-                    return result;
-                };
-
-                const aiResult = JSON.parse(fixJsonEscapes(rawJsonText));
+                const aiResult = parsedResult;
 
                 const newId = "CUSTOM_" + Date.now();
                 const newProblem = {

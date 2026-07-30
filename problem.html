@@ -584,6 +584,12 @@
                     else if (next === '\\') { result += '\\\\'; i++; }
                     else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
                     else { result += '\\\\'; }
+                } else if (inString && c.charCodeAt(0) < 0x20) {
+                    // 🩹 生の制御文字（未エスケープの改行・タブ等）がJSON文字列中に紛れ込んだ場合の保険
+                    if (c === '\n') result += '\\n';
+                    else if (c === '\r') result += '\\r';
+                    else if (c === '\t') result += '\\t';
+                    else result += '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0');
                 } else { result += c; }
             }
             return result;
@@ -655,7 +661,7 @@
                     "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
                 });
 
-                let data = null;
+                let parsedResult = null;
                 let usedModel = null;
                 let lastError = null;
 
@@ -673,32 +679,46 @@
                         continue;
                     }
 
-                    if (response.ok) {
-                        data = await response.json();
-                        usedModel = modelName;
-                        break;
-                    }
-
                     if (response.status === 429) {
                         console.warn(`⚠️ ${modelName} がレート制限（429）に達しました → 次のモデルへフォールバック`);
                         lastError = new Error(`Rate limit: ${modelName}`);
                         continue;
                     }
 
-                    const errBody = await response.json().catch(() => ({}));
-                    throw new Error(errBody.error?.message || `HTTPエラー: ${response.status}（モデル: ${modelName}）`);
+                    if (!response.ok) {
+                        const errBody = await response.json().catch(() => ({}));
+                        throw new Error(errBody.error?.message || `HTTPエラー: ${response.status}（モデル: ${modelName}）`);
+                    }
+
+                    const candidateJson = await response.json();
+                    const candidateText = candidateJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                    if (!candidateText) {
+                        console.warn(`⚠️ ${modelName} が空の応答を返却しました → 次のモデルへフォールバック`);
+                        lastError = new Error(`Empty response: ${modelName}`);
+                        continue;
+                    }
+
+                    try {
+                        parsedResult = JSON.parse(fixJsonEscapes(stripCodeFence(candidateText.trim())));
+                        usedModel = modelName;
+                        break;
+                    } catch (parseErr) {
+                        console.warn(`⚠️ ${modelName} の応答が不正なJSONでした → 次のモデルへフォールバック`, parseErr);
+                        lastError = parseErr;
+                        continue;
+                    }
                 }
 
-                if (!data) {
-                    throw new Error(`全モデルが利用できませんでした（レート制限の可能性）。時間を置いて再度お試しください。\n最終エラー: ${lastError?.message || "不明"}`);
+                if (!parsedResult) {
+                    throw new Error(`全モデルが利用できませんでした（レート制限または不正な応答）。時間を置いて再度お試しください。\n最終エラー: ${lastError?.message || "不明"}`);
                 }
 
                 if (usedModel !== GEMINI_MODEL_FALLBACK_LIST[0]) {
                     console.info(`ℹ️ フォールバック発生: 今回は ${usedModel} を使用しました`);
                 }
 
-                const rawText = data.candidates[0].content.parts[0].text.trim();
-                return JSON.parse(fixJsonEscapes(stripCodeFence(rawText)));
+                return parsedResult;
             }
         }
 
@@ -791,6 +811,11 @@
                     else if (next === '\\') { result += '\\\\'; i++; }
                     else if (next === 'n' && (text[i+2] === ' ' || text[i+2] === '"' || text[i+2] === '\\' || !/[a-zA-Z]/.test(text[i+2]))) { result += '\\n'; i++; }
                     else { result += '\\\\'; }
+                } else if (inString && c.charCodeAt(0) < 0x20) {
+                    if (c === '\n') result += '\\n';
+                    else if (c === '\r') result += '\\r';
+                    else if (c === '\t') result += '\\t';
+                    else result += '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0');
                 } else { result += c; }
             }
             return JSON.parse(result);
@@ -872,32 +897,45 @@
                             continue;
                         }
 
-                        if (response.ok) {
-                            tutorData = await response.json();
-                            tutorUsedModel = modelName;
-                            break;
-                        }
-
                         if (response.status === 429) {
                             console.warn(`⚠️ ${modelName} がレート制限（429）に達しました → 次のモデルへフォールバック`);
                             tutorLastError = new Error(`Rate limit: ${modelName}`);
                             continue;
                         }
 
-                        const errBody = await response.json().catch(() => ({}));
-                        throw new Error(errBody.error?.message || `HTTPエラー: ${response.status}（モデル: ${modelName}）`);
+                        if (!response.ok) {
+                            const errBody = await response.json().catch(() => ({}));
+                            throw new Error(errBody.error?.message || `HTTPエラー: ${response.status}（モデル: ${modelName}）`);
+                        }
+
+                        const candidateJson = await response.json();
+                        const candidateText = candidateJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                        if (!candidateText) {
+                            console.warn(`⚠️ ${modelName} が空の応答を返却しました → 次のモデルへフォールバック`);
+                            tutorLastError = new Error(`Empty response: ${modelName}`);
+                            continue;
+                        }
+
+                        try {
+                            aiJson = JSON.parse(fixJsonEscapes(stripCodeFence(candidateText)));
+                            tutorUsedModel = modelName;
+                            tutorData = candidateJson;
+                            break;
+                        } catch (parseErr) {
+                            console.warn(`⚠️ ${modelName} の応答が不正なJSONでした → 次のモデルへフォールバック`, parseErr);
+                            tutorLastError = parseErr;
+                            continue;
+                        }
                     }
 
                     if (!tutorData) {
-                        throw new Error(`全モデルが利用できませんでした（レート制限の可能性）。時間を置いて再度お試しください。\n最終エラー: ${tutorLastError?.message || "不明"}`);
+                        throw new Error(`全モデルが利用できませんでした（レート制限または不正な応答）。時間を置いて再度お試しください。\n最終エラー: ${tutorLastError?.message || "不明"}`);
                     }
 
                     if (tutorUsedModel !== GEMINI_MODEL_FALLBACK_LIST[0]) {
                         console.info(`ℹ️ フォールバック発生: 今回は ${tutorUsedModel} を使用しました`);
                     }
-
-                    const rawOutput = tutorData.candidates[0].content.parts[0].text;
-                    aiJson = JSON.parse(fixJsonEscapes(stripCodeFence(rawOutput)));
                 }
 
                 chatHistory.push({ "role": "assistant", "content": JSON.stringify(aiJson) });
