@@ -633,6 +633,15 @@
                 <span class="badge badge-ai" style="color: var(--accent-cyan);">MEMORY LOG // 全極意・気づき一覧</span>
                 <h3 style="font-size: 1.3rem; font-weight: 800; margin-top: 0.3rem;">獲得した知識・解法パターン</h3>
                 <p style="color: var(--text-muted); font-size: 0.85rem;">これまでに各問題でメモした気づきの一覧です。クリックで該当問題へジャンプできます。</p>
+                <div style="display: flex; align-items: center; gap: 0.6rem; margin-top: 0.8rem;">
+                    <span class="filter-label" style="font-size: 0.8rem;">🔀 並べ替え：</span>
+                    <select class="field-select" id="insight-sort-select">
+                        <option value="newest">更新が新しい順</option>
+                        <option value="oldest">更新が古い順</option>
+                        <option value="errorCount">誤答回数が多い順</option>
+                        <option value="subject">教科・単元順</option>
+                    </select>
+                </div>
             </div>
 
             <div id="insight-list-container" style="overflow-y: auto; flex-grow: 1; margin-top: 1.2rem; padding-right: 0.4rem;">
@@ -1316,34 +1325,60 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
         const openInsightListBtn = document.getElementById("open-insight-list-btn");
         const closeInsightListBtn = document.getElementById("close-insight-list-btn");
         const insightListContainer = document.getElementById("insight-list-container");
+        const insightSortSelect = document.getElementById("insight-sort-select");
+
+        function sortInsightEntries(entries, sortKey) {
+            const sorted = entries.slice();
+            switch (sortKey) {
+                case "oldest":
+                    sorted.sort((a, b) => new Date(a[1].lastAttemptAt || 0) - new Date(b[1].lastAttemptAt || 0));
+                    break;
+                case "errorCount":
+                    sorted.sort((a, b) => (b[1].errorCount || 0) - (a[1].errorCount || 0));
+                    break;
+                case "subject":
+                    sorted.sort((a, b) => {
+                        const subjA = (a[1].subject || "未分類") + (a[1].field || "");
+                        const subjB = (b[1].subject || "未分類") + (b[1].field || "");
+                        return subjA.localeCompare(subjB, "ja");
+                    });
+                    break;
+                case "newest":
+                default:
+                    sorted.sort((a, b) => new Date(b[1].lastAttemptAt || 0) - new Date(a[1].lastAttemptAt || 0));
+                    break;
+            }
+            return sorted;
+        }
 
         function renderInsightList() {
             if (!insightListContainer) return;
             insightListContainer.innerHTML = "";
 
-            let count = 0;
-            Object.keys(lastCloudProblemsSnapshot).forEach(id => {
-                const p = lastCloudProblemsSnapshot[id];
-                if (p.insight && p.insight.trim() !== "") {
-                    count++;
-                    const subject = p.subject || "未分類";
-                    const field = p.field || "未分類";
-                    const shortTitle = p.short_title || "無題の問題";
+            const sortKey = insightSortSelect ? insightSortSelect.value : "newest";
+            const entries = Object.keys(lastCloudProblemsSnapshot)
+                .map(id => [id, lastCloudProblemsSnapshot[id]])
+                .filter(([, p]) => p.insight && p.insight.trim() !== "");
+            const sortedEntries = sortInsightEntries(entries, sortKey);
 
-                    const itemHtml = `
-                        <div class="insight-card-item" onclick="location.href='problem.html?id=${p.id}'">
-                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.4rem;">
-                                <span class="badge badge-physics" style="font-size: 0.7rem;">${subject} // ${field}</span>
-                                <span style="font-size: 0.8rem; font-weight: 800; color: var(--accent-cyan);">📌 ${shortTitle} ➔</span>
-                            </div>
-                            <div class="tex2jax_process" style="font-size: 0.95rem; color: var(--text-main); line-height: 1.6; white-space: pre-wrap; font-weight: 600;">${p.insight.trim()}</div>
+            sortedEntries.forEach(([id, p]) => {
+                const subject = p.subject || "未分類";
+                const field = p.field || "未分類";
+                const shortTitle = p.short_title || "無題の問題";
+
+                const itemHtml = `
+                    <div class="insight-card-item" onclick="location.href='problem.html?id=${p.id}'">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.4rem;">
+                            <span class="badge badge-physics" style="font-size: 0.7rem;">${subject} // ${field}</span>
+                            <span style="font-size: 0.8rem; font-weight: 800; color: var(--accent-cyan);">📌 ${shortTitle} ➔</span>
                         </div>
-                    `;
-                    insightListContainer.insertAdjacentHTML("beforeend", itemHtml);
-                }
+                        <div class="tex2jax_process" style="font-size: 0.95rem; color: var(--text-main); line-height: 1.6; white-space: pre-wrap; font-weight: 600;">${p.insight.trim()}</div>
+                    </div>
+                `;
+                insightListContainer.insertAdjacentHTML("beforeend", itemHtml);
             });
 
-            if (count === 0) {
+            if (sortedEntries.length === 0) {
                 insightListContainer.innerHTML = `
                     <div style="padding: 3rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
                         まだ「気づきメモ」が登録されていません。<br>各問題の解答セッションで得た知識を記録してみましょう！
@@ -1354,6 +1389,10 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
             if (window.MathJax && window.MathJax.typesetPromise) {
                 window.MathJax.typesetPromise([insightListContainer]).catch(err => console.log(err.message));
             }
+        }
+
+        if (insightSortSelect) {
+            insightSortSelect.addEventListener("change", renderInsightList);
         }
 
         if (openInsightListBtn && insightListModal) {
