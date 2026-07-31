@@ -498,7 +498,7 @@ function syncTimerToLocalStorage() {
 function restoreTimerFromLocalStorage() {
   try {
     const rawData = localStorage.getItem('cyber_timer_state');
-    if (!rawData) return;
+    if (!rawData) return false;
     const state = JSON.parse(rawData);
     if (state && state.isRunning && state.endTime) {
       const now = Date.now();
@@ -507,7 +507,9 @@ function restoreTimerFromLocalStorage() {
         timeLeft = remainingMs;
         currentMode = state.mode || currentMode;
         pomoState = state.pomoState || pomoState;
+        isRunning = true;
         pushLog(`>>> [TIMER_SYNC]: RESTORED ACTIVE TIMER SESSION. REMAINING: ${Math.floor(remainingMs/1000)}s <<<`, "success");
+        return true; // 復元成功 → resetTimeState をスキップ
       } else {
         localStorage.removeItem('cyber_timer_state');
       }
@@ -515,13 +517,21 @@ function restoreTimerFromLocalStorage() {
   } catch (e) {
     console.warn("Timer restore error:", e);
   }
+  return false;
 }
+
+// 小窓を閉じたとき localStorage をクリアしてメインページのカウントも止める
+window.addEventListener('beforeunload', () => {
+  try { localStorage.removeItem('cyber_timer_state'); } catch(e){}
+});
 
 async function initApp() {
   pushLog("> TRACK_SYSTEM: CONNECTING TO TELEMETRY NETWORK...");
   await loadSelectedRoute();
-  restoreTimerFromLocalStorage();
-  resetTimeState();
+  const timerRestored = restoreTimerFromLocalStorage();
+  if (!timerRestored) {
+    resetTimeState(); // 復元できなかった場合のみリセット
+  }
   updateStatusUI();
   
   setInterval(() => {
