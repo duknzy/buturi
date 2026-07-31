@@ -620,16 +620,16 @@
             
             <div id="math-preview" class="math-preview tex2jax_process">入力プレビューがここに表示されます</div>
 
-            <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem;">
-                <label for="problem-image-input" class="image-upload-zone" style="flex: 1; margin-bottom: 0;">
-                    📸 問題の写真（ノート・プリント）をアップロード（任意）
-                </label>
-                <button type="button" onclick="openGooglePhotosPopout(event)" title="Google Photosを小窓で開く"
-                    style="flex-shrink: 0; padding: 0.6rem 1rem; background: #1a1a2e; color: #4fc3f7; border: 1px solid #4fc3f7; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer; white-space: nowrap; transition: background 0.2s;"
-                    onmouseover="this.style.background='#0d2137'" onmouseout="this.style.background='#1a1a2e'">
-                    📷 Google Photos
-                </button>
-            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap;">
+    <label for="problem-image-input" class="image-upload-zone" style="flex: 1; margin-bottom: 0; white-space: nowrap; font-size: 0.9rem; min-width: 150px;">
+        📸 写真を追加（任意）
+    </label>
+    <button type="button" onclick="openGooglePhotosPopout(event)" title="Google Photosを小窓で開く"
+        style="flex-shrink: 0; padding: 0.6rem 1rem; background: #1a1a2e; color: #4fc3f7; border: 1px solid #4fc3f7; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer; white-space: nowrap; transition: background 0.2s;"
+        onmouseover="this.style.background='#0d2137'" onmouseout="this.style.background='#1a1a2e'">
+        📷 Google Photos
+    </button>
+</div>
             <input type="file" id="problem-image-input" accept="image/*" style="display: none;">
             
             <div class="preview-box" id="image-preview-container">
