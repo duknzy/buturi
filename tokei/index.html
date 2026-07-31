@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CYBER_OS // GRAND_PRIX_TELEMETRY</title>
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <link rel="stylesheet" href="style.css">
+  
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="void-black">
+
+  <!-- GLOBAL CYBER HUD NAV -->
+  <nav class="global-cyber-nav">
+    <div class="nav-brand">SYSTEM OS // TELEMETRY TIMER</div>
+    <div class="nav-links">
+      <a href="../index.html" class="nav-btn">🧠 誤答ノート</a>
+      <a href="../daily.html" class="nav-btn">🏁 計算スプリント</a>
+      <a href="../lesson.html" class="nav-btn">📖 授業・解説</a>
+      <a href="index.html" class="nav-btn active">⏱️ 集中タイマー</a>
+      <a href="../study/index.html" class="nav-btn">📊 24hログ</a>
+    </div>
+  </nav>
+
+  <div class="global-hud-top">
+    <div class="hud-item" id="hud-clock">SYS_TIME: 00:00:00</div>
+    <div class="hud-item">STATUS: <span id="hud-status" style="font-weight: bold;">STANDBY</span></div>
+    <div class="hud-item">ENGINE_MAP: <span id="hud-diff" style="color: var(--highlight-yellow);">GRAND_PRIX</span></div>
+    <div class="hud-item">WORK_EFFICIENCY: <span id="hud-bias" style="color: var(--accent-neon-cyan);">100%</span></div>
+  </div>
+
+  <div class="matrix-layout">
+    
+    <div class="panel transparent-panel">
+      <div class="panel-header">🎛️ COCKPIT_SETUP_ZONE</div>
+      
+      <div class="setup-zone">
+        <div class="setup-row">
+          <span class="setup-label">STRATEGY</span>
+          <select id="race-mode">
+            <option value="POMODORO">GRAND PRIX (POMODORO)</option>
+            <option value="SPRINT">QUALIFY SPRINT (TIMER)</option>
+            <option value="ENDURANCE">ENDURANCE TRIM (STOPWATCH)</option>
+          </select>
+        </div>
+        
+        <div class="setup-row" id="total-setting-row">
+          <span class="setup-label">TOTAL TIME</span>
+          <input type="number" id="input-total-minutes" value="180">
+          <span style="font-size:0.75rem;">MIN</span>
+        </div>
+        
+        <div class="setup-row" id="work-setting-row">
+          <span class="setup-label">WORK STINT</span>
+          <input type="number" id="input-minutes" value="30">
+          <span style="font-size:0.75rem;">MIN</span>
+        </div>
+        
+        <div class="setup-row" id="rest-setting-row">
+          <span class="setup-label">PIT STOP</span>
+          <input type="number" id="input-rest-minutes" value="5">
+          <span style="font-size:0.75rem;">MIN</span>
+        </div>
+      </div>
+
+      <div class="panel-header">🗺️ GPS_NAVIGATION_LOCK</div>
+      <div class="setup-zone">
+        <div class="setup-row">
+          <span class="setup-label">CIRCUIT</span>
+          <select id="route-preset">
+            <option value="shibuya_shinjuku">SHIBUYA ➔ SHINJUKU</option>
+            <option value="nagasaki_station">NAGASAKI ➔ PEACE PARK</option>
+            <option value="custom">[SMART CUSTOM CUSTOMIZABLE]</option>
+          </select>
+        </div>
+        
+        <div id="custom-coords" style="display: none; flex-direction: column; gap: 8px; margin-top: 5px;">
+          <div class="setup-row">
+            <span class="setup-label">START STN</span>
+            <input type="text" id="start-name-input" placeholder="地名または緯度,経度" style="flex: 1;">
+          </div>
+          <div class="setup-row">
+            <span class="setup-label">DESTINATION</span>
+            <input type="text" id="end-name-input" placeholder="地名または緯度,経度" style="flex: 1;">
+          </div>
+          <button id="search-route-btn" style="width: 100%; padding: 6px; font-size: 0.75rem;">LOCK ON RACING LINE</button>
+        </div>
+      </div>
+
+      <div class="panel-header">🎧 AUDIO INFRASTRUCTURE</div>
+      <div class="setup-zone">
+        <div class="setup-row">
+          <span class="setup-label">AUDIO CH</span>
+          <select id="audio-route-select">
+            <option value="bgm">TEAM RADIO STREAM (BGM)</option>
+            <option value="video">ONBOARD TELEMETRY (VIDEO)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="panel-header">📺 COCKPIT WALLPAPER</div>
+      <div class="setup-zone" style="margin-bottom: 10px; padding-bottom: 5px;">
+        <div class="setup-row">
+          <span class="setup-label">SKIN OVERLAY</span>
+          <select id="bg-selector">
+            <option value="none">STEALTH VOID BLACK</option>
+            <option value="F1.jpg">RED BULL MACHINE (CHAMPION)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="map"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <span id="current-track-name">ROUTE: CALIBRATING...</span>
+      </div>
+      
+      <div class="timer-box">
+        <div id="real-clock-display">00:00:00</div>
+        <div id="pomo-state-indicator" style="font-size: 0.8rem; letter-spacing: 2px; margin-bottom: 5px; font-weight: bold;"></div>
+        
+        <div class="glitch" id="timer-display" data-text="00:00">00:00</div>
+        
+        <div id="total-remain-display">TOTAL REMAIN: 00:00:00</div>
+        <div id="status-sub" style="display: none;">[ SYSTEM: STANDBY ]</div>
+      </div>
+
+      <div class="rpm-meter-zone">
+        <div style="font-size: 0.65rem; color: var(--terminal-dim-text); margin-bottom: 4px; letter-spacing: 1px;">STINT PROGRESS / RPM METER</div>
+        <div class="rpm-bars" id="rpm-indicator">
+          <div class="rpm-bar"></div><div class="rpm-bar"></div><div class="rpm-bar"></div><div class="rpm-bar"></div><div class="rpm-bar"></div>
+          <div class="rpm-bar"></div><div class="rpm-bar"></div><div class="rpm-bar"></div><div class="rpm-bar"></div><div class="rpm-bar"></div>
+        </div>
+      </div>
+
+      <div class="map-viewport">
+        <div class="cockpit-video-zone">
+          <video id="cockpit-main-video" src="video/focus1.mp4"  muted playsinline></video>
+        </div>
+      </div>
+      
+      <div class="btn-group">
+        <button id="start-btn">ENGAGE</button>
+        <button id="skip-btn" style="display: none; border-color: var(--accent-neon-pink); color: var(--accent-neon-pink);">PIT SKIP ➔</button>
+        <button id="pip-btn" style="border-color: var(--highlight-yellow); color: var(--highlight-yellow);">HUD MODE</button>
+        <button id="reset-btn">ABORT DNF</button>
+      </div>
+    </div>
+
+    <div class="panel transparent-panel">
+      <div class="panel-header">🎖️ PILOT_TELEMETRY_LOG</div>
+      
+      <div id="user-level" style="font-size: 0.9rem; font-weight: bold; letter-spacing: 1px; color: var(--highlight-yellow); margin-bottom: 4px;">RANK: OPERATOR [LV.1]</div>
+      <div class="status-bar">
+        <span id="xp-text" style="font-family: monospace; font-size: 0.75rem;">0 / 100 XP</span>
+      </div>
+      <div class="xp-bar-container">
+        <div class="xp-bar-fill" id="xp-fill"></div>
+      </div>
+
+      <div class="total-work-live-box" style="margin-top: 10px; padding: 6px 10px; background: rgba(0, 255, 255, 0.05); border: 1px solid var(--terminal-dim); display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.75rem; color: var(--terminal-dim-text); letter-spacing: 1px;">🏁 TOTAL WORK DONE</span>
+        <span id="total-work-accumulated-display" style="font-size: 1.1rem; font-weight: bold; color: var(--success-green); text-shadow: 0 0 8px var(--success-green);">00m 00s</span>
+      </div>
+
+      <div class="mini-telemetry-zone" style="margin-top: 15px;">
+        <div style="font-size: 0.7rem; color: var(--terminal-dim-text); letter-spacing: 1px; border-bottom: 1px solid var(--terminal-dim); padding-bottom: 4px; margin-bottom: 6px;">CORE TELEMETRY STATUS</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem;">
+          <span>⚡ ERS RECOVERY CAPACITY</span>
+          <span id="ers-val" style="color: var(--accent-neon-cyan); font-weight: bold;">100%</span>
+        </div>
+        <div class="xp-bar-container" style="background: rgba(0,240,255,0.05); height: 5px;"><div id="ers-bar" style="width: 100%; height:100%; background: var(--accent-neon-cyan);"></div></div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; margin-top: 8px;">
+          <span>🔥 TYRE CORE TEMPERATURE</span>
+          <span id="tyre-val" style="color: var(--success-green); font-weight: bold;">60.0°C</span>
+        </div>
+        <div class="xp-bar-container" style="background: rgba(5,255,161,0.05); height: 5px;"><div id="tyre-bar" style="width: 0%; height:100%; background: var(--success-green);"></div></div>
+      </div>
+
+      <div class="f1-telemetry-hud" style="margin-top: 15px;">
+        <div class="tel-row">
+          <span class="tel-label">SPEED</span>
+          <span class="tel-value" id="tel-speed">0</span>
+          <span class="tel-unit">KM/H</span>
+        </div>
+        <div class="tel-row">
+          <span class="tel-label">GEAR</span>
+          <span class="tel-value" id="tel-gear">N</span>
+        </div>
+        <div class="tel-row" style="border-top: 1px dashed rgba(0,255,255,0.2); padding-top: 6px; margin-top: 4px;">
+          <span class="tel-label">DISTANCE</span>
+          <span class="tel-value" id="tel-dst">0.00 / 0.00</span>
+          <span class="tel-unit" style="margin-left: 4px;">KM</span>
+        </div>
+      </div>
+
+      <div class="panel-header" id="map-rem-label" style="margin-top: 20px; margin-bottom: 10px;">📊 LIVE_DATA_STREAM_WIRE</div>
+      
+      <div class="log-stream-container">
+        <div class="log-stream" id="log-stream"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="lap-counter" style="display:none;"></div>
+
+ <audio id="local-work-audio" src="music/work1.m4a"></audio>
+<audio id="local-rest-audio" src="music/rest.m4a" loop></audio> 
+<!-- ※休憩用BGMは5分で終わるからloopのままでもいいが、作業用は曲を増やしたいのでloopを外す -->
+
+  <script src="mapService.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
