@@ -94,4 +94,19 @@
         );
         if (popout) popout.focus();
     };
+    // 📷 Google Photos小窓（ポップアウト）起動関数
+    window.openGooglePhotosPopout = function(e) {
+        if (e) e.preventDefault();
+        const width = 1100;
+        const height = 820;
+        const left = Math.max(0, Math.round((window.screen.width - width) / 2));
+        const top = Math.max(0, Math.round((window.screen.height - height) / 2));
+
+        const popout = window.open(
+            'https://photos.google.com',
+            'GooglePhotosPopout',
+            `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no`
+        );
+        if (popout) popout.focus();
+    };
 })();
