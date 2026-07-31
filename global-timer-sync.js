@@ -76,4 +76,22 @@
         );
         if (popout) popout.focus();
     };
+
+    // 📊 24hログ小窓（ポップアウト）起動関数
+    window.openLogPopout = function(e) {
+        if (e) e.preventDefault();
+        const root = getRootPath();
+        const targetUrl = root + 'study/index.html';
+        const width = 900;
+        const height = 780;
+        const left = Math.max(0, Math.round((window.screen.width - width) / 2));
+        const top = Math.max(0, Math.round((window.screen.height - height) / 2));
+
+        const popout = window.open(
+            targetUrl,
+            'LogPopout',
+            `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no`
+        );
+        if (popout) popout.focus();
+    };
 })();
