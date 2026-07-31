@@ -14,13 +14,13 @@
                 extend: {
                     fontFamily: { sans: ['Noto Sans JP', 'sans-serif'] },
                     colors: {
-                        baseBg: '#06020f',
-                        cardBg: '#10101c',
-                        accentBlue: '#00f3ff',
-                        accentOrange: '#ff007f',
-                        textMain: '#ffffff',
-                        textSub: '#94a3b8',
-                        borderLight: '#222235'
+                        baseBg: '#fcfbf9',
+                        cardBg: '#f5f3ee',
+                        accentBlue: '#3b82f6',
+                        accentOrange: '#f97316',
+                        textMain: '#334155',
+                        textSub: '#64748b',
+                        borderLight: '#e2e8f0'
                     }
                 }
             }
@@ -28,11 +28,11 @@
     </script>
     
     <style>
-        body { background-color: #06020f; color: #e2e8f0; -webkit-font-smoothing: antialiased; }
+        body { background-color: #fcfbf9; color: #334155; -webkit-font-smoothing: antialiased; }
         .chart-container { position: relative; width: 100%; max-width: 480px; margin: 0 auto; height: 45vh; max-height: 430px; }
-        .task-done { text-decoration: line-through; opacity: 0.4; background-color: #1e1e2d !important; border-color: #33334d !important; }
+        .task-done { text-decoration: line-through; opacity: 0.4; background-color: #f1f5f9 !important; border-color: #cbd5e1 !important; }
         .hidden-screen { display: none !important; }
-        .tab-active { border-color: #00f3ff; color: #00f3ff; font-weight: 900; }
+        .tab-active { border-color: #3b82f6; color: #3b82f6; font-weight: 900; }
 
         /* GLOBAL CYBER HUD NAVIGATION FOR STUDY */
         .global-cyber-nav {
@@ -97,12 +97,16 @@
             background: rgba(0, 243, 255, 0.12);
             border-color: #00f3ff;
             transform: translateY(-1px);
+        .nav-btn.active-timer {
+            background: linear-gradient(135deg, rgba(255, 0, 127, 0.25), rgba(0, 243, 255, 0.25)) !important;
+            border-color: #ff007f !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 10px rgba(255, 0, 127, 0.4);
+            animation: pulse-timer-btn 1.5s infinite alternate;
         }
-        .nav-btn.active {
-            color: #000000;
-            background: #00f3ff;
-            border-color: #00f3ff;
-            box-shadow: 0 0 12px rgba(0, 243, 255, 0.4);
+        @keyframes pulse-timer-btn {
+            0% { box-shadow: 0 0 8px rgba(255, 0, 127, 0.4); }
+            100% { box-shadow: 0 0 18px rgba(0, 243, 255, 0.7); }
         }
     </style>
 </head>
@@ -115,10 +119,12 @@
     <a href="../index.html" class="nav-btn">🧠 誤答ノート</a>
     <a href="../daily.html" class="nav-btn">🏁 計算スプリント</a>
     <a href="../lesson.html" class="nav-btn">📖 授業・解説</a>
-    <a href="../tokei/index.html" class="nav-btn">⏱️ 集中タイマー</a>
+    <a href="../tokei/index.html" class="nav-btn global-timer-link">⏱️ 集中タイマー</a>
+    <a href="#" onclick="openTimerPopout(event)" class="nav-btn" title="別ウィンドウでタイマーを開く">🗔 小窓</a>
     <a href="index.html" class="nav-btn active">📊 24hログ</a>
   </div>
 </nav>
+<script src="../global-timer-sync.js"></script>
 
 <!-- ========================================== -->
 <!-- 1. AUTH SCREEN -->

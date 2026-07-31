@@ -473,9 +473,54 @@ function resetTimeState() {
   manageBgmPlayback();
 }
 
+// =======================================================
+// ⏱️ GLOBAL LOCAL STORAGE TIMER SYNC & RESTORE
+// =======================================================
+function syncTimerToLocalStorage() {
+  try {
+    if (isRunning && timeLeft > 0) {
+      const state = {
+        isRunning: true,
+        endTime: Date.now() + timeLeft,
+        mode: currentMode,
+        pomoState: pomoState,
+        updatedAt: Date.now()
+      };
+      localStorage.setItem('cyber_timer_state', JSON.stringify(state));
+    } else {
+      localStorage.removeItem('cyber_timer_state');
+    }
+  } catch (e) {
+    console.warn("Storage sync error:", e);
+  }
+}
+
+function restoreTimerFromLocalStorage() {
+  try {
+    const rawData = localStorage.getItem('cyber_timer_state');
+    if (!rawData) return;
+    const state = JSON.parse(rawData);
+    if (state && state.isRunning && state.endTime) {
+      const now = Date.now();
+      const remainingMs = state.endTime - now;
+      if (remainingMs > 0) {
+        timeLeft = remainingMs;
+        currentMode = state.mode || currentMode;
+        pomoState = state.pomoState || pomoState;
+        pushLog(`>>> [TIMER_SYNC]: RESTORED ACTIVE TIMER SESSION. REMAINING: ${Math.floor(remainingMs/1000)}s <<<`, "success");
+      } else {
+        localStorage.removeItem('cyber_timer_state');
+      }
+    }
+  } catch (e) {
+    console.warn("Timer restore error:", e);
+  }
+}
+
 async function initApp() {
   pushLog("> TRACK_SYSTEM: CONNECTING TO TELEMETRY NETWORK...");
   await loadSelectedRoute();
+  restoreTimerFromLocalStorage();
   resetTimeState();
   updateStatusUI();
   
@@ -494,6 +539,8 @@ async function initApp() {
       tyreTemp = Math.max(60.0, tyreTemp - 0.3); 
       ersPercent = Math.min(100, ersPercent + 0.3); 
       updateLiveTelemetry();
+    } else {
+      syncTimerToLocalStorage();
     }
   }, 1000);
 }
@@ -641,6 +688,7 @@ function triggerBoxOut() {
 async function finishSession(logMsg, earnedXP = 40, raceStatus = "FINISHED") {
   timerWorker.postMessage('STOP');
   isRunning = false;
+  try { localStorage.removeItem('cyber_timer_state'); } catch(e){}
   
   if (raceStatus === "FINISHED") {
     triggerRadioSound(); 

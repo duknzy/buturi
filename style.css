@@ -181,3 +181,16 @@ body::before {
     border-color: #00f3ff;
     box-shadow: 0 0 12px rgba(0, 243, 255, 0.4);
 }
+
+.nav-btn.active-timer {
+    background: linear-gradient(135deg, rgba(255, 0, 127, 0.25), rgba(0, 243, 255, 0.25)) !important;
+    border-color: #ff007f !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 10px rgba(255, 0, 127, 0.4);
+    animation: pulse-timer-btn 1.5s infinite alternate;
+}
+
+@keyframes pulse-timer-btn {
+    0% { box-shadow: 0 0 8px rgba(255, 0, 127, 0.4); }
+    100% { box-shadow: 0 0 18px rgba(0, 243, 255, 0.7); }
+}

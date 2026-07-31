@@ -22,10 +22,12 @@
       <a href="../index.html" class="nav-btn">🧠 誤答ノート</a>
       <a href="../daily.html" class="nav-btn">🏁 計算スプリント</a>
       <a href="../lesson.html" class="nav-btn">📖 授業・解説</a>
-      <a href="index.html" class="nav-btn active">⏱️ 集中タイマー</a>
+      <a href="index.html" class="nav-btn active global-timer-link">⏱️ 集中タイマー</a>
+      <a href="#" onclick="openTimerPopout(event)" class="nav-btn" title="別ウィンドウでタイマーを開く">🗔 小窓</a>
       <a href="../study/index.html" class="nav-btn">📊 24hログ</a>
     </div>
   </nav>
+  <script src="../global-timer-sync.js"></script>
 
   <div class="global-hud-top">
     <div class="hud-item" id="hud-clock">SYS_TIME: 00:00:00</div>
