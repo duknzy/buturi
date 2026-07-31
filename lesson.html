@@ -70,7 +70,7 @@
         @media screen and (min-width: 1025px) {
             .lesson-layout-grid {
                 display: grid;
-                grid-template-columns: 1fr 380px;
+                grid-template-columns: 1fr 420px;
                 gap: 1.5rem;
                 align-items: start;
                 min-height: calc(100vh - 140px);
@@ -201,26 +201,30 @@
         /* ── サイドバー（タブ＆コンテンツ） ── */
         .sidebar-tab-group {
             display: flex;
-            gap: 0.3rem;
+            gap: 0.4rem;
             border-bottom: 1px solid #22222a;
             padding-bottom: 0.6rem;
             margin-bottom: 1rem;
         }
         .sidebar-tab-btn {
+            flex: 1;
+            text-align: center;
+            white-space: nowrap; /* 💡 改行を完全防御 */
             background: transparent;
             border: 1px solid #22222a;
             color: var(--text-muted);
-            font-size: 0.78rem;
+            font-size: 0.8rem;
             font-weight: 800;
-            padding: 0.4rem 0.7rem;
+            padding: 0.5rem 0.3rem;
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.15s ease;
         }
         .sidebar-tab-btn.active {
-            background: rgba(0, 243, 255, 0.1);
+            background: rgba(0, 243, 255, 0.12);
             border-color: var(--accent-cyan);
             color: var(--accent-cyan);
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.15);
         }
         .sidebar-panel {
             display: none;
@@ -240,34 +244,63 @@
             padding-right: 0.3rem;
         }
         .toc-item {
-            padding: 0.8rem 1rem;
-            border-radius: 12px;
+            padding: 0.9rem 1.1rem;
+            border-radius: 14px;
             background: rgba(255, 255, 255, 0.02);
             border: 1px solid #1a2a35;
-            margin-bottom: 0.6rem;
+            margin-bottom: 0.7rem;
             transition: all 0.15s ease;
         }
         .toc-item.current-active {
             background: rgba(255, 245, 0, 0.08);
             border-color: var(--accent-yellow);
-            box-shadow: 0 0 12px rgba(255, 245, 0, 0.15);
+            box-shadow: 0 0 14px rgba(255, 245, 0, 0.15);
         }
         .toc-item-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
+            gap: 0.6rem;
+        }
+        .toc-item-title {
             font-size: 0.88rem;
             font-weight: 800;
-            color: #fff;
+            color: #ffffff;
+            line-height: 1.45;
+            word-break: break-word;
+            flex-grow: 1;
         }
-        .toc-item.current-active .toc-item-header {
+        .toc-item.current-active .toc-item-title {
             color: var(--accent-yellow);
+        }
+        .toc-status-badge {
+            font-size: 0.72rem;
+            font-weight: 800;
+            padding: 0.2rem 0.55rem;
+            border-radius: 12px;
+            white-space: nowrap; /* 💡 バッジ文字の改行を完全防御 */
+            flex-shrink: 0;     /* 💡 潰れ防止 */
+            line-height: 1.2;
+        }
+        .badge-toc-active {
+            color: var(--accent-yellow);
+            border: 1px solid var(--accent-yellow);
+            background: rgba(255, 245, 0, 0.15);
+        }
+        .badge-toc-done {
+            color: var(--text-muted);
+            border: 1px solid #3a3a4a;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .badge-toc-upcoming {
+            color: #607080;
+            border: 1px dashed #222233;
         }
         .toc-item-summary {
             font-size: 0.78rem;
             color: var(--text-muted);
-            margin-top: 0.3rem;
-            line-height: 1.4;
+            margin-top: 0.4rem;
+            line-height: 1.45;
         }
 
         /* 授業ノートテキストエリア */
@@ -324,7 +357,11 @@
         <header class="lesson-header">
             <div>
                 <h1>📖 参考書 授業モード</h1>
-                <a class="back-link" href="index.html">← ダッシュボードに戻る</a>
+                <div style="display: flex; gap: 1rem; align-items: center; margin-top: 0.3rem;">
+                    <a class="back-link" href="lesson.html" style="color: var(--accent-cyan); font-weight: 700;">📚 授業一覧・新しい授業</a>
+                    <span style="color: #334455;">|</span>
+                    <a class="back-link" href="index.html">← ダッシュボードに戻る</a>
+                </div>
             </div>
             <button type="button" class="settings-link" id="open-settings-btn">⚙️ 授業の方針を編集</button>
         </header>
@@ -837,14 +874,15 @@ ${parts.map((p, i) => `${i + 1}. ${p.title} - ${p.summary}`).join("\n")}
             container.innerHTML = currentLesson.parts.map((p, i) => {
                 const isActive = i === currentIdx;
                 const isDone = i < currentIdx || currentLesson.status === "completed";
-                let statusBadge = isActive 
-                    ? `<span style="font-size:0.7rem; color:var(--accent-yellow); border:1px solid var(--accent-yellow); padding:0.1rem 0.4rem; border-radius:10px; font-weight:800;">▶ 授業中</span>` 
-                    : (isDone ? `<span style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">✓ 完了</span>` : `<span style="font-size:0.7rem; color:var(--text-muted);">未講義</span>`);
+                
+                let badgeClass = isActive ? "badge-toc-active" : (isDone ? "badge-toc-done" : "badge-toc-upcoming");
+                let badgeText = isActive ? "▶ 授業中" : (isDone ? "✓ 完了" : "未講義");
+
                 return `
                     <div class="toc-item ${isActive ? 'current-active' : ''}">
                         <div class="toc-item-header">
-                            <span>第${i + 1}回: ${p.title}</span>
-                            ${statusBadge}
+                            <span class="toc-item-title">第${i + 1}回: ${p.title}</span>
+                            <span class="toc-status-badge ${badgeClass}">${badgeText}</span>
                         </div>
                         <div class="toc-item-summary">${p.summary || ''}</div>
                     </div>
