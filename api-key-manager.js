@@ -196,18 +196,18 @@ function injectStylesAndModal() {
             <div class="apikm-section" data-engine-section="gemini">
                 <div class="apikm-section-label">✨ Gemini キー</div>
                 <div class="apikm-key-list" data-list="gemini"></div>
-                <div class="apikm-add-row">
-                    <input type="password" class="apikm-add-input" data-input="gemini" placeholder="Geminiの新しいAPIキーを貼り付け">
+                <form class="apikm-add-row" autocomplete="off" onsubmit="return false;">
+                    <input type="password" class="apikm-add-input" data-input="gemini" name="apikm-gemini-field" placeholder="Geminiの新しいAPIキーを貼り付け" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true">
                     <button type="button" class="apikm-add-btn" data-add="gemini">＋ 追加</button>
-                </div>
+                </form>
             </div>
             <div class="apikm-section" data-engine-section="deepseek">
                 <div class="apikm-section-label">🐋 DeepSeek キー</div>
                 <div class="apikm-key-list" data-list="deepseek"></div>
-                <div class="apikm-add-row">
-                    <input type="password" class="apikm-add-input" data-input="deepseek" placeholder="DeepSeekの新しいAPIキーを貼り付け">
+                <form class="apikm-add-row" autocomplete="off" onsubmit="return false;">
+                    <input type="password" class="apikm-add-input" data-input="deepseek" name="apikm-deepseek-field" placeholder="DeepSeekの新しいAPIキーを貼り付け" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true">
                     <button type="button" class="apikm-add-btn" data-add="deepseek">＋ 追加</button>
-                </div>
+                </form>
             </div>
             <div class="apikm-close-row">
                 <button type="button" class="apikm-close-btn" id="apikm-close-btn">閉じる</button>
