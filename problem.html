@@ -291,6 +291,13 @@
             <section class="squircle-tile main-question-tile">
                 <div class="tile-header-group" style="display: flex; justify-content: space-between; align-items: center; width:100%;">
                     <span class="badge badge-physics" id="question-badge">LOADING...</span>
+                    <select id="on-demand-subject-select" style="display:none; background:#0a0a0a; color:var(--accent-cyan); border:1px solid var(--accent-cyan); border-radius:8px; font-size:0.8rem; font-weight:800; padding:0.3rem 0.5rem;">
+                        <option value="数学">数学</option>
+                        <option value="物理">物理</option>
+                        <option value="化学">化学</option>
+                        <option value="生物">生物</option>
+                        <option value="英語">英語</option>
+                    </select>
                     <button type="button" class="btn-analyze-now" id="on-demand-analyze-btn">⚡ この問題をAI解析する</button>
                     <span id="analyze-engine-hint" style="display:none; font-size:0.7rem; color:var(--text-muted); font-weight:700; margin-left:0.3rem;"></span>
                 </div>
@@ -473,32 +480,154 @@
             updateEngineToggleUI();
         }
 
-        const GEMINI_SYSTEM_INSTRUCTION = `
-        あなたは高校数学・物理の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
-        出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
-        {
-          "subject": "物理" または "数学",
-          "field": "分野名",
-          "short_title": "問題の要約タイトル",
-          "extracted_text": "読み取った正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと",
-          "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
-          "strategy_pattern": "【最重要】この問題固有の数値や図形には一切触れず、①問題文のどの特徴（キーワード・条件・図形の形）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ（例:『垂直条件が出たら内積=0を疑う』『分点の位置ベクトルはAD:DB=OA:ODの比から係数を決める』など）、③なぜそのアプローチが有効なのか、を一般化して説明すること。これは『解き方の地図』であり、具体的な計算はここに書かない。2〜4文程度。数式を含む場合は$で囲むこと",
-          "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。冒頭でstrategy_patternに書いた定石に軽く触れてから、それに沿って具体的な数値・文字で計算を進めること。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
-        }
-        `;
+        // 🧠【教科ごとの解析プロンプト集】未解析問題の解析・再解析で共通利用
+        const SUBJECT_CREATE_PROMPTS = {
+            "数学": `
+あなたは高校数学の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
+出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
+{
+  "subject": "数学",
+  "field": "分野名（例：数学II 式と証明、数学B ベクトル など）",
+  "short_title": "問題の要約タイトル",
+  "extracted_text": "読み取った正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと",
+  "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
+  "strategy_pattern": "【最重要】この問題固有の数値や図形には一切触れず、①問題文のどの特徴（キーワード・条件・図形の形）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ、③なぜそのアプローチが有効なのか、を一般化して説明すること。これは『解き方の地図』であり、具体的な計算はここに書かない。2〜4文程度。数式を含む場合は$で囲むこと",
+  "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。冒頭でstrategy_patternに書いた定石に軽く触れてから、それに沿って具体的な数値・文字で計算を進めること。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
+}
+`.trim(),
 
-        const SYSTEM_INSTRUCTION_BASE = `
-        あなたは高校数学・物理の解説エキスパートAIチューターです。
-        生徒は提示された「模範解答と解説」を読んでいますが、一部納得がいかない、または計算の途中過程が理解できずに質問しています。
-        生徒の疑問（例:「なぜこの式変形になるのか」「なぜこの条件が必要なのか」など）に対して、ピンポイントで優しく、論理的に解説してください。
-        数式や変数（m, v, g, theta等）は必ず「$m$」「$\\sin\\theta$」のように$で囲むLaTeX形式にすること。
+            "物理": `
+あなたは高校物理の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
+出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
+{
+  "subject": "物理",
+  "field": "分野名（例：力学 運動方程式、電磁気 コンデンサー など）",
+  "short_title": "問題の要約タイトル",
+  "extracted_text": "読み取った正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと",
+  "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文（単位・符号ミスなども含む）",
+  "strategy_pattern": "【最重要】この問題固有の数値や図形には一切触れず、①問題文のどの特徴（キーワード・条件・設定）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ、③なぜそのアプローチが有効なのか、を一般化して説明すること。これは『解き方の地図』であり、具体的な計算はここに書かない。2〜4文程度。数式を含む場合は$で囲むこと",
+  "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。冒頭でstrategy_patternに書いた定石に軽く触れてから、それに沿って具体的な数値・文字で計算を進めること。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
+}
+`.trim(),
 
-        返答は以下のJSONのみ（説明不要）：
-        {
-          "ai_response": "生徒の疑問に対する丁寧な解説（数式は$ $を使用）",
-          "current_step_label": "解説中・疑問解消など"
+            "化学": `
+あなたは高校化学の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
+出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
+{
+  "subject": "化学",
+  "field": "分野名（例：理論化学 mol計算、無機化学、有機化学 構造決定 など）",
+  "short_title": "問題の要約タイトル",
+  "extracted_text": "読み取った正確な問題文の全文。化学式や数値は $H_2O$ や $CO_2$ のように下付き文字を含むLaTeX形式（$で囲む）で表現すること",
+  "trap_description": "高校生がこの問題で最も間違えやすいポイント（単位換算ミス、有効数字、反応式の係数合わせなど）の解説文",
+  "strategy_pattern": "【最重要】この問題固有の数値や物質名には一切触れず、①問題文のどの特徴（キーワード・条件）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ、③なぜそのアプローチが有効なのか、を一般化して説明すること。2〜4文程度。数式を含む場合は$で囲むこと",
+  "model_answer": "最終的な正しい答えと、ステップごとの分かりやすい解説。化学反応式・化学式・数値・単位は必ず $ で囲んだLaTeX形式（例：$2H_2 + O_2 \\rightarrow 2H_2O$）で書くこと。手順ごとに改行コード（\\n）を挟んで見やすい箇条書き形式（1., 2.など）で出力すること"
+}
+`.trim(),
+
+            "生物": `
+あなたは高校生物の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
+出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
+{
+  "subject": "生物",
+  "field": "分野名（例：遺伝、代謝、体内環境、生態系 など）",
+  "short_title": "問題の要約タイトル",
+  "extracted_text": "読み取った正確な問題文の全文",
+  "trap_description": "高校生がこの問題で最も間違えやすい用語の混同や理解不足のポイントの解説文",
+  "strategy_pattern": "【最重要】この問題固有の生物名・数値には一切触れず、①問題文のどの特徴（キーワード・条件）を見て問題の『型』を判断するか、②その型に対して定石として使うべき考え方、③なぜそれが有効なのか、を一般化して説明すること。2〜4文程度。",
+  "model_answer": "最終的な正しい答えと、ステップごとの分かりやすい解説。用語は正確に使うこと。計算が必要な場合（遺伝の分離比など）は数値を$で囲んだLaTeX形式にすること。手順ごとに改行コード（\\n）を挟んで見やすい箇条書き形式（1., 2.など）で出力すること"
+}
+`.trim(),
+
+            "英語": `
+あなたは高校英語の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
+数式のLaTeX記法（$記号など）は一切使用しないこと。英文はそのまま英語表記で、解説はすべて日本語で書くこと。
+出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
+{
+  "subject": "英語",
+  "field": "分野名（例：文法・語法、長文読解、英作文、語彙 など）",
+  "short_title": "問題の要約タイトル",
+  "extracted_text": "読み取った正確な問題文・英文の全文（英語のまま。改行は\\nで保持）",
+  "trap_description": "高校生がこの問題で引っかかりやすい文法事項・構文・語彙・訳し方のポイントを日本語で解説",
+  "strategy_pattern": "【最重要】この問題固有の単語や具体的な訳には一切触れず、①英文のどの特徴（接続詞・構文・時制などのキーワード）を見て問題の『型』を判断するか、②その型に対して定石として使うべき読解・解答アプローチ、③なぜそのアプローチが有効なのか、を一般化して説明すること。2〜4文程度。",
+  "model_answer": "最終的な正しい答え・和訳と、ステップごとの分かりやすい解説（文構造の分解、重要単語・熟語の意味、文法事項の解説を含む）。手順ごとに改行コード（\\n）を挟んで見やすい箇条書き形式（1., 2.など）で出力すること"
+}
+`.trim()
+        };
+
+        // 🧠【教科ごとのチャット（質問対応）プロンプト集】保存済みのsubjectで自動選択
+        const SUBJECT_CHAT_PROMPTS = {
+            "数学": `
+あなたは高校数学の解説エキスパートAIチューターです。
+生徒は提示された「模範解答と解説」を読んでいますが、一部納得がいかない、または計算の途中過程が理解できずに質問しています。
+生徒の疑問（例:「なぜこの式変形になるのか」「なぜこの条件が必要なのか」など）に対して、ピンポイントで優しく、論理的に解説してください。
+数式や変数（x, y, a, b等）は必ず「$x$」「$\\sin\\theta$」のように$で囲むLaTeX形式にすること。
+
+返答は以下のJSONのみ（説明不要）：
+{
+  "ai_response": "生徒の疑問に対する丁寧な解説（数式は$ $を使用）",
+  "current_step_label": "解説中・疑問解消など"
+}
+`.trim(),
+
+            "物理": `
+あなたは高校物理の解説エキスパートAIチューターです。
+生徒は提示された「模範解答と解説」を読んでいますが、一部納得がいかない、または計算の途中過程が理解できずに質問しています。
+生徒の疑問（例:「なぜこの式変形になるのか」「なぜこの条件が必要なのか」など）に対して、ピンポイントで優しく、論理的に解説してください。
+数式や変数（m, v, g, theta等）は必ず「$m$」「$\\sin\\theta$」のように$で囲むLaTeX形式にすること。
+
+返答は以下のJSONのみ（説明不要）：
+{
+  "ai_response": "生徒の疑問に対する丁寧な解説（数式は$ $を使用）",
+  "current_step_label": "解説中・疑問解消など"
+}
+`.trim(),
+
+            "化学": `
+あなたは高校化学の解説エキスパートAIチューターです。
+生徒は提示された「模範解答と解説」を読んでいますが、一部納得がいかない、または計算の途中過程が理解できずに質問しています。
+生徒の疑問に対して、ピンポイントで優しく、論理的に解説してください。
+化学式・数式・数値は必ず「$H_2O$」「$2H_2 + O_2 \\rightarrow 2H_2O$」のように$で囲むLaTeX形式にすること。
+
+返答は以下のJSONのみ（説明不要）：
+{
+  "ai_response": "生徒の疑問に対する丁寧な解説（数式・化学式は$ $を使用）",
+  "current_step_label": "解説中・疑問解消など"
+}
+`.trim(),
+
+            "生物": `
+あなたは高校生物の解説エキスパートAIチューターです。
+生徒は提示された「模範解答と解説」を読んでいますが、一部納得がいかない、または用語・仕組みが理解できずに質問しています。
+生徒の疑問に対して、ピンポイントで優しく、論理的に解説してください。用語は正確に使うこと。数値計算が必要な場合は$で囲むこと。
+
+返答は以下のJSONのみ（説明不要）：
+{
+  "ai_response": "生徒の疑問に対する丁寧な解説",
+  "current_step_label": "解説中・疑問解消など"
+}
+`.trim(),
+
+            "英語": `
+あなたは高校英語の解説エキスパートAIチューターです。
+数式のLaTeX記法（$記号など）は一切使用しないこと。
+生徒は提示された「模範解答と解説」を読んでいますが、文法・構文・語彙・訳し方のどこかで納得がいかず質問しています。
+生徒の疑問に対して、ピンポイントで優しく、論理的に日本語で解説してください。英文を引用する場合はそのまま英語で書いてよい。
+
+返答は以下のJSONのみ（説明不要）：
+{
+  "ai_response": "生徒の疑問に対する丁寧な解説",
+  "current_step_label": "解説中・疑問解消など"
+}
+`.trim()
+        };
+
+        // 現在の問題の教科に対応するプロンプトを返すヘルパー（未登録教科は数学にフォールバック）
+        function getCreatePrompt(subject) {
+            return SUBJECT_CREATE_PROMPTS[subject] || SUBJECT_CREATE_PROMPTS["数学"];
         }
-        `.trim();
+        function getChatPrompt(subject) {
+            return SUBJECT_CHAT_PROMPTS[subject] || SUBJECT_CHAT_PROMPTS["数学"];
+        }
 
         let chatHistory = []; 
         let currentProblemData = {};
@@ -559,10 +688,13 @@
                 badge.textContent = currentProblemData.subject + " // " + currentProblemData.field + " // 誤答回数: " + String(currentProblemData.errorCount).padStart(2, '0');
                 
                 const analyzeBtn = document.getElementById("on-demand-analyze-btn");
+                const subjectSelect = document.getElementById("on-demand-subject-select");
                 if (currentProblemData.subject === "未分類") {
                     analyzeBtn.style.display = "block";
+                    if (subjectSelect) subjectSelect.style.display = "inline-block";
                 } else {
                     analyzeBtn.style.display = "none";
+                    if (subjectSelect) subjectSelect.style.display = "none";
                 }
 
                 const figBox = document.getElementById("figure-box");
@@ -814,12 +946,16 @@
                 instructionText += `\n\n【解析対象の問題文】\n${currentProblemData.title}`;
             }
 
+            // ユーザーが選んだ教科に応じたプロンプトを使用（未選択時は数学扱い）
+            const subjectSelectEl = document.getElementById("on-demand-subject-select");
+            const chosenSubject = (subjectSelectEl && subjectSelectEl.value) || "数学";
+
             try {
-                const aiResult = await callAnalysisEngine(instructionText, GEMINI_SYSTEM_INSTRUCTION);
+                const aiResult = await callAnalysisEngine(instructionText, getCreatePrompt(chosenSubject));
 
                 currentProblemData.title = aiResult.extracted_text || currentProblemData.title;
                 currentProblemData.short_title = aiResult.short_title || "解析問題";
-                currentProblemData.subject = aiResult.subject || "未分類";
+                currentProblemData.subject = chosenSubject;
                 currentProblemData.field = aiResult.field || "手動管理";
                 currentProblemData.trap_description = aiResult.trap_description || "";
                 currentProblemData.strategyPattern = aiResult.strategy_pattern || "";
@@ -913,7 +1049,7 @@
 
                 if (ACTIVE_ENGINE === "deepseek") {
                     const optimizedMessages = [
-                        { "role": "system", "content": SYSTEM_INSTRUCTION_BASE },
+                        { "role": "system", "content": getChatPrompt(currentProblemData.subject) },
                         ...conversationMessages
                     ];
                     const tutorDeepseekBody = JSON.stringify({
@@ -950,7 +1086,7 @@
 
                     const tutorRequestBody = JSON.stringify({
                         "contents": geminiContents,
-                        "systemInstruction": { "parts": [{ "text": SYSTEM_INSTRUCTION_BASE }] },
+                        "systemInstruction": { "parts": [{ "text": getChatPrompt(currentProblemData.subject) }] },
                         "generationConfig": { "responseMimeType": "application/json", "temperature": 0.5 }
                     });
 
@@ -1159,27 +1295,27 @@
             });
         }
 
-        // 🔄 【追加】AIに超精密なプロンプトで解説をやり直させるロジック
-        const REGEN_SYSTEM_INSTRUCTION = `
-        あなたは高校数学・物理の「超精密な誤答分析・解説生成AI」です。
-        先ほど生成された解説の計算精度、または数式レンダリング（LaTeX記法）に不備があったため、今回は【最高精度・厳密フォーマット】で解説を再生成してください。
-
-        【最重要：数式フォーマットの絶対規律】
-        1. 本文中に登場するすべての数式、変数(x, y, a, b, c等)、関数、数値、演算記号(⇒、等号、プラスマイナス)、分数(\\frac)、点(\\cdot)は、単一の文字であっても【必ず漏れなく】前後に $ または $$ をつけて完全なLaTeX形式にしてください。
-        2. $ で囲まれていない生の「\\frac」や「\\cdot」などの記法が本文中に露出することは絶対に許されません。
-        3. 解説文は、手順ごとに必ず改行コード（\\n）を適切に挟んで、論理の飛躍がない見やすい箇条書き形式（1., 2.など）で出力してください。
-
-        出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
-        {
-          "subject": "物理" または "数学",
-          "field": "分野名",
-          "short_title": "問題の要約タイトル",
-          "extracted_text": "読み取った正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと",
-          "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
-          "strategy_pattern": "【最重要】この問題固有の数値や図形には一切触れず、①問題文のどの特徴（キーワード・条件・図形の形）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ、③なぜそのアプローチが有効なのか、を一般化して説明すること。これは『解き方の地図』であり、具体的な計算はここに書かない。2〜4文程度。数式を含む場合は$で囲むこと",
-          "model_answer": "最終的な正しい答えと、ステップごとの分かりやすい超詳細な解説。冒頭でstrategy_patternに書いた定石に軽く触れてから、それに沿って具体的な数値・文字で計算を進めること。数式や変数を記述する場合は、必ず前後に $ または $$ をつけること"
+        // 🔄 【追加】AIに超精密なプロンプトで解説をやり直させるロジック（教科別に厳密度の観点を出し分け）
+        function getRegenPrompt(subject) {
+            const base = getCreatePrompt(subject);
+            if (subject === "英語") {
+                return (
+                    `あなたは高校英語の「超精密な誤答分析・解説生成AI」です。\n` +
+                    `先ほど生成された解説の文法解釈・訳出精度に不備があった可能性があるため、今回は【最高精度】で解説を再生成してください。\n` +
+                    `文構造の分解、訳の正確さ、文法用語の使い方に一切の曖昧さがないよう細心の注意を払ってください。\n\n` +
+                    base
+                );
+            }
+            return (
+                `あなたは高校${subject}の「超精密な誤答分析・解説生成AI」です。\n` +
+                `先ほど生成された解説の計算精度、または数式レンダリング（LaTeX記法）に不備があったため、今回は【最高精度・厳密フォーマット】で解説を再生成してください。\n\n` +
+                `【最重要：数式フォーマットの絶対規律】\n` +
+                `1. 本文中に登場するすべての数式、変数、関数、数値、演算記号(⇒、等号、プラスマイナス)、分数(\\frac)、点(\\cdot)は、単一の文字であっても【必ず漏れなく】前後に $ または $$ をつけて完全なLaTeX形式にしてください。\n` +
+                `2. $ で囲まれていない生の「\\frac」や「\\cdot」などの記法が本文中に露出することは絶対に許されません。\n` +
+                `3. 解説文は、手順ごとに必ず改行コード（\\n）を適切に挟んで、論理の飛躍がない見やすい箇条書き形式（1., 2.など）で出力してください。\n\n` +
+                base
+            );
         }
-        `.trim();
 
         async function runRegenerateAnalysis() {
             if (!loginUid || (!currentProblemData.imageData && !currentProblemData.title)) {
@@ -1201,7 +1337,7 @@
             }
 
             try {
-                const aiResult = await callAnalysisEngine(instructionText, REGEN_SYSTEM_INSTRUCTION);
+                const aiResult = await callAnalysisEngine(instructionText, getRegenPrompt(currentProblemData.subject || "数学"));
 
                 currentProblemData.title = aiResult.extracted_text || currentProblemData.title;
                 currentProblemData.short_title = aiResult.short_title || currentProblemData.short_title;
