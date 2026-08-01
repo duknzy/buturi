@@ -707,7 +707,7 @@
 
 
    <script type="module">
-        import { getGeminiKeys, getDeepseekKeys, fetchWithKeyRotation, initApiKeyManager, clearAllKeys } from "./api-key-manager.js";
+        import { getGeminiKeys, getDeepseekKeys, fetchWithKeyRotation, initApiKeyManager, clearAllKeys, notifyModelFallback } from "./api-key-manager.js";
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -1232,6 +1232,7 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                 let parsedResult = null;
                 let usedModel = null;
                 let lastError = null;
+                const fallbackAttempts = [];
 
                 for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
                     submitBtn.textContent = `Gemini(${modelName})が分析中...`;
@@ -1249,6 +1250,7 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                         // 登録済みの全キーで失敗した場合のみ、次のモデルへフォールバック
                         console.warn(`⚠️ ${modelName} は登録済みの全キーで失敗しました → 次のモデルへフォールバック`, err);
                         lastError = err;
+                        fallbackAttempts.push({ model: modelName, reason: err?.message || "不明な通信エラー" });
                         continue;
                     }
 
@@ -1258,6 +1260,7 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                     if (!candidateText) {
                         console.warn(`⚠️ ${modelName} が空の応答を返却しました → 次のモデルへフォールバック`);
                         lastError = new Error(`Empty response: ${modelName}`);
+                        fallbackAttempts.push({ model: modelName, reason: "空応答（finishReason等が原因の可能性）" });
                         continue;
                     }
 
@@ -1274,16 +1277,15 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                     } catch (parseErr) {
                         console.warn(`⚠️ ${modelName} の応答が不正なJSONでした → 次のモデルへフォールバック`, parseErr);
                         lastError = parseErr;
+                        fallbackAttempts.push({ model: modelName, reason: "JSON解析エラー（応答の形式が崩れていた）" });
                         continue;
                     }
                 }
 
+                notifyModelFallback(fallbackAttempts, usedModel);
+
                 if (!parsedResult) {
                     throw new Error(`全モデルが利用できませんでした（レート制限または不正な応答）。時間を置いて再度お試しください。\n最終エラー: ${lastError?.message || "不明"}`);
-                }
-
-                if (usedModel !== GEMINI_MODEL_FALLBACK_LIST[0]) {
-                    console.info(`ℹ️ フォールバック発生: 今回は ${usedModel} を使用しました`);
                 }
 
                 const aiResult = parsedResult;

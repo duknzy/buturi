@@ -397,7 +397,7 @@
     </div>
 
    <script type="module">
-        import { getGeminiKeys, getDeepseekKeys, fetchWithKeyRotation, initApiKeyManager } from "./api-key-manager.js";
+        import { getGeminiKeys, getDeepseekKeys, fetchWithKeyRotation, initApiKeyManager, notifyModelFallback } from "./api-key-manager.js";
 
         const proto = "https" + "://";
         const d = ".";
@@ -876,6 +876,7 @@
                 let parsedResult = null;
                 let usedModel = null;
                 let lastError = null;
+                const fallbackAttempts = []; // { model, reason } を蓄積
 
                 for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
                     let response;
@@ -891,6 +892,7 @@
                     } catch (err) {
                         console.warn(`⚠️ ${modelName} は登録済みの全キーで失敗しました → 次のモデルへフォールバック`, err);
                         lastError = err;
+                        fallbackAttempts.push({ model: modelName, reason: err?.message || "不明な通信エラー" });
                         continue;
                     }
 
@@ -900,6 +902,7 @@
                     if (!candidateText) {
                         console.warn(`⚠️ ${modelName} が空の応答を返却しました → 次のモデルへフォールバック`);
                         lastError = new Error(`Empty response: ${modelName}`);
+                        fallbackAttempts.push({ model: modelName, reason: "空応答（finishReason等が原因の可能性）" });
                         continue;
                     }
 
@@ -910,16 +913,15 @@
                     } catch (parseErr) {
                         console.warn(`⚠️ ${modelName} の応答が不正なJSONでした → 次のモデルへフォールバック`, parseErr);
                         lastError = parseErr;
+                        fallbackAttempts.push({ model: modelName, reason: "JSON解析エラー（応答の形式が崩れていた）" });
                         continue;
                     }
                 }
 
+                notifyModelFallback(fallbackAttempts, usedModel);
+
                 if (!parsedResult) {
                     throw new Error(`全モデルが利用できませんでした（レート制限または不正な応答）。時間を置いて再度お試しください。\n最終エラー: ${lastError?.message || "不明"}`);
-                }
-
-                if (usedModel !== GEMINI_MODEL_FALLBACK_LIST[0]) {
-                    console.info(`ℹ️ フォールバック発生: 今回は ${usedModel} を使用しました`);
                 }
 
                 return parsedResult;
@@ -1093,6 +1095,7 @@
                     let tutorData = null;
                     let tutorUsedModel = null;
                     let tutorLastError = null;
+                    const tutorFallbackAttempts = [];
 
                     for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
                         let response;
@@ -1108,6 +1111,7 @@
                         } catch (err) {
                             console.warn(`⚠️ ${modelName} は登録済みの全キーで失敗しました → 次のモデルへフォールバック`, err);
                             tutorLastError = err;
+                            tutorFallbackAttempts.push({ model: modelName, reason: err?.message || "不明な通信エラー" });
                             continue;
                         }
 
@@ -1117,6 +1121,7 @@
                         if (!candidateText) {
                             console.warn(`⚠️ ${modelName} が空の応答を返却しました → 次のモデルへフォールバック`);
                             tutorLastError = new Error(`Empty response: ${modelName}`);
+                            tutorFallbackAttempts.push({ model: modelName, reason: "空応答（finishReason等が原因の可能性）" });
                             continue;
                         }
 
@@ -1128,16 +1133,15 @@
                         } catch (parseErr) {
                             console.warn(`⚠️ ${modelName} の応答が不正なJSONでした → 次のモデルへフォールバック`, parseErr);
                             tutorLastError = parseErr;
+                            tutorFallbackAttempts.push({ model: modelName, reason: "JSON解析エラー（応答の形式が崩れていた）" });
                             continue;
                         }
                     }
 
+                    notifyModelFallback(tutorFallbackAttempts, tutorUsedModel);
+
                     if (!tutorData) {
                         throw new Error(`全モデルが利用できませんでした（レート制限または不正な応答）。時間を置いて再度お試しください。\n最終エラー: ${tutorLastError?.message || "不明"}`);
-                    }
-
-                    if (tutorUsedModel !== GEMINI_MODEL_FALLBACK_LIST[0]) {
-                        console.info(`ℹ️ フォールバック発生: 今回は ${tutorUsedModel} を使用しました`);
                     }
                 }
 

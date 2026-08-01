@@ -320,3 +320,90 @@ export function openApiKeyManager() {
     injectStylesAndModal();
     if (window.__apikmOpen) window.__apikmOpen();
 }
+
+// --------------------------------------------------------------------------
+// 🩺 モデル・フォールバック診断ログ
+// callAnalysisEngine / チャット送信 側で「どのモデルが・なぜ失敗したか」を集めて
+// consoleに詳細出力＋画面右下にトースト表示する。
+// attempts: [{ model: "gemini-3.6-flash", reason: "空応答" }, ...]（失敗したものだけ）
+// usedModel: 最終的に成功したモデル名（全滅なら null）
+// --------------------------------------------------------------------------
+let fallbackToastStyleInjected = false;
+
+function injectFallbackToastStyles() {
+    if (fallbackToastStyleInjected) return;
+    fallbackToastStyleInjected = true;
+    const style = document.createElement("style");
+    style.textContent = `
+        #apikm-fallback-toast-wrap {
+            position: fixed; right: 1.2rem; bottom: 5.2rem; z-index: 100055;
+            display: flex; flex-direction: column; gap: 0.6rem; max-width: 340px;
+        }
+        .apikm-fallback-toast {
+            background: rgba(10,10,18,0.97); border: 1px solid var(--accent-magenta, #ff007f);
+            box-shadow: 0 0 18px rgba(255,0,127,0.25); border-radius: 14px; padding: 0.9rem 1rem;
+            color: var(--text-main, #fff); font-size: 0.78rem; line-height: 1.5;
+            animation: apikm-toast-in 0.2s ease;
+        }
+        @keyframes apikm-toast-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .apikm-fallback-toast-title { font-weight: 900; font-size: 0.82rem; margin-bottom: 0.5rem; color: var(--accent-magenta, #ff007f); display:flex; justify-content:space-between; align-items:center; gap:0.5rem; }
+        .apikm-fallback-toast-close { cursor: pointer; color: var(--text-muted,#708590); font-weight: 900; flex-shrink:0; }
+        .apikm-fallback-row { display:flex; justify-content: space-between; gap: 0.6rem; padding: 0.2rem 0; border-bottom: 1px dashed #22222a; }
+        .apikm-fallback-row:last-of-type { border-bottom: none; }
+        .apikm-fallback-model { font-family: monospace; color: var(--text-bright-muted, #a0b5c0); }
+        .apikm-fallback-reason { color: #ff8080; flex-shrink: 0; text-align: right; }
+        .apikm-fallback-final { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #22222a; font-weight: 800; color: var(--accent-cyan, #00f3ff); }
+    `;
+    document.head.appendChild(style);
+}
+
+function getFallbackToastWrap() {
+    let wrap = document.getElementById("apikm-fallback-toast-wrap");
+    if (!wrap) {
+        wrap = document.createElement("div");
+        wrap.id = "apikm-fallback-toast-wrap";
+        document.body.appendChild(wrap);
+    }
+    return wrap;
+}
+
+export function notifyModelFallback(attempts, usedModel) {
+    if (!attempts || attempts.length === 0) return; // 1回目のモデルで成功＝報告不要
+
+    // console側には常に詳細を出す
+    console.group(`🩺 モデル・フォールバック診断（${attempts.length}件失敗 → ${usedModel || "全滅"}）`);
+    attempts.forEach(a => console.warn(`❌ ${a.model} : ${a.reason}`));
+    if (usedModel) console.info(`✅ 最終的に使用: ${usedModel}`);
+    else console.error("⛔ 登録済みの全モデル・全キーで失敗しました");
+    console.groupEnd();
+
+    // 画面右下にもトーストで簡易表示（消えるまで8秒）
+    injectFallbackToastStyles();
+    const wrap = getFallbackToastWrap();
+
+    const toast = document.createElement("div");
+    toast.className = "apikm-fallback-toast";
+    const rows = attempts.map(a => `
+        <div class="apikm-fallback-row">
+            <span class="apikm-fallback-model">${a.model}</span>
+            <span class="apikm-fallback-reason">${a.reason}</span>
+        </div>
+    `).join("");
+    const finalLine = usedModel
+        ? `<div class="apikm-fallback-final">→ ${usedModel} で成功</div>`
+        : `<div class="apikm-fallback-final" style="color:#ff4545;">→ 全モデル失敗しました</div>`;
+
+    toast.innerHTML = `
+        <div class="apikm-fallback-toast-title">
+            <span>⚠️ モデル・フォールバック発生</span>
+            <span class="apikm-fallback-toast-close">×</span>
+        </div>
+        ${rows}
+        ${finalLine}
+    `;
+    wrap.appendChild(toast);
+
+    const remove = () => { if (toast.parentNode) toast.parentNode.removeChild(toast); };
+    toast.querySelector(".apikm-fallback-toast-close").addEventListener("click", remove);
+    setTimeout(remove, 8000);
+}
