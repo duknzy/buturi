@@ -306,8 +306,21 @@
             padding: 0.5rem 0.2rem;
             margin-top: 0.6rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            cursor: pointer;
+            user-select: none;
         }
+        .problem-section-header:hover { color: #fff; }
         .problem-section-header:first-child { margin-top: 0; }
+        .problem-section-header-left { display: flex; align-items: center; gap: 0.5rem; }
+        .problem-section-chevron {
+            display: inline-block;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            transition: transform 0.15s ease;
+        }
+        .problem-section-header.collapsed .problem-section-chevron { transform: rotate(-90deg); }
+        .problem-section-rows { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.6rem; }
+        .problem-section-rows.collapsed { display: none; }
         .problem-section-count {
             background: rgba(255, 255, 255, 0.06);
             color: var(--text-muted);
@@ -316,6 +329,41 @@
             padding: 0.15rem 0.55rem;
             border-radius: 10px;
         }
+
+        /* 🔎【新設】問題検索ボックス */
+        .problem-search-row { display: flex; gap: 0.5rem; align-items: center; }
+        .problem-search-input {
+            flex-grow: 1;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            padding: 0.55rem 0.9rem;
+            border-radius: 10px;
+            font-size: 0.85rem;
+        }
+        .problem-search-input:focus { outline: none; border-color: var(--accent-cyan); }
+        .problem-search-clear-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            border-radius: 8px;
+            padding: 0.4rem 0.7rem;
+            font-size: 0.75rem;
+            font-weight: 800;
+            cursor: pointer;
+            display: none;
+        }
+
+        /* 🗓️【新設】追加日・気づき更新日メタ表示 */
+        .row-date-meta {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+            display: flex;
+            gap: 0.7rem;
+            flex-wrap: wrap;
+        }
+        .row-date-meta span.insight-date { color: var(--accent-cyan); }
 
         /* 📋【新設】問題一覧：コンパクトなリスト行表示 */
         .problem-row {
@@ -533,6 +581,12 @@
         </div>
 
         <div id="category-filter-bar" class="glass-card filter-section-wrapper" style="display: none;">
+    <!-- 検索ボックス -->
+    <div class="filter-row problem-search-row">
+        <span class="filter-label">🔎 検索：</span>
+        <input type="text" class="problem-search-input" id="problem-search-input" placeholder="問題文・分野・タイトルで検索...">
+        <button type="button" class="problem-search-clear-btn" id="problem-search-clear-btn">✕ クリア</button>
+    </div>
     <!-- 上段：教科タブ -->
     <div class="filter-row">
         <span class="filter-label">📚 教科：</span>
@@ -944,6 +998,51 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
 
       let currentSubjectFilter = "ALL";
         let currentFieldFilter = "ALL";
+        let currentSearchQuery = "";
+
+        // 🗂️ 折りたたみ状態（端末ローカルに保存し、次回訪問時も維持）
+        let collapsedSections = new Set();
+        try {
+            const savedCollapsed = JSON.parse(localStorage.getItem("collapsedProblemSections") || "[]");
+            collapsedSections = new Set(savedCollapsed);
+        } catch (e) { collapsedSections = new Set(); }
+        function persistCollapsedSections() {
+            try { localStorage.setItem("collapsedProblemSections", JSON.stringify([...collapsedSections])); } catch (e) {}
+        }
+
+        // 🔎 検索ボックスのイベントバインド
+        const searchInputEl = document.getElementById("problem-search-input");
+        const searchClearBtnEl = document.getElementById("problem-search-clear-btn");
+        if (searchInputEl) {
+            searchInputEl.addEventListener("input", (e) => {
+                currentSearchQuery = e.target.value.trim();
+                searchClearBtnEl.style.display = currentSearchQuery ? "inline-block" : "none";
+                rebuildFilterBarAndCards();
+            });
+        }
+        if (searchClearBtnEl) {
+            searchClearBtnEl.addEventListener("click", () => {
+                currentSearchQuery = "";
+                if (searchInputEl) searchInputEl.value = "";
+                searchClearBtnEl.style.display = "none";
+                rebuildFilterBarAndCards();
+            });
+        }
+
+        // 🗓️ createdAtが無い古いデータでも、IDのタイムスタンプから追加日を推定して表示する
+        function resolveCreatedAt(p) {
+            if (p.createdAt) return new Date(p.createdAt);
+            if (p.id) {
+                const parts = p.id.split("_");
+                const ts = Number(parts[parts.length - 1]);
+                if (!isNaN(ts) && ts > 0) return new Date(ts);
+            }
+            return null;
+        }
+        function formatShortDate(d) {
+            if (!d) return null;
+            return d.toLocaleDateString('ja-JP', { year: '2-digit', month: 'numeric', day: 'numeric' });
+        }
 
         function rebuildFilterBarAndCards() {
             const dynamicArea = document.getElementById("dynamic-cards-area");
@@ -1044,6 +1143,16 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                     return; // 単元不一致でスキップ
                 }
 
+                // 🔎 検索キーワードによる絞り込み（タイトル・問題文・分野・気づきメモを対象）
+                if (currentSearchQuery) {
+                    const haystack = [
+                        p.short_title, p.title, p.field, p.subject, p.insight, p.trap_description
+                    ].filter(Boolean).join(" ").toLowerCase();
+                    if (!haystack.includes(currentSearchQuery.toLowerCase())) {
+                        return; // キーワード不一致でスキップ
+                    }
+                }
+
                 totalProblemEntries++;
                 dynamicTotalCount += Number(p.errorCount || 0);
                 
@@ -1106,6 +1215,17 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                     insightBadgeHtml = `<span class="badge badge-insight">🧠</span>`;
                 }
 
+                // 🗓️ 追加日・気づき更新日メタ表示
+                const createdAtDate = formatShortDate(resolveCreatedAt(p));
+                const insightDate = p.insightUpdatedAt ? formatShortDate(new Date(p.insightUpdatedAt)) : null;
+                let dateMetaHtml = "";
+                if (createdAtDate || insightDate) {
+                    dateMetaHtml = `<div class="row-date-meta">`;
+                    if (createdAtDate) dateMetaHtml += `<span>📅 追加: ${createdAtDate}</span>`;
+                    if (insightDate) dateMetaHtml += `<span class="insight-date">🧠 気づき更新: ${insightDate}</span>`;
+                    dateMetaHtml += `</div>`;
+                }
+
                 // 🧩 分野バッジをカンマ区切りで個別チップに分割
                 const fieldChipsHtml = fieldText
                     .split(",")
@@ -1127,6 +1247,7 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                             </div>
                             <div class="row-title tex2jax_process">${p.short_title}</div>
                             <div class="row-preview tex2jax_process">${p.title}</div>
+                            ${dateMetaHtml}
                         </div>
                         <div class="row-stat" style="color: ${rowColor};">
                             <div class="row-stat-number">${String(p.errorCount).padStart(2, '0')}</div>
@@ -1138,17 +1259,39 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                 if (buckets[timeBadgeClass]) buckets[timeBadgeClass].push(rowHtml);
             });
 
-            // 🗂️ 緊急度セクションごとに見出し＋行を描画
+            // 🗂️ 緊急度セクションごとに見出し＋行を描画（クリックで開閉可能）
             sectionOrder.forEach(section => {
                 const rows = buckets[section.key];
                 if (!rows || rows.length === 0) return;
+                const isCollapsed = collapsedSections.has(section.key);
                 dynamicArea.insertAdjacentHTML("beforeend", `
-                    <div class="problem-section-header">
-                        <span>${section.label}</span>
+                    <div class="problem-section-header ${isCollapsed ? 'collapsed' : ''}" data-section-key="${section.key}">
+                        <div class="problem-section-header-left">
+                            <span class="problem-section-chevron">▼</span>
+                            <span>${section.label}</span>
+                        </div>
                         <span class="problem-section-count">${rows.length}</span>
                     </div>
+                    <div class="problem-section-rows ${isCollapsed ? 'collapsed' : ''}" data-section-rows="${section.key}">
+                        ${rows.join("")}
+                    </div>
                 `);
-                rows.forEach(rowHtml => dynamicArea.insertAdjacentHTML("beforeend", rowHtml));
+            });
+
+            // 開閉トグルのイベントバインド
+            dynamicArea.querySelectorAll(".problem-section-header").forEach(headerEl => {
+                headerEl.addEventListener("click", () => {
+                    const key = headerEl.getAttribute("data-section-key");
+                    const rowsEl = dynamicArea.querySelector(`[data-section-rows="${key}"]`);
+                    if (collapsedSections.has(key)) {
+                        collapsedSections.delete(key);
+                    } else {
+                        collapsedSections.add(key);
+                    }
+                    headerEl.classList.toggle("collapsed");
+                    if (rowsEl) rowsEl.classList.toggle("collapsed");
+                    persistCollapsedSections();
+                });
             });
 
             if (totalProblemEntries === 0) {
@@ -1291,6 +1434,7 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                 const aiResult = parsedResult;
 
                 const newId = "CUSTOM_" + Date.now();
+                const nowIso = new Date().toISOString();
                 const newProblem = {
                     id: newId,
                     title: aiResult.extracted_text || userRawText, 
@@ -1300,10 +1444,11 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                     trap_description: aiResult.trap_description || "",
                     strategyPattern: aiResult.strategy_pattern || "",
                     errorCount: 1,
-                    lastAttemptAt: new Date().toISOString(),
+                    lastAttemptAt: nowIso,
                     lastResult: false,
                     imageData: selectedImageBase64 ? `data:${selectedImageMimeType};base64,${selectedImageBase64}` : null,
-                    answerFormula: aiResult.model_answer || "解説データなし"
+                    answerFormula: aiResult.model_answer || "解説データなし",
+                    createdAt: nowIso
                 };
 
                 await set(ref(database, 'users/' + currentUser.uid + '/problems/' + newId), newProblem);
@@ -1330,6 +1475,7 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
             try {
                 const newId = "CUSTOM_" + Date.now();
                 const timestampStr = new Date().toLocaleDateString('ja-JP');
+                const nowIso = new Date().toISOString();
                 let shortTitle = userRawText ? (userRawText.substring(0, 15) + (userRawText.length > 15 ? "..." : "")) : `クイック登録_${timestampStr}`;
                 
                 const newProblem = {
@@ -1340,10 +1486,11 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                     field: "手動管理",
                     trap_description: "この問題はAI解析をスキップして登録されました。",
                     errorCount: 1,
-                    lastAttemptAt: new Date().toISOString(),
+                    lastAttemptAt: nowIso,
                     lastResult: false,
                     imageData: selectedImageBase64 ? `data:${selectedImageMimeType};base64,${selectedImageBase64}` : null,
-                    answerFormula: "模範解答データはありません。自力で解説を確認してください。" 
+                    answerFormula: "模範解答データはありません。自力で解説を確認してください。",
+                    createdAt: nowIso
                 };
 
                 await set(ref(database, 'users/' + currentUser.uid + '/problems/' + newId), newProblem);

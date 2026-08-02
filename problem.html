@@ -273,6 +273,7 @@
             <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
                 <span style="font-weight: 900; letter-spacing: -1px; color: var(--accent-cyan)">RE:MIND // SESSION</span>
                 <span style="color: var(--text-muted); font-size: var(--fs-sm);" id="problem-id-display">PROBLEM ID: --</span>
+                <span style="color: var(--text-muted); font-size: 0.75rem;" id="problem-dates-display"></span>
                 
                 <div style="display: flex; align-items: center; gap: 0.4rem; margin-left: 0.5rem; border-left: 1px solid #1a2a35; padding-left: 1rem;">
                     <span id="problem-title-display" style="font-weight: 800; color: #fff; font-size: 0.95rem;">問題名: 読込中...</span>
@@ -658,6 +659,25 @@
 
                 document.getElementById("problem-id-display").textContent = "PROBLEM ID: " + currentProblemData.id;
                 document.getElementById("problem-title-display").textContent = "問題名: " + (currentProblemData.short_title || "未設定");
+
+                // 🗓️ 追加日・気づき更新日の表示（createdAtが無い古いデータはIDのタイムスタンプから推定）
+                (function renderDatesMeta() {
+                    const datesEl = document.getElementById("problem-dates-display");
+                    if (!datesEl) return;
+                    let createdDate = null;
+                    if (currentProblemData.createdAt) {
+                        createdDate = new Date(currentProblemData.createdAt);
+                    } else if (currentProblemData.id) {
+                        const p = currentProblemData.id.split("_");
+                        const ts = Number(p[p.length - 1]);
+                        if (!isNaN(ts) && ts > 0) createdDate = new Date(ts);
+                    }
+                    const fmt = (d) => d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' });
+                    let parts = [];
+                    if (createdDate) parts.push(`📅 追加日: ${fmt(createdDate)}`);
+                    if (currentProblemData.insightUpdatedAt) parts.push(`🧠 気づき更新: ${fmt(new Date(currentProblemData.insightUpdatedAt))}`);
+                    datesEl.textContent = parts.join("　");
+                })();
                 
                 let rawAnswer = currentProblemData.answerFormula || "解答データなし";
                 let formattedAnswer = rawAnswer
@@ -1464,6 +1484,15 @@
                     } else {
                         openInsightBtn.textContent = "🧠 この問題で得た「気づき・極意」をメモする";
                         openInsightBtn.style.background = "rgba(0, 243, 255, 0.05)";
+                    }
+
+                    const datesEl = document.getElementById("problem-dates-display");
+                    if (datesEl && currentProblemData.insightUpdatedAt) {
+                        const fmt = (d) => d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' });
+                        let parts = [];
+                        if (currentProblemData.createdAt) parts.push(`📅 追加日: ${fmt(new Date(currentProblemData.createdAt))}`);
+                        parts.push(`🧠 気づき更新: ${fmt(new Date(currentProblemData.insightUpdatedAt))}`);
+                        datesEl.textContent = parts.join("　");
                     }
 
                     alert("🎉 気づきメモをクラウドに保存しました！");
