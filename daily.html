@@ -131,7 +131,7 @@
 
         const { initializeApp } = await import(fbBase + "firebase-app.js");
         const { getAuth, onAuthStateChanged } = await import(fbBase + "firebase-auth.js");
-        const { getDatabase, ref, set, onValue } = await import(fbBase + "firebase-database.js");
+        const { getDatabase, ref, set, get, onValue } = await import(fbBase + "firebase-database.js");
 
         // Firebase設定
         const firebaseConfig = {
@@ -208,33 +208,41 @@
 
         // ✨ 誤答自動スキャン＆DeepSeek（最新V4・Thinkingモード）問題作成処理
         async function generateSprintWithAI(uid, todayStr, sprintCacheRef) {
-            const problemsRef = ref(database, 'users/' + uid + '/problems');
-            
-            onValue(problemsRef, async (snapshot) => {
-                const allProblems = snapshot.val() || {};
-                let weakFields = [];
-                
-                Object.keys(allProblems).forEach(id => {
-                    const p = allProblems[id];
-                    if (p.subject && p.subject.includes("数学") && (p.errorCount > 0 || p.lastResult === false)) {
-                        if (p.field && !p.field.includes("軌跡")) weakFields.push(p.field);
-                    }
-                });
-                
-                weakFields = [...new Set(weakFields)].slice(0, 5);
-                const weakFieldsText = weakFields.length > 0 ? weakFields.join(", ") : "特になし（全体からバランスよく出題してください）";
+            // 🔁【新設】直近数日分の出題履歴を取得し、「最近扱った分野」を集計する
+            //    → 弱点分野の自動抽出はやめて、代わりに「直近と被らないようにする」ための重複回避に使う
+            const historyRootRef = ref(database, 'users/' + uid + '/daily_sprint');
+            const historySnapshot = await get(historyRootRef);
+            const historyData = historySnapshot.val() || {};
 
-                // DeepSeekの推論力を引き出すプロンプト
-                const systemPrompt = `
+            const recentFields = [];
+            Object.keys(historyData)
+                .filter(dateKey => dateKey !== todayStr) // 今日の分は除く
+                .sort((a, b) => new Date(historyData[b].generatedAt || 0) - new Date(historyData[a].generatedAt || 0))
+                .slice(0, 4) // 直近4回分だけ見る
+                .forEach(dateKey => {
+                    const qs = historyData[dateKey].questions || [];
+                    qs.forEach(q => { if (q.field) recentFields.push(q.field); });
+                });
+
+            const uniqueRecentFields = [...new Set(recentFields)].slice(0, 15);
+            const recentFieldsText = uniqueRecentFields.length > 0
+                ? uniqueRecentFields.join("、")
+                : "（まだ出題履歴がありません）";
+
+            // DeepSeekの推論力を引き出すプロンプト
+            const systemPrompt = `
 あなたは日本の高校数学の教育に精通した、極めて優秀なAI数学教師です。
 生徒の数学目的思考力と計算力を限界まで引き上げるため、本日の【数学I,II,III,】の計算特訓タイムアタック問題を【厳密に10問】作成してください。
 
 【🚫 除外分野・禁止事項】
-- 「軌跡」「軌跡と領域」に関する問題は完全に除外してください。タイムアタックに適した、純粋な式変形や計算・展開・評価問題のみを選定すること。
+- 「軌跡」「軌跡と領域」に関する問題は完全に除外してください。
+- 「複素数」「複素数平面」に関する問題は完全に除外してください。
+- 「数学III」の「積分法」（積分・面積・体積・回転体など積分の範囲全般）に関する問題は完全に除外してください。
+- 上記以外で、タイムアタックに適した、純粋な式変形や計算・展開・評価問題のみを選定すること。
 
-【⚠️ 出力形式の絶対ルール（超厳重）】
-- 出力は、一切の説明、前置き、挨拶、およびMarkdownのコードブロック（\`\`\`json や \`\`\`）を含まない、**純粋なJSON配列の文字列のみ**としてください。
-- レスポンスの最初の文字は \`[\` であり、最後の文字は \`]\` でなければなりません。そのまま JSON.parse() でパースできる形式にしてください。
+【🔁 出題の多様性（重複回避）】
+- 直近の演習で扱った分野は次の通りです：${recentFieldsText}
+- 最近似たような分野・パターンの問題ばかりが続いている可能性があるため、上記の分野には可能な限り偏らせず、別の分野・別の解法アプローチを積極的に選ぶこと。ただし前述の除外分野を避けた上での話であり、無理に不自然な分野へこじつける必要はない。
 
 【出題テーマ・難易度】
 1. 対象範囲：【数学I,II,III】の全範囲から、特定の分野に偏らないようバランスよく10問を構成。
@@ -258,7 +266,7 @@
 ]
 `;
 
-                try {
+            try {
                     // 🛡️【キーの防衛チェック】1件も登録されていないか検証
                     if (getDeepseekKeys().length === 0) {
                         throw new Error("DeepSeekのAPIキーがブラウザに設定されていません。右下の🔑ボタンから登録してください。");
@@ -327,7 +335,6 @@
 
                     startSprintTimer();
                 }
-            }, { onlyOnce: true });
         }
 
         function startSprintTimer() {
