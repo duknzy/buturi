@@ -1029,13 +1029,23 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
             });
         }
 
-        // 🗓️ createdAtが無い古いデータでも、IDのタイムスタンプから追加日を推定して表示する
+        // 🗓️ createdAtが無い古いデータでも、可能な限り妥当な追加日を推定して表示する
+        //    1. createdAtがあればそれを使う
+        //    2. IDが "CUSTOM_<ミリ秒タイムスタンプ>" 形式なら、そこから逆算する（2020年以降の値のみ信頼する）
+        //    3. それも無理なら、記録が残っている中で一番古い日付（lastAttemptAt）で代用する
+        //    4. それすらなければ「不明」として扱う
+        const MIN_PLAUSIBLE_TS = Date.UTC(2020, 0, 1); // これより古いIDの数字は「タイムスタンプではない」と判断する
         function resolveCreatedAt(p) {
-            if (p.createdAt) return new Date(p.createdAt);
+            if (p.createdAt) return { date: new Date(p.createdAt), estimated: false };
             if (p.id) {
                 const parts = p.id.split("_");
                 const ts = Number(parts[parts.length - 1]);
-                if (!isNaN(ts) && ts > 0) return new Date(ts);
+                if (!isNaN(ts) && ts >= MIN_PLAUSIBLE_TS) {
+                    return { date: new Date(ts), estimated: false };
+                }
+            }
+            if (p.lastAttemptAt) {
+                return { date: new Date(p.lastAttemptAt), estimated: true };
             }
             return null;
         }
@@ -1216,12 +1226,13 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                 }
 
                 // 🗓️ 追加日・気づき更新日メタ表示
-                const createdAtDate = formatShortDate(resolveCreatedAt(p));
+                const createdInfo = resolveCreatedAt(p);
+                const createdAtDate = createdInfo ? formatShortDate(createdInfo.date) : null;
                 const insightDate = p.insightUpdatedAt ? formatShortDate(new Date(p.insightUpdatedAt)) : null;
                 let dateMetaHtml = "";
                 if (createdAtDate || insightDate) {
                     dateMetaHtml = `<div class="row-date-meta">`;
-                    if (createdAtDate) dateMetaHtml += `<span>📅 追加: ${createdAtDate}</span>`;
+                    if (createdAtDate) dateMetaHtml += `<span>📅 追加: ${createdAtDate}${createdInfo.estimated ? '（推定）' : ''}</span>`;
                     if (insightDate) dateMetaHtml += `<span class="insight-date">🧠 気づき更新: ${insightDate}</span>`;
                     dateMetaHtml += `</div>`;
                 }
@@ -1634,6 +1645,17 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                 const field = p.field || "未分類";
                 const shortTitle = p.short_title || "無題の問題";
 
+                const createdInfo = resolveCreatedAt(p);
+                const createdAtDate = createdInfo ? formatShortDate(createdInfo.date) : null;
+                const insightDate = p.insightUpdatedAt ? formatShortDate(new Date(p.insightUpdatedAt)) : null;
+                let dateMetaHtml = "";
+                if (createdAtDate || insightDate) {
+                    dateMetaHtml = `<div class="row-date-meta" style="margin-top:0.4rem;">`;
+                    if (createdAtDate) dateMetaHtml += `<span>📅 追加: ${createdAtDate}${createdInfo.estimated ? '（推定）' : ''}</span>`;
+                    if (insightDate) dateMetaHtml += `<span class="insight-date">🧠 気づき更新: ${insightDate}</span>`;
+                    dateMetaHtml += `</div>`;
+                }
+
                 const itemHtml = `
                     <div class="insight-card-item" onclick="location.href='problem.html?id=${p.id}'">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.4rem;">
@@ -1641,6 +1663,7 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                             <span style="font-size: 0.8rem; font-weight: 800; color: var(--accent-cyan);">📌 ${shortTitle} ➔</span>
                         </div>
                         <div class="tex2jax_process" style="font-size: 0.95rem; color: var(--text-main); line-height: 1.6; white-space: pre-wrap; font-weight: 600;">${p.insight.trim()}</div>
+                        ${dateMetaHtml}
                     </div>
                 `;
                 insightListContainer.insertAdjacentHTML("beforeend", itemHtml);

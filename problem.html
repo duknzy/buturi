@@ -664,17 +664,23 @@
                 (function renderDatesMeta() {
                     const datesEl = document.getElementById("problem-dates-display");
                     if (!datesEl) return;
+                    const MIN_PLAUSIBLE_TS = Date.UTC(2020, 0, 1);
                     let createdDate = null;
+                    let estimated = false;
                     if (currentProblemData.createdAt) {
                         createdDate = new Date(currentProblemData.createdAt);
                     } else if (currentProblemData.id) {
                         const p = currentProblemData.id.split("_");
                         const ts = Number(p[p.length - 1]);
-                        if (!isNaN(ts) && ts > 0) createdDate = new Date(ts);
+                        if (!isNaN(ts) && ts >= MIN_PLAUSIBLE_TS) createdDate = new Date(ts);
+                    }
+                    if (!createdDate && currentProblemData.lastAttemptAt) {
+                        createdDate = new Date(currentProblemData.lastAttemptAt);
+                        estimated = true;
                     }
                     const fmt = (d) => d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' });
                     let parts = [];
-                    if (createdDate) parts.push(`📅 追加日: ${fmt(createdDate)}`);
+                    if (createdDate) parts.push(`📅 追加日: ${fmt(createdDate)}${estimated ? '（推定）' : ''}`);
                     if (currentProblemData.insightUpdatedAt) parts.push(`🧠 気づき更新: ${fmt(new Date(currentProblemData.insightUpdatedAt))}`);
                     datesEl.textContent = parts.join("　");
                 })();
