@@ -582,6 +582,7 @@
                 <a href="index.html" class="nav-btn active">🧠 誤答ノート</a>
                 <a href="daily.html" class="nav-btn">🏁 計算スプリント</a>
                 <a href="lesson.html" class="nav-btn">📖 授業・解説</a>
+                <a href="answer-check.html" class="nav-btn">⚡ 答え合わせ</a>
                 <a href="tokei/index.html" class="nav-btn global-timer-link">⏱️ 集中タイマー</a>
                 <a href="#" onclick="openTimerPopout(event)" class="nav-btn" title="別ウィンドウでタイマーを開く">🗔 小窓</a>
                 <a href="#" onclick="openLogPopout(event)" class="nav-btn" title="24hログを小窓で開く">📊 24hログ</a>
@@ -771,7 +772,6 @@
             <div style="display: flex; gap: 0.6rem; justify-content: flex-end; width: 100%; margin-top: 1rem; flex-wrap: wrap;">
                 <button type="button" class="tactile-btn tactile-btn-secondary" id="close-modal-btn">キャンセル</button>
                 <button type="button" class="tactile-btn" id="clear-keys-btn" style="background: #2a0000; color: #ff4545; border: 1px solid #ff4545;">APIキーをリセット</button>
-                <button type="button" class="tactile-btn" id="quick-submit-btn" style="background: #111; color: var(--accent-cyan); border: 1px solid var(--accent-cyan); box-shadow: 3px 3px 0px rgba(0,243,255,0.2);">AI解析なしで登録</button>
                 <button type="button" class="tactile-btn" id="analyze-submit-btn">AI自動解析を実行</button>
             </div>
         </div>
@@ -1476,11 +1476,9 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
             }
             
             const submitBtn = document.getElementById("analyze-submit-btn");
-            const quickBtn = document.getElementById("quick-submit-btn");
             
             submitBtn.textContent = "Gemini Visionが画像を分析中...";
             submitBtn.disabled = true;
-            quickBtn.disabled = true;
 
             let parts = [{ "text": "提出されたデータを解析し、最終的な『正しい答え（model_answer）』も含めて指定のJSONで返してください。" }];
             if (userRawText) parts[0].text += `\nユーザーの入力メモ: ${userRawText}`;
@@ -1631,55 +1629,6 @@ ${glossaryBlock}`;
             } finally {
                 submitBtn.textContent = "AI自動解析を実行";
                 submitBtn.disabled = false;
-                quickBtn.disabled = false;
-            }
-        }
-
-        async function quickAddProblem(userRawText) {
-            if (!currentUser) return;
-            const submitBtn = document.getElementById("analyze-submit-btn");
-            const quickBtn = document.getElementById("quick-submit-btn");
-            quickBtn.textContent = "即時登録中...";
-            submitBtn.disabled = true;
-            quickBtn.disabled = true;
-
-            try {
-                const newId = "CUSTOM_" + Date.now();
-                const timestampStr = new Date().toLocaleDateString('ja-JP');
-                const nowIso = new Date().toISOString();
-                let shortTitle = userRawText ? (userRawText.substring(0, 15) + (userRawText.length > 15 ? "..." : "")) : `クイック登録_${timestampStr}`;
-                
-                const newProblem = {
-                    id: newId,
-                    title: userRawText || "画像のみ登録（未解析問題）", 
-                    short_title: shortTitle,
-                    subject: "未分類",
-                    field: "手動管理",
-                    trap_description: "この問題はAI解析をスキップして登録されました。",
-                    errorCount: 1,
-                    lastAttemptAt: nowIso,
-                    lastResult: false,
-                    imageData: selectedImageBase64 ? `data:${selectedImageMimeType};base64,${selectedImageBase64}` : null,
-                    answerFormula: "模範解答データはありません。自力で解説を確認してください。",
-                    createdAt: nowIso,
-                    ...(linkedLessonId ? {
-                        sourceLessonId: linkedLessonId,
-                        sourceLessonTitle: linkedLessonTitle,
-                        sourceLessonText: linkedLessonText,
-                        sourceLessonKeyTerms: linkedLessonKeyTerms || []
-                    } : {})
-                };
-
-                await set(ref(database, 'users/' + currentUser.uid + '/problems/' + newId), newProblem);
-                closeModalAndReset();
-
-            } catch (error) {
-                console.error(error);
-                alert("クラウドへの保存に失敗しました。");
-            } finally {
-                quickBtn.textContent = "AI解析なしで登録";
-                submitBtn.disabled = false;
-                quickBtn.disabled = false;
             }
         }
 
@@ -1714,7 +1663,6 @@ ${glossaryBlock}`;
         const openBtn = document.getElementById("open-modal-btn");
         const closeBtn = document.getElementById("close-modal-btn");
         const submitBtn = document.getElementById("analyze-submit-btn");
-        const quickBtn = document.getElementById("quick-submit-btn");
         const clearKeysBtn = document.getElementById("clear-keys-btn");
         const textInput = document.getElementById("problem-text-input");
         const imageInput = document.getElementById("problem-image-input");
@@ -1766,14 +1714,6 @@ ${glossaryBlock}`;
                 const text = textInput.value.trim();
                 if (!text && !selectedImageBase64) { alert("写真を選択するかメモを入力してください。"); return; }
                 analyzeAndAddProblem(text);
-            });
-        }
-
-        if (quickBtn) {
-            quickBtn.addEventListener("click", () => {
-                const text = textInput.value.trim();
-                if (!text && !selectedImageBase64) { alert("写真を選択するかメモを入力してください。"); return; }
-                quickAddProblem(text);
             });
         }
 

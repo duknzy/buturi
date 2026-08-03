@@ -353,6 +353,7 @@
                 <a href="index.html" class="nav-btn">🧠 誤答ノート</a>
                 <a href="daily.html" class="nav-btn">🏁 計算スプリント</a>
                 <a href="lesson.html" class="nav-btn">📖 授業・解説</a>
+                <a href="answer-check.html" class="nav-btn">⚡ 答え合わせ</a>
                 <a href="tokei/index.html" class="nav-btn global-timer-link">⏱️ 集中タイマー</a>
                 <a href="#" onclick="openTimerPopout(event)" class="nav-btn" title="別ウィンドウでタイマーを開く">🗔 小窓</a>
                 <a href="#" onclick="openLogPopout(event)" class="nav-btn" title="24hログを小窓で開く">📊 24hログ</a>
@@ -447,6 +448,11 @@
                         <div id="strategy-pattern-box" style="display:none; background: rgba(255, 245, 0, 0.06); border: 1px dashed var(--accent-yellow); border-radius: 14px; padding: 1rem 1.2rem; margin-bottom: 1.2rem;">
                             <div style="font-size:0.8rem; color: var(--accent-yellow); font-weight:800; margin-bottom:0.4rem;">🧭 考え方の定石 // まずこう考える</div>
                             <div class="model-answer-text" id="target-strategy-pattern" style="font-size:0.95rem; line-height:1.7; color:var(--text-bright-muted);"></div>
+                        </div>
+
+                        <div id="strategy-generate-box" style="display:none; background: rgba(255, 245, 0, 0.04); border: 1px dashed rgba(255,245,0,0.4); border-radius: 14px; padding: 1rem 1.2rem; margin-bottom: 1.2rem; text-align:center;">
+                            <p style="font-size:0.82rem; color: var(--text-muted); margin-bottom:0.7rem;">この問題は答えだけ確認済みです。間違えた原因を深掘りしたい場合は、定石・罠の解説を追加で生成できます。</p>
+                            <button type="button" class="tactile-btn" id="generate-strategy-btn" style="background: rgba(255,245,0,0.1); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); box-shadow: 3px 3px 0px rgba(255,245,0,0.2);">🧭 定石・罠の解説を追加生成する</button>
                         </div>
 
                         <div style="font-size:0.8rem; color:var(--text-muted); font-weight:800; margin-bottom:0.2rem;">MODEL ANSWER</div>
@@ -876,7 +882,9 @@ ${glossaryBlock}`;
                 document.getElementById("target-model-answer").innerHTML = formattedAnswer;
 
                 const strategyBox = document.getElementById("strategy-pattern-box");
+                const strategyGenerateBox = document.getElementById("strategy-generate-box");
                 const strategyText = currentProblemData.strategyPattern;
+                const hasUsableAnswer = currentProblemData.answerFormula && currentProblemData.answerFormula !== "解説データなし";
                 if (strategyText && strategyText.trim()) {
                     let formattedStrategy = strategyText
                         .replace(/\\n/g, '<br>')
@@ -884,8 +892,11 @@ ${glossaryBlock}`;
                         .trim();
                     document.getElementById("target-strategy-pattern").innerHTML = formattedStrategy;
                     strategyBox.style.display = "block";
+                    strategyGenerateBox.style.display = "none";
                 } else {
                     strategyBox.style.display = "none";
+                    // 🎯 答えだけ確認済み（answer-check.html経由など）で、まだ定石・罠の解説がない問題にだけ生成ボタンを出す
+                    strategyGenerateBox.style.display = (hasUsableAnswer && currentProblemData.subject !== "未分類") ? "block" : "none";
                 }
                 
                 const badge = document.getElementById("question-badge");
@@ -1207,6 +1218,47 @@ ${glossaryBlock}`;
             }
         }
 
+        // 🧭【新設】答えだけ確認済みの問題に、定石・罠の解説だけを軽量に後付け生成する
+        function getStrategyOnlyPrompt(subject) {
+            return `
+あなたは高校${subject}の「誤答分析エキスパートAI」です。すでに問題文と模範解答は確定しています。
+今回は模範解答を作り直す必要はありません。以下の【問題文】と【模範解答】だけを読んで、生徒が復習で使う「定石」と「間違えやすいポイント」の2つだけを追加で作成してください。
+出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
+{
+  "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
+  "strategy_pattern": "【最重要】この問題固有の数値や図形・物質名には一切触れず、①問題文のどの特徴（キーワード・条件）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ、③なぜそのアプローチが有効なのか、を一般化して説明すること。これは『解き方の地図』であり、具体的な計算はここに書かない。2〜4文程度。数式を含む場合は$で囲むこと"
+}
+`.trim();
+        }
+
+        async function runStrategyOnlyAnalysis() {
+            if (!loginUid || !currentProblemData.answerFormula) return;
+            const btn = document.getElementById("generate-strategy-btn");
+            const originalText = btn.textContent;
+            btn.textContent = `⚙️ ${getEngineLabel(ACTIVE_ENGINE)}で定石を生成中...`;
+            btn.disabled = true;
+
+            const instructionText = `【問題文】\n${currentProblemData.title}\n\n【模範解答】\n${currentProblemData.answerFormula}`;
+
+            try {
+                const aiResult = await callAnalysisEngine(instructionText, getStrategyOnlyPrompt(currentProblemData.subject || "数学"));
+
+                currentProblemData.trap_description = aiResult.trap_description || "";
+                currentProblemData.strategyPattern = aiResult.strategy_pattern || "";
+
+                const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
+                await set(probRef, currentProblemData);
+
+                window.location.reload();
+
+            } catch (error) {
+                console.error(error);
+                alert("定石・罠の解説の生成に失敗しました。\n原因: " + error.message);
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+
         async function processSelfJudgment(isCorrect) {
             if (!loginUid) return;
             const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
@@ -1493,6 +1545,11 @@ ${glossaryBlock}`;
         
         if (onDemandBtn) {
             onDemandBtn.addEventListener("click", () => runOnDemandAnalysis());
+        }
+
+        const generateStrategyBtn = document.getElementById("generate-strategy-btn");
+        if (generateStrategyBtn) {
+            generateStrategyBtn.addEventListener("click", () => runStrategyOnlyAnalysis());
         }
 
         if (editTitleBtn) {
