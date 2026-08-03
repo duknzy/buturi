@@ -158,6 +158,44 @@
             box-shadow: 0 0 8px rgba(255, 0, 127, 0.4);
         }
 
+        /* 💬【新設】質問履歴アーカイブ用のチャットバブル・一覧項目CSS */
+        .qna-archive-chat-history { display: flex; flex-direction: column; gap: 0.6rem; }
+        .chat-bubble {
+            padding: 0.9rem 1.2rem;
+            border-radius: 16px;
+            font-size: 0.92rem;
+            line-height: 1.6;
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+        }
+        .bubble-ai {
+            background: rgba(18, 22, 34, 0.85);
+            border-left: 3px solid var(--accent-cyan);
+            color: #e0f2fe;
+            align-self: flex-start;
+        }
+        .bubble-user {
+            background: rgba(255, 0, 127, 0.15);
+            border-right: 3px solid var(--accent-magenta);
+            color: #ffffff;
+            align-self: flex-end;
+        }
+        .qna-archive-item {
+            padding: 0.9rem 1.1rem;
+            border: 1px solid #1a2a35;
+            border-radius: 14px;
+            margin-bottom: 0.7rem;
+            cursor: pointer;
+            transition: border-color 0.15s ease;
+        }
+        .qna-archive-item:hover { border-color: var(--accent-yellow); }
+        .qna-archive-item .qna-archive-date { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.4rem; }
+        .qna-archive-item .qna-archive-preview { font-size: 0.9rem; color: var(--text-bright-muted); margin-top: 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
         /* リアルタイムプレビュー領域 */
         .math-preview {
             margin-top: 0.6rem;
@@ -566,6 +604,11 @@
 <button type="button" class="tactile-btn" id="open-insight-list-btn" style="background: rgba(0, 243, 255, 0.1); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); box-shadow: 3px 3px 0px rgba(0,243,255,0.2); display:none;">
     🧠 気づき一覧
 </button>
+
+<!-- 💬【追加】全問題横断の質問履歴アーカイブモーダルを開くボタン -->
+<button type="button" class="tactile-btn" id="open-qna-archive-btn" style="background: rgba(255, 245, 0, 0.08); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); box-shadow: 3px 3px 0px rgba(255,245,0,0.2); display:none;">
+    💬 質問履歴アーカイブ
+</button>
                 <div id="auth-panel" style="font-weight: 800; border: 1px solid #22222a; padding: 0.5rem 1rem; border-radius: 12px;" class="glass-card">
                     LOADING...
                 </div>
@@ -758,13 +801,61 @@
         </div>
     </div>
 
+    <!-- 💬【新設】全問題横断・質問履歴アーカイブ一覧モーダル -->
+    <div class="modal-overlay" id="qna-archive-modal">
+        <div class="squircle-tile modal-content glass-card" style="max-width: 700px; max-height: 85vh; display: flex; flex-direction: column;">
+            <div class="tile-header-group">
+                <span class="badge badge-ai" style="color: var(--accent-yellow);">QNA LOG // 質問履歴アーカイブ</span>
+                <h3 style="font-size: 1.3rem; font-weight: 800; margin-top: 0.3rem;">記録したAIとのやり取り</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem;">自分で「記録する」を押した会話だけがここに残ります。クリックで全文を読めます。</p>
+                <div style="display: flex; align-items: center; gap: 0.6rem; margin-top: 0.8rem; flex-wrap: wrap;">
+                    <span class="filter-label" style="font-size: 0.8rem;">🔀 並べ替え：</span>
+                    <select class="field-select" id="qna-archive-sort-select">
+                        <option value="newest">記録日が新しい順</option>
+                        <option value="oldest">記録日が古い順</option>
+                    </select>
+                    <span class="filter-label" style="font-size: 0.8rem;">📚 教科：</span>
+                    <select class="field-select" id="qna-archive-subject-select">
+                        <option value="ALL">すべて</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="qna-archive-list-container" style="overflow-y: auto; flex-grow: 1; margin-top: 1.2rem; padding-right: 0.4rem;">
+                <!-- JSで動的にログカードが生成されます -->
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 1.2rem; border-top: 1px solid #22222a; padding-top: 0.8rem;">
+                <button type="button" class="tactile-btn tactile-btn-secondary" id="close-qna-archive-btn">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 💬【新設】質問履歴アーカイブ・詳細（1件分の会話全文）モーダル -->
+    <div class="modal-overlay" id="qna-archive-detail-modal">
+        <div class="squircle-tile modal-content glass-card" style="max-width: 620px; max-height: 85vh; display: flex; flex-direction: column;">
+            <div class="tile-header-group">
+                <span class="badge badge-ai" style="color: var(--accent-yellow);">QNA LOG // 記録された会話</span>
+                <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.3rem;" id="qna-archive-detail-meta"></p>
+            </div>
+            <div class="qna-archive-chat-history" id="qna-archive-detail-messages" style="overflow-y: auto; flex-grow: 1; margin-top: 1rem; padding-right: 0.4rem;"></div>
+            <div style="display: flex; justify-content: space-between; gap: 0.8rem; margin-top: 1.2rem; border-top: 1px solid #22222a; padding-top: 0.8rem;">
+                <button type="button" class="tactile-btn" id="qna-archive-detail-goto-btn" style="background: rgba(0,243,255,0.08); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); box-shadow: none;">📌 問題ページを開く</button>
+                <div style="display: flex; gap: 0.8rem;">
+                    <button type="button" class="tactile-btn" id="qna-archive-detail-delete-btn" style="background: rgba(255,0,127,0.1); color: var(--accent-magenta); border: 1px solid var(--accent-magenta); box-shadow: none;">🗑 削除</button>
+                    <button type="button" class="tactile-btn tactile-btn-secondary" id="close-qna-archive-detail-btn">閉じる</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
 
    <script type="module">
         import { getGeminiKeys, getDeepseekKeys, fetchWithKeyRotation, initApiKeyManager, clearAllKeys, notifyModelFallback } from "./api-key-manager.js";
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+        import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY", 
@@ -967,11 +1058,13 @@
                 
                 registerBtn.style.display = "block";
 document.getElementById("open-insight-list-btn").style.display = "block"; // 💡 追加
+document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬 追加
                 loginNotice.style.display = "none";
                 mainGrid.style.display = "grid";
                 filterBar.style.display = "flex"; 
 
                 listenToCloudData(user.uid);
+                listenToQnaArchive(user.uid); // 💬【新設】質問履歴アーカイブの監視を開始
             } else {
                 currentUser = null;
                 authPanel.innerHTML = `<span style="color:var(--accent-magenta); cursor:pointer;" id="header-login-btn">SIGN IN</span>`;
@@ -979,6 +1072,7 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                 
                 registerBtn.style.display = "none";
                 document.getElementById("open-insight-list-btn").style.display = "none"; // 💡 非表示処理を追加
+                document.getElementById("open-qna-archive-btn").style.display = "none"; // 💬 非表示処理を追加
                 loginNotice.style.display = "block";
                 mainGrid.style.display = "none";
                 filterBar.style.display = "none";
@@ -1704,6 +1798,169 @@ document.getElementById("open-insight-list-btn").style.display = "block"; // �
                 if (e.target === insightListModal) {
                     insightListModal.style.display = "none";
                 }
+            });
+        }
+
+        // ==========================================================================
+        // 💬【新設】質問履歴アーカイブ（全問題横断）の監視・一覧表示・詳細表示・削除ロジック
+        // ==========================================================================
+        let qnaLogsCache = {}; // { logId: {problemId, shortTitle, subject, field, savedAt, messages} }
+        let currentQnaUid = null;
+
+        function listenToQnaArchive(uid) {
+            currentQnaUid = uid;
+            const qnaLogsRootRef = ref(database, 'users/' + uid + '/qna_logs');
+            onValue(qnaLogsRootRef, (snapshot) => {
+                qnaLogsCache = snapshot.val() || {};
+                populateQnaArchiveSubjectFilter();
+                if (qnaArchiveModal && qnaArchiveModal.style.display === "flex") renderQnaArchiveList();
+            });
+        }
+
+        function formatQnaArchiveDate(iso) {
+            if (!iso) return "";
+            return new Date(iso).toLocaleString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        const qnaArchiveModal = document.getElementById("qna-archive-modal");
+        const openQnaArchiveBtn = document.getElementById("open-qna-archive-btn");
+        const closeQnaArchiveBtn = document.getElementById("close-qna-archive-btn");
+        const qnaArchiveListContainer = document.getElementById("qna-archive-list-container");
+        const qnaArchiveSortSelect = document.getElementById("qna-archive-sort-select");
+        const qnaArchiveSubjectSelect = document.getElementById("qna-archive-subject-select");
+
+        function populateQnaArchiveSubjectFilter() {
+            if (!qnaArchiveSubjectSelect) return;
+            const currentVal = qnaArchiveSubjectSelect.value || "ALL";
+            const subjects = [...new Set(Object.values(qnaLogsCache).map(l => l.subject || "未分類"))].sort((a, b) => a.localeCompare(b, "ja"));
+            qnaArchiveSubjectSelect.innerHTML = `<option value="ALL">すべて</option>` +
+                subjects.map(s => `<option value="${s}">${s}</option>`).join("");
+            if (subjects.includes(currentVal)) qnaArchiveSubjectSelect.value = currentVal;
+        }
+
+        function renderQnaArchiveList() {
+            if (!qnaArchiveListContainer) return;
+            const sortKey = qnaArchiveSortSelect ? qnaArchiveSortSelect.value : "newest";
+            const subjectFilter = qnaArchiveSubjectSelect ? qnaArchiveSubjectSelect.value : "ALL";
+
+            let entries = Object.entries(qnaLogsCache);
+            if (subjectFilter !== "ALL") {
+                entries = entries.filter(([, l]) => (l.subject || "未分類") === subjectFilter);
+            }
+            entries.sort((a, b) => {
+                const diff = new Date(b[1].savedAt || 0) - new Date(a[1].savedAt || 0);
+                return sortKey === "oldest" ? -diff : diff;
+            });
+
+            if (entries.length === 0) {
+                qnaArchiveListContainer.innerHTML = `
+                    <div style="padding: 3rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+                        まだ記録された質問ログがありません。<br>各問題のAIチャットで「この会話を記録する」を押すと、ここに残ります。
+                    </div>
+                `;
+                return;
+            }
+
+            qnaArchiveListContainer.innerHTML = entries.map(([logId, log]) => {
+                const firstUserMsg = (log.messages || []).find(m => m.role === "user");
+                const preview = firstUserMsg ? firstUserMsg.content : "（内容なし）";
+                const subject = log.subject || "未分類";
+                const field = log.field || "未分類";
+                return `
+                    <div class="qna-archive-item" data-log-id="${logId}">
+                        <span class="badge badge-physics" style="font-size: 0.7rem;">${subject} // ${field}</span>
+                        <div style="font-size: 0.85rem; font-weight: 800; color: var(--accent-yellow); margin-top: 0.4rem;">📌 ${log.shortTitle || "無題の問題"}</div>
+                        <div class="qna-archive-preview tex2jax_process">💬 ${preview}</div>
+                        <div class="qna-archive-date">🗓️ ${formatQnaArchiveDate(log.savedAt)}</div>
+                    </div>
+                `;
+            }).join("");
+
+            qnaArchiveListContainer.querySelectorAll("[data-log-id]").forEach(itemEl => {
+                itemEl.addEventListener("click", () => openQnaArchiveDetail(itemEl.getAttribute("data-log-id")));
+            });
+
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise([qnaArchiveListContainer]).catch(err => console.log(err.message));
+            }
+        }
+
+        if (qnaArchiveSortSelect) qnaArchiveSortSelect.addEventListener("change", renderQnaArchiveList);
+        if (qnaArchiveSubjectSelect) qnaArchiveSubjectSelect.addEventListener("change", renderQnaArchiveList);
+
+        if (openQnaArchiveBtn && qnaArchiveModal) {
+            openQnaArchiveBtn.addEventListener("click", () => {
+                renderQnaArchiveList();
+                qnaArchiveModal.style.display = "flex";
+            });
+        }
+        if (closeQnaArchiveBtn && qnaArchiveModal) {
+            closeQnaArchiveBtn.addEventListener("click", () => { qnaArchiveModal.style.display = "none"; });
+        }
+        if (qnaArchiveModal) {
+            qnaArchiveModal.addEventListener("click", (e) => {
+                if (e.target === qnaArchiveModal) qnaArchiveModal.style.display = "none";
+            });
+        }
+
+        // 質問ログ詳細モーダル
+        const qnaArchiveDetailModal = document.getElementById("qna-archive-detail-modal");
+        const qnaArchiveDetailMessages = document.getElementById("qna-archive-detail-messages");
+        const qnaArchiveDetailMeta = document.getElementById("qna-archive-detail-meta");
+        const qnaArchiveDetailGotoBtn = document.getElementById("qna-archive-detail-goto-btn");
+        const qnaArchiveDetailDeleteBtn = document.getElementById("qna-archive-detail-delete-btn");
+        const closeQnaArchiveDetailBtn = document.getElementById("close-qna-archive-detail-btn");
+        let currentOpenQnaArchiveLogId = null;
+
+        function renderQnaArchiveFormattedText(text) {
+            if (!text) return "";
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        function openQnaArchiveDetail(logId) {
+            const log = qnaLogsCache[logId];
+            if (!log) return;
+            currentOpenQnaArchiveLogId = logId;
+
+            qnaArchiveDetailMeta.textContent = `📌 ${log.shortTitle || "無題の問題"} ｜ ${log.subject || "未分類"} // ${log.field || "未分類"} ｜ 🗓️ ${formatQnaArchiveDate(log.savedAt)}`;
+            qnaArchiveDetailMessages.innerHTML = (log.messages || []).map(m => {
+                const cls = m.role === "user" ? "bubble-user" : "bubble-ai";
+                return `<div class="chat-bubble ${cls} tex2jax_process">${renderQnaArchiveFormattedText(m.content)}</div>`;
+            }).join("");
+
+            qnaArchiveModal.style.display = "none";
+            qnaArchiveDetailModal.style.display = "flex";
+
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise([qnaArchiveDetailMessages]).catch(err => console.log(err.message));
+            }
+        }
+
+        if (qnaArchiveDetailGotoBtn) {
+            qnaArchiveDetailGotoBtn.addEventListener("click", () => {
+                const log = qnaLogsCache[currentOpenQnaArchiveLogId];
+                if (log && log.problemId) location.href = `problem.html?id=${log.problemId}`;
+            });
+        }
+        if (qnaArchiveDetailDeleteBtn) {
+            qnaArchiveDetailDeleteBtn.addEventListener("click", async () => {
+                if (!currentOpenQnaArchiveLogId || !currentQnaUid) return;
+                if (!confirm("この質問ログを削除しますか？この操作は取り消せません。")) return;
+                try {
+                    await remove(ref(database, 'users/' + currentQnaUid + '/qna_logs/' + currentOpenQnaArchiveLogId));
+                    qnaArchiveDetailModal.style.display = "none";
+                } catch (error) {
+                    console.error("質問ログ削除エラー:", error);
+                    alert("削除に失敗しました。ネットワークの状態を確認してください。");
+                }
+            });
+        }
+        if (closeQnaArchiveDetailBtn && qnaArchiveDetailModal) {
+            closeQnaArchiveDetailBtn.addEventListener("click", () => { qnaArchiveDetailModal.style.display = "none"; });
+        }
+        if (qnaArchiveDetailModal) {
+            qnaArchiveDetailModal.addEventListener("click", (e) => {
+                if (e.target === qnaArchiveDetailModal) qnaArchiveDetailModal.style.display = "none";
             });
         }
    </script>
