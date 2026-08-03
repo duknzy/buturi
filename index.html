@@ -986,6 +986,7 @@
         let linkedLessonId = null;
         let linkedLessonTitle = null;
         let linkedLessonText = null;
+        let linkedLessonKeyTerms = null; // 🔗 その授業までに蓄積された用語集（前の講の内容も含む）
 
         async function checkAndLoadLinkedLesson(uid) {
             const params = new URLSearchParams(window.location.search);
@@ -1002,6 +1003,7 @@
                 linkedLessonId = fromLesson;
                 linkedLessonTitle = lessonData.title || lessonData.short_title || "無題の授業";
                 linkedLessonText = lessonData.extractedText || "";
+                linkedLessonKeyTerms = lessonData.accumulatedKeyTerms || lessonData.keyTerms || [];
 
                 const badge = document.getElementById("linked-lesson-badge");
                 const badgeText = document.getElementById("linked-lesson-title-text");
@@ -1492,6 +1494,11 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
                 // 🎓【授業からの継続問題】直前に受けた授業の参考書全文をAIに渡し、
                 //   その授業固有の用語・法則名・手順番号をそのまま使って解説させる
                 if (linkedLessonText) {
+                    const glossaryBlock = (linkedLessonKeyTerms && linkedLessonKeyTerms.length > 0)
+                        ? `\n\n【この授業までに生徒が習った、参考書オリジナルの用語集（前の講の内容も含む）】\n` +
+                          linkedLessonKeyTerms.map(t => `・${t.name}：${t.definition}`).join("\n") +
+                          `\n※これらの用語は、たとえこの授業のテキスト全文に載っていなくても、生徒はすでに正確な定義を知っています。解説中でこれらの言葉が使える場面では、遠慮せずこの定義通りに名指しで使ってください。`
+                        : "";
                     activeSystemInstruction += `
 
 【直前に受けた授業からの継続問題】
@@ -1499,7 +1506,8 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
 以下は、その授業の元になった参考書のテキスト全文です。この中で使われている固有の名称（法則名・大原則・「タッチの定理」のような参考書独自の用語・「手順①〜⑦」のような番号付き手順など）を、strategy_patternとmodel_answerの解説の中で積極的に名指しして使い、授業内容を思い出させながら解説すること。勝手に別の言葉に言い換えたり、新しい独自用語を作ったりしないこと。一般論だけで済ませず、必ずこの参考書固有の言葉で解説すること。
 
 【授業で読んだ参考書の全文】
-${linkedLessonText}`;
+${linkedLessonText}
+${glossaryBlock}`;
                 }
 
                 const requestBody = JSON.stringify({
@@ -1609,7 +1617,8 @@ ${linkedLessonText}`;
                     ...(linkedLessonId ? {
                         sourceLessonId: linkedLessonId,
                         sourceLessonTitle: linkedLessonTitle,
-                        sourceLessonText: linkedLessonText
+                        sourceLessonText: linkedLessonText,
+                        sourceLessonKeyTerms: linkedLessonKeyTerms || []
                     } : {})
                 };
 
@@ -1656,7 +1665,8 @@ ${linkedLessonText}`;
                     ...(linkedLessonId ? {
                         sourceLessonId: linkedLessonId,
                         sourceLessonTitle: linkedLessonTitle,
-                        sourceLessonText: linkedLessonText
+                        sourceLessonText: linkedLessonText,
+                        sourceLessonKeyTerms: linkedLessonKeyTerms || []
                     } : {})
                 };
 
@@ -1691,6 +1701,7 @@ ${linkedLessonText}`;
             linkedLessonId = null;
             linkedLessonTitle = null;
             linkedLessonText = null;
+            linkedLessonKeyTerms = null;
             const badge = document.getElementById("linked-lesson-badge");
             if (badge) badge.style.display = "none";
             // URLの?fromLessonを消して、再度開いた時に誤って再リンクされないようにする

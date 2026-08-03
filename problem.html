@@ -766,6 +766,12 @@
         //   その授業の元になった参考書全文をAIに渡し、固有の用語・法則名・手順番号をそのまま使わせる
         function buildLessonContextBlock() {
             if (!currentProblemData.sourceLessonText) return "";
+            const terms = currentProblemData.sourceLessonKeyTerms || [];
+            const glossaryBlock = terms.length > 0
+                ? `\n\n【生徒がこれまでの授業で習った、参考書オリジナルの用語集（前の講の内容も含む）】\n` +
+                  terms.map(t => `・${t.name}：${t.definition}`).join("\n") +
+                  `\n※これらの用語は、たとえ以下の参考書全文に載っていなくても、生徒はすでに正確な定義を知っています。解説中でこれらの言葉が使える場面では、遠慮せずこの定義通りに名指しで使ってください。`
+                : "";
             return `
 
 【直前に受けた授業からの継続問題】
@@ -773,7 +779,8 @@
 以下は、その授業の元になった参考書のテキスト全文です。この中で使われている固有の名称（法則名・大原則・「タッチの定理」のような参考書独自の用語・「手順①〜⑦」のような番号付き手順など）を、strategy_patternとmodel_answerの解説の中で積極的に名指しして使い、授業内容を思い出させながら解説すること。勝手に別の言葉に言い換えたり、新しい独自用語を作ったりしないこと。一般論だけで済ませず、必ずこの参考書固有の言葉で解説すること。
 
 【授業で読んだ参考書の全文】
-${currentProblemData.sourceLessonText}`;
+${currentProblemData.sourceLessonText}
+${glossaryBlock}`;
         }
 
         // 現在の問題の教科に対応するプロンプトを返すヘルパー（未登録教科は数学にフォールバック）

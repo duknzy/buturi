@@ -434,6 +434,16 @@
         <div id="view-list">
             <div class="squircle-card new-lesson-form">
                 <div style="font-weight:900; font-size:1.05rem;">🆕 新しい授業を始める</div>
+
+                <div style="margin-bottom: 0.6rem;">
+                    <label for="continuation-select" style="font-size:0.85rem; color:var(--text-muted); display:block; margin-bottom:0.3rem;">
+                        🔗 これは以前の授業の続きですか？（同じ参考書の前の講など）
+                    </label>
+                    <select id="continuation-select" style="width:100%; background:#0a0a12; color:#fff; border:1px solid var(--border-color); border-radius:10px; padding:0.6rem; font-size:0.9rem;">
+                        <option value="">続きではない（新規シリーズとして開始）</option>
+                    </select>
+                </div>
+
                 <label class="file-drop-label" id="file-drop-label" for="image-input">
                     📷 参考書のページ写真をアップロード（複数枚OK）
                 </label>
@@ -471,6 +481,7 @@
                 <div class="squircle-card lesson-main-card">
                     <div class="progress-strip">
                         <span id="lesson-title-display" style="font-weight: 800; color: var(--accent-yellow); font-size: 1.05rem;">---</span>
+                        <span id="continuation-source-badge" style="display:none; font-size: 0.78rem; color: var(--accent-cyan); font-weight:700;"></span>
                         <span style="font-size: 0.85rem; color: var(--text-muted);">パート <b id="part-progress-display" style="color: var(--accent-cyan); font-weight: 900;">-/-</b></span>
                         <button type="button" class="tactile-btn" id="solve-related-problem-btn" style="background: var(--accent-magenta); box-shadow: 3px 3px 0px #8a004f; font-size: 0.8rem; padding: 0.5rem 0.9rem; margin-left: auto;">
                             🎯 この授業の続きとして問題を解く
@@ -677,6 +688,7 @@
         let selectedImages = []; // [{mimeType, data}] （新規授業作成フォーム用）
         let chatSelectedImages = []; // [{mimeType, data, previewUrl}] （授業チャット中の追加質問用）
         let draftPlan = null;    // { extracted_text, lesson_title, parts }
+        let lastLessonsSnapshot = {}; // 🔗 続きの授業選択プルダウンの元データ
         let customPolicyPrompt = DEFAULT_POLICY_PROMPT;
         let currentLesson = null;
         let currentLessonId = null;
@@ -858,6 +870,7 @@
 今回はまだ授業本編ではなく、授業の準備をしてください。
 1. 添付された参考書ページの内容を正確に読み取り、全文を書き出すこと（数式は $ $ で囲むこと）
 2. 内容量を踏まえて、区切りの良い単位で「大まかな授業プラン」を作成すること（目安は2〜6パート程度。多すぎず少なすぎないように）
+3. この範囲の中で、参考書オリジナルの名前がついた法則・定理・原則・手順（例:「タッチの定理」「大原則」「手順①〜⑦」のような、この本独自の呼び方をしているもの）があれば、その名称と定義を簡潔に抽出すること。一般的な物理・数学用語（力、速度など）はここには含めない。「この本オリジナルの呼び方・造語・番号付き手順」だけを対象にすること
 
 出力は必ず以下のJSON形式のみで返してください。他のテキストは一切含めないこと。
 {
@@ -865,6 +878,9 @@
   "lesson_title": "この授業全体を表す短いタイトル",
   "parts": [
     { "title": "パートのタイトル", "summary": "このパートで扱う内容の要約（1〜2文）" }
+  ],
+  "key_terms": [
+    { "name": "この本オリジナルの用語・法則名（例：タッチの定理）", "definition": "簡潔で正確な定義（1〜2文）" }
   ]
 }`;
 
@@ -911,6 +927,31 @@
             btn.textContent = "⚙️ 準備中...";
             btn.disabled = true;
             try {
+                // 🔗【続きの授業】選択されていれば、前回までの用語集（accumulatedKeyTerms）を引き継ぐ
+                const continuationId = el("continuation-select") ? el("continuation-select").value : "";
+                let inheritedKeyTerms = [];
+                let previousLessonTitle = null;
+                if (continuationId) {
+                    try {
+                        const prevSnap = await get(ref(database, 'users/' + loginUid + '/lessons/' + continuationId));
+                        const prevLesson = prevSnap.val();
+                        if (prevLesson) {
+                            inheritedKeyTerms = prevLesson.accumulatedKeyTerms || prevLesson.keyTerms || [];
+                            previousLessonTitle = prevLesson.title || "無題の授業";
+                        }
+                    } catch (e) {
+                        console.warn("⚠️ 続きの授業の用語集の読み込みに失敗しました:", e);
+                    }
+                }
+
+                const thisLessonKeyTerms = Array.isArray(draftPlan.key_terms) ? draftPlan.key_terms : [];
+                // 名前の重複は除外（先に登場した定義を優先）
+                const existingNames = new Set(inheritedKeyTerms.map(t => t.name));
+                const mergedKeyTerms = [
+                    ...inheritedKeyTerms,
+                    ...thisLessonKeyTerms.filter(t => t && t.name && !existingNames.has(t.name))
+                ];
+
                 const newId = "LESSON_" + Date.now();
                 const now = new Date().toISOString();
                 const lessonObj = {
@@ -922,7 +963,11 @@
                     status: "teaching",
                     chatHistory: [],
                     createdAt: now,
-                    updatedAt: now
+                    updatedAt: now,
+                    keyTerms: thisLessonKeyTerms,           // この授業で新しく登場した用語
+                    inheritedKeyTerms: inheritedKeyTerms,    // 前回までに教わった用語（そのまま）
+                    accumulatedKeyTerms: mergedKeyTerms,      // 次の続き授業へ引き継ぐ累積用語集
+                    ...(continuationId ? { previousLessonId: continuationId, previousLessonTitle } : {})
                 };
                 await set(ref(database, 'users/' + loginUid + '/lessons/' + newId), lessonObj);
                 window.location.href = `lesson.html?id=${newId}`;
@@ -933,6 +978,19 @@
                 btn.disabled = false;
             }
         });
+
+        // --------------------------------------------------------------
+        // 🔗 続きの授業選択プルダウン
+        // --------------------------------------------------------------
+        function renderContinuationOptions(lessonsObj) {
+            const select = el("continuation-select");
+            if (!select) return;
+            const lessons = Object.values(lessonsObj || {}).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+            const optionsHtml = lessons.map(l =>
+                `<option value="${l.id}">${(l.title || "無題の授業").replace(/</g, "&lt;")}</option>`
+            ).join("");
+            select.innerHTML = `<option value="">続きではない（新規シリーズとして開始）</option>${optionsHtml}`;
+        }
 
         // --------------------------------------------------------------
         // 授業一覧
@@ -975,12 +1033,22 @@
         function buildTeachSystemInstruction(idxOverride) {
             const parts = currentLesson.parts;
             const idx = (idxOverride !== undefined && idxOverride !== null) ? idxOverride : currentLesson.currentPartIndex;
+
+            // 🔗【続きの授業】前回までに教わった、この参考書オリジナルの用語・法則の定義集
+            const inheritedTerms = currentLesson.inheritedKeyTerms || [];
+            const glossaryBlock = inheritedTerms.length > 0
+                ? `\n\n【生徒が以前の授業ですでに習った用語集（正確にこの定義で使うこと）】\n` +
+                  inheritedTerms.map(t => `・${t.name}：${t.definition}`).join("\n") +
+                  `\n※本文中で「第◯講で習った」のようにこれらの用語に言及する場合、上記の定義を正確に使って説明を補うこと。名前だけ引用して説明を省略しないこと。上記にない用語への言及は、無理に説明せず「これは別の回で扱う内容なので、気になったら質問してね」と一言添えること。`
+                : "";
+
             return `${customPolicyPrompt}
 
 以下は参考書から読み取ったテキスト全文です。今回の授業では、このうち指定された「パート」の範囲だけを扱ってください（生徒から質問されない限り、他のパートの内容には深入りしないこと）。
 
 【参考書の全文】
 ${currentLesson.extractedText}
+${glossaryBlock}
 
 【授業プラン全体（全${parts.length}パート）】
 ${parts.map((p, i) => `${i + 1}. ${p.title} - ${p.summary}`).join("\n")}
@@ -1198,6 +1266,15 @@ ${parts.map((p, i) => `${i + 1}. ${p.title} - ${p.summary}`).join("\n")}
 
         function updateProgressStrip() {
             el("lesson-title-display").textContent = `📘 ${currentLesson.title}`;
+            const contBadge = el("continuation-source-badge");
+            if (contBadge) {
+                if (currentLesson.previousLessonTitle) {
+                    contBadge.textContent = `🔗 続き元: ${currentLesson.previousLessonTitle}`;
+                    contBadge.style.display = "inline";
+                } else {
+                    contBadge.style.display = "none";
+                }
+            }
             const total = currentLesson.parts.length;
             el("part-progress-display").textContent = `${currentLesson.currentPartIndex + 1}/${total}`;
             renderPartsTOC();
@@ -1400,7 +1477,9 @@ ${parts.map((p, i) => `${i + 1}. ${p.title} - ${p.summary}`).join("\n")}
                 await loadLessonView(loginUid, REQUESTED_ID);
             } else {
                 onValue(ref(database, 'users/' + loginUid + '/lessons'), (snapshot) => {
-                    renderLessonList(snapshot.val() || {});
+                    lastLessonsSnapshot = snapshot.val() || {};
+                    renderLessonList(lastLessonsSnapshot);
+                    renderContinuationOptions(lastLessonsSnapshot);
                 });
             }
         });
