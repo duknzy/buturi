@@ -721,21 +721,67 @@
         // --------------------------------------------------------------
         // 画像アップロード（新規授業フォーム）
         // --------------------------------------------------------------
-        el("image-input").addEventListener("change", async (e) => {
-            const files = Array.from(e.target.files || []);
-            for (const file of files) {
+        // 🩹 Geminiが受け付けるMIMEタイプ（これ以外は再エンコードして矯正する）
+        const GEMINI_SUPPORTED_IMAGE_MIME = ["image/png", "image/jpeg", "image/webp"];
+
+        // iPhoneのHEIC/HEIF写真や、ブラウザがMIMEを正しく判定できない
+        // （application/octet-stream等になる）ファイルを、canvasでimage/jpegに
+        // 再エンコードし直すことで「Unsupported MIME type」400エラーを防ぐ。
+        // ※ file.type（宣言されたMIME）はHEICの場合しばしば信用できない
+        //   （octet-streamになったり、逆にimage/heicと出てもcanvasでは開けなかったりする）ため、
+        //   拡張子でも判定し、読み込みはdata URLではなくobjectURLで行う
+        //   （data URLだと誤ったMIME宣言のせいでブラウザがデコードを拒否することがある）
+        async function normalizeImageFile(file) {
+            const lowerName = (file.name || "").toLowerCase();
+            const isHeic = file.type === "image/heic" || file.type === "image/heif"
+                || lowerName.endsWith(".heic") || lowerName.endsWith(".heif");
+
+            if (!isHeic && GEMINI_SUPPORTED_IMAGE_MIME.includes(file.type)) {
                 const dataUrl = await new Promise((res, rej) => {
                     const r = new FileReader();
                     r.onload = () => res(r.result);
                     r.onerror = rej;
                     r.readAsDataURL(file);
                 });
-                const mimeType = dataUrl.split(",")[0].split(":")[1].split(";")[0];
-                const data = dataUrl.split(",")[1];
-                selectedImages.push({ mimeType, data, previewUrl: dataUrl });
+                return { mimeType: file.type, data: dataUrl.split(",")[1], previewUrl: dataUrl };
+            }
+
+            console.warn(`⚠️ ${isHeic ? "HEIC/HEIF画像" : `未対応/未判定のMIMEタイプ(${file.type || "不明"})`}を検出 → image/jpegへ再エンコードします`);
+            const objectUrl = URL.createObjectURL(file);
+            try {
+                const img = await new Promise((res, rej) => {
+                    const im = new Image();
+                    im.onload = () => res(im);
+                    im.onerror = () => rej(new Error("画像の読み込みに失敗しました"));
+                    im.src = objectUrl;
+                });
+                const canvas = document.createElement("canvas");
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                canvas.getContext("2d").drawImage(img, 0, 0);
+                const jpegUrl = canvas.toDataURL("image/jpeg", 0.92);
+                return { mimeType: "image/jpeg", data: jpegUrl.split(",")[1], previewUrl: jpegUrl };
+            } catch (e) {
+                console.error("画像の再エンコードに失敗しました（このブラウザはHEIC非対応の可能性）", e);
+                throw new Error(`「${file.name}」を変換できませんでした。iPhoneの「設定 > カメラ > フォーマット」で「互換性優先」にするか、写真アプリの共有時にJPEGへ変換してから再度アップロードしてください。`);
+            } finally {
+                URL.revokeObjectURL(objectUrl);
+            }
+        }
+
+        el("image-input").addEventListener("change", async (e) => {
+            const files = Array.from(e.target.files || []);
+            for (const file of files) {
+                try {
+                    selectedImages.push(await normalizeImageFile(file));
+                } catch (err) {
+                    alert(err.message);
+                }
             }
             renderThumbs();
         });
+
+
 
         function renderThumbs() {
             el("thumb-row").innerHTML = selectedImages.map(img => `<img src="${img.previewUrl}">`).join("");
@@ -748,15 +794,11 @@
         el("chat-image-input").addEventListener("change", async (e) => {
             const files = Array.from(e.target.files || []);
             for (const file of files) {
-                const dataUrl = await new Promise((res, rej) => {
-                    const r = new FileReader();
-                    r.onload = () => res(r.result);
-                    r.onerror = rej;
-                    r.readAsDataURL(file);
-                });
-                const mimeType = dataUrl.split(",")[0].split(":")[1].split(";")[0];
-                const data = dataUrl.split(",")[1];
-                chatSelectedImages.push({ mimeType, data, previewUrl: dataUrl });
+                try {
+                    chatSelectedImages.push(await normalizeImageFile(file));
+                } catch (err) {
+                    alert(err.message);
+                }
             }
             e.target.value = "";
             renderChatImageThumbs();
