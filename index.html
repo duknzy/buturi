@@ -692,6 +692,10 @@
                 <p style="color: var(--text-muted); font-size: 0.85rem;">テキスト入力、または写真をアップロードして登録します。数式や記号はキーパッドを活用してください。</p>
             </div>
 
+            <div id="linked-lesson-badge" style="display:none; background: linear-gradient(135deg, rgba(255,0,127,0.15), rgba(0,243,255,0.15)); border: 1px solid var(--accent-magenta); border-radius: 10px; padding: 0.6rem 0.9rem; margin-bottom: 0.8rem; font-size: 0.82rem; font-weight: 700; color: #fff;">
+                🎓 授業「<span id="linked-lesson-title-text"></span>」の続きとして登録されます
+            </div>
+
             <div style="margin-bottom: 0.8rem;">
                 <span class="filter-label" style="font-size: 0.8rem; display:block; margin-bottom:0.4rem;">📚 教科を選択：</span>
                 <div id="subject-select-group" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
@@ -855,7 +859,7 @@
         import { getGeminiKeys, getDeepseekKeys, fetchWithKeyRotation, initApiKeyManager, clearAllKeys, notifyModelFallback } from "./api-key-manager.js";
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-        import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+        import { getDatabase, ref, set, get, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY", 
@@ -978,6 +982,40 @@
         let currentUser = null;
         let selectedImageBase64 = null;
         let selectedImageMimeType = null;
+        // 🎓【授業からの継続問題】lesson.htmlの「この授業の続きとして解く」から遷移してきた場合にセットされる
+        let linkedLessonId = null;
+        let linkedLessonTitle = null;
+        let linkedLessonText = null;
+
+        async function checkAndLoadLinkedLesson(uid) {
+            const params = new URLSearchParams(window.location.search);
+            const fromLesson = params.get("fromLesson");
+            if (!fromLesson) return;
+
+            try {
+                const snap = await get(ref(database, 'users/' + uid + '/lessons/' + fromLesson));
+                const lessonData = snap.val();
+                if (!lessonData) {
+                    console.warn("⚠️ 指定された授業データが見つかりませんでした:", fromLesson);
+                    return;
+                }
+                linkedLessonId = fromLesson;
+                linkedLessonTitle = lessonData.title || lessonData.short_title || "無題の授業";
+                linkedLessonText = lessonData.extractedText || "";
+
+                const badge = document.getElementById("linked-lesson-badge");
+                const badgeText = document.getElementById("linked-lesson-title-text");
+                if (badge && badgeText) {
+                    badgeText.textContent = linkedLessonTitle;
+                    badge.style.display = "block";
+                }
+                // 授業からの続きは物理教材が中心のため、初期選択を物理にしておく（手動で変更可）
+                window.setSelectedSubject("物理");
+                document.getElementById("add-problem-modal").style.display = "flex";
+            } catch (e) {
+                console.error("授業データの読み込みに失敗しました:", e);
+            }
+        }
         let previewTimeout = null; 
 
         let lastCloudProblemsSnapshot = {};
@@ -1065,6 +1103,7 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
 
                 listenToCloudData(user.uid);
                 listenToQnaArchive(user.uid); // 💬【新設】質問履歴アーカイブの監視を開始
+                checkAndLoadLinkedLesson(user.uid); // 🎓 lesson.htmlからの継続問題リンクを確認
             } else {
                 currentUser = null;
                 authPanel.innerHTML = `<span style="color:var(--accent-magenta); cursor:pointer;" id="header-login-btn">SIGN IN</span>`;
@@ -1448,7 +1487,20 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
             }
 
             try {
-                const activeSystemInstruction = SUBJECT_CREATE_PROMPTS[selectedSubject] || SUBJECT_CREATE_PROMPTS["数学"];
+                let activeSystemInstruction = SUBJECT_CREATE_PROMPTS[selectedSubject] || SUBJECT_CREATE_PROMPTS["数学"];
+
+                // 🎓【授業からの継続問題】直前に受けた授業の参考書全文をAIに渡し、
+                //   その授業固有の用語・法則名・手順番号をそのまま使って解説させる
+                if (linkedLessonText) {
+                    activeSystemInstruction += `
+
+【直前に受けた授業からの継続問題】
+この問題は、直前に受けた授業「${linkedLessonTitle || "無題の授業"}」の続きとして生徒が解いている問題です。
+以下は、その授業の元になった参考書のテキスト全文です。この中で使われている固有の名称（法則名・大原則・「タッチの定理」のような参考書独自の用語・「手順①〜⑦」のような番号付き手順など）を、strategy_patternとmodel_answerの解説の中で積極的に名指しして使い、授業内容を思い出させながら解説すること。勝手に別の言葉に言い換えたり、新しい独自用語を作ったりしないこと。一般論だけで済ませず、必ずこの参考書固有の言葉で解説すること。
+
+【授業で読んだ参考書の全文】
+${linkedLessonText}`;
+                }
 
                 const requestBody = JSON.stringify({
                     "contents": [{ "parts": parts }],
@@ -1553,7 +1605,12 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
                     lastResult: false,
                     imageData: selectedImageBase64 ? `data:${selectedImageMimeType};base64,${selectedImageBase64}` : null,
                     answerFormula: aiResult.model_answer || "解説データなし",
-                    createdAt: nowIso
+                    createdAt: nowIso,
+                    ...(linkedLessonId ? {
+                        sourceLessonId: linkedLessonId,
+                        sourceLessonTitle: linkedLessonTitle,
+                        sourceLessonText: linkedLessonText
+                    } : {})
                 };
 
                 await set(ref(database, 'users/' + currentUser.uid + '/problems/' + newId), newProblem);
@@ -1595,7 +1652,12 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
                     lastResult: false,
                     imageData: selectedImageBase64 ? `data:${selectedImageMimeType};base64,${selectedImageBase64}` : null,
                     answerFormula: "模範解答データはありません。自力で解説を確認してください。",
-                    createdAt: nowIso
+                    createdAt: nowIso,
+                    ...(linkedLessonId ? {
+                        sourceLessonId: linkedLessonId,
+                        sourceLessonTitle: linkedLessonTitle,
+                        sourceLessonText: linkedLessonText
+                    } : {})
                 };
 
                 await set(ref(database, 'users/' + currentUser.uid + '/problems/' + newId), newProblem);
@@ -1624,6 +1686,17 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
             preview.innerHTML = "入力プレビューがここに表示されます";
             selectedImageBase64 = null;
             window.setSelectedSubject("数学");
+
+            // 🎓 授業からの継続リンクもリセット
+            linkedLessonId = null;
+            linkedLessonTitle = null;
+            linkedLessonText = null;
+            const badge = document.getElementById("linked-lesson-badge");
+            if (badge) badge.style.display = "none";
+            // URLの?fromLessonを消して、再度開いた時に誤って再リンクされないようにする
+            if (window.location.search.includes("fromLesson")) {
+                window.history.replaceState({}, "", window.location.pathname);
+            }
         }
 
         const modal = document.getElementById("add-problem-modal");

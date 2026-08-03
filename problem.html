@@ -372,6 +372,9 @@
                     <button type="button" id="edit-title-btn" style="background: transparent; border: 1px solid #22222a; color: var(--accent-cyan); font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 6px; cursor: pointer; font-weight: 800;">✏️ 名前変更</button>
                     <button type="button" id="delete-prob-btn" style="background: transparent; border: 1px solid #2a0000; color: #ff4545; font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 6px; cursor: pointer; font-weight: 800;">🗑️ 問題を削除</button>
                 </div>
+                <a id="source-lesson-badge" href="#" style="display:none; align-items:center; gap:0.3rem; background: linear-gradient(135deg, rgba(255,0,127,0.15), rgba(0,243,255,0.15)); border: 1px solid var(--accent-magenta); border-radius: 8px; padding: 0.3rem 0.7rem; font-size: 0.78rem; font-weight: 700; color: #fff; text-decoration: none;">
+                    🎓 元の授業: <span id="source-lesson-title-text"></span>
+                </a>
             </div>
             <div>
                 <button type="button" class="tactile-btn tactile-btn-secondary" onclick="location.href='index.html'">
@@ -759,12 +762,26 @@
 `.trim()
         };
 
+        // 🎓【授業からの継続問題】この問題が特定の授業(lesson.html)の続きとして登録されている場合、
+        //   その授業の元になった参考書全文をAIに渡し、固有の用語・法則名・手順番号をそのまま使わせる
+        function buildLessonContextBlock() {
+            if (!currentProblemData.sourceLessonText) return "";
+            return `
+
+【直前に受けた授業からの継続問題】
+この問題は、直前に受けた授業「${currentProblemData.sourceLessonTitle || "無題の授業"}」の続きとして生徒が解いている問題です。
+以下は、その授業の元になった参考書のテキスト全文です。この中で使われている固有の名称（法則名・大原則・「タッチの定理」のような参考書独自の用語・「手順①〜⑦」のような番号付き手順など）を、strategy_patternとmodel_answerの解説の中で積極的に名指しして使い、授業内容を思い出させながら解説すること。勝手に別の言葉に言い換えたり、新しい独自用語を作ったりしないこと。一般論だけで済ませず、必ずこの参考書固有の言葉で解説すること。
+
+【授業で読んだ参考書の全文】
+${currentProblemData.sourceLessonText}`;
+        }
+
         // 現在の問題の教科に対応するプロンプトを返すヘルパー（未登録教科は数学にフォールバック）
         function getCreatePrompt(subject) {
-            return SUBJECT_CREATE_PROMPTS[subject] || SUBJECT_CREATE_PROMPTS["数学"];
+            return (SUBJECT_CREATE_PROMPTS[subject] || SUBJECT_CREATE_PROMPTS["数学"]) + buildLessonContextBlock();
         }
         function getChatPrompt(subject) {
-            return SUBJECT_CHAT_PROMPTS[subject] || SUBJECT_CHAT_PROMPTS["数学"];
+            return (SUBJECT_CHAT_PROMPTS[subject] || SUBJECT_CHAT_PROMPTS["数学"]) + buildLessonContextBlock();
         }
 
         let chatHistory = []; 
@@ -799,6 +816,20 @@
 
                 document.getElementById("problem-id-display").textContent = "PROBLEM ID: " + currentProblemData.id;
                 document.getElementById("problem-title-display").textContent = "問題名: " + (currentProblemData.short_title || "未設定");
+
+                // 🎓 授業からの継続問題であれば、元の授業へのリンクバッジを表示
+                (function renderSourceLessonBadge() {
+                    const badge = document.getElementById("source-lesson-badge");
+                    const badgeText = document.getElementById("source-lesson-title-text");
+                    if (!badge || !badgeText) return;
+                    if (currentProblemData.sourceLessonId) {
+                        badgeText.textContent = currentProblemData.sourceLessonTitle || "無題の授業";
+                        badge.href = "lesson.html?id=" + encodeURIComponent(currentProblemData.sourceLessonId);
+                        badge.style.display = "inline-flex";
+                    } else {
+                        badge.style.display = "none";
+                    }
+                })();
 
                 // 🗓️ 追加日・気づき更新日の表示（createdAtが無い古いデータはIDのタイムスタンプから推定）
                 (function renderDatesMeta() {
@@ -1000,25 +1031,50 @@
                     "temperature": 0.3,
                     "thinking": { "type": "enabled" },
                     "reasoning_effort": "high",
-                    "response_format": { "type": "json_object" }
+                    "response_format": { "type": "json_object" },
+                    "max_tokens": 8192 // 💡 未指定だとthinkingで使い切ってcontentが空のまま打ち切られることがあるため明示
                 });
 
-                const response = await fetchWithKeyRotation(getDeepseekKeys(), (key) => ({
-                    url: DEEPSEEK_API_URL,
-                    options: {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": "Bearer " + key
-                        },
-                        body: deepseekBody
-                    }
-                }));
+                const MAX_DEEPSEEK_ATTEMPTS = 3;
+                let deepseekLastError = null;
 
-                const data = await response.json();
-                let rawText = data.choices[0].message.content;
-                if (rawText.includes("</think>")) rawText = rawText.split("</think>")[1].trim();
-                return JSON.parse(fixJsonEscapes(stripCodeFence(rawText)));
+                for (let attempt = 1; attempt <= MAX_DEEPSEEK_ATTEMPTS; attempt++) {
+                    const response = await fetchWithKeyRotation(getDeepseekKeys(), (key) => ({
+                        url: DEEPSEEK_API_URL,
+                        options: {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": "Bearer " + key
+                            },
+                            body: deepseekBody
+                        }
+                    }));
+
+                    const data = await response.json();
+                    const message = data?.choices?.[0]?.message || {};
+                    const finishReason = data?.choices?.[0]?.finish_reason;
+                    let rawText = (message.content && message.content.trim())
+                        || (message.reasoning_content && message.reasoning_content.trim())
+                        || "";
+
+                    if (!rawText) {
+                        console.warn(`⚠️ DeepSeekが空の応答を返却しました（${attempt}/${MAX_DEEPSEEK_ATTEMPTS}回目, finish_reason: ${finishReason || "不明"}）→ リトライ`);
+                        deepseekLastError = new Error(`DeepSeekが空の応答を返却しました（finish_reason: ${finishReason || "不明"}）`);
+                        continue;
+                    }
+
+                    if (rawText.includes("</think>")) rawText = rawText.split("</think>")[1].trim();
+                    try {
+                        return JSON.parse(fixJsonEscapes(stripCodeFence(rawText)));
+                    } catch (parseErr) {
+                        console.warn(`⚠️ DeepSeekの応答が不正なJSONでした（${attempt}/${MAX_DEEPSEEK_ATTEMPTS}回目）→ リトライ`, parseErr);
+                        deepseekLastError = parseErr;
+                        continue;
+                    }
+                }
+
+                throw new Error(`DeepSeekブレインが${MAX_DEEPSEEK_ATTEMPTS}回連続で空/不正な応答を返しました（DeepSeek側の既知の仕様上の問題です）。もう一度実行するか、✨Geminiに切り替えてみてください。\n最終エラー: ${deepseekLastError?.message || "不明"}`);
 
             } else {
                 // ✨ Gemini（画像入力対応）
@@ -1226,24 +1282,57 @@
                         "temperature": 0.5,
                         "thinking": { "type": "enabled" },
                         "reasoning_effort": "high",
-                        "response_format": { "type": "json_object" }
+                        "response_format": { "type": "json_object" },
+                        "max_tokens": 8192 // 💡 未指定だとthinkingで使い切ってcontentが空のまま打ち切られることがあるため明示
                     });
 
-                    const response = await fetchWithKeyRotation(getDeepseekKeys(), (key) => ({
-                        url: DEEPSEEK_API_URL,
-                        options: {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                "Authorization": "Bearer " + key
-                            },
-                            body: tutorDeepseekBody
-                        }
-                    }));
+                    // 💡 DeepSeekはthinking+json_object併用時に稀にcontentが空で返ってくる
+                    //   既知の仕様上の癖があるため（公式ドキュメントにも明記）、その場合は
+                    //   自動リトライする（Geminiのモデル・フォールバックに相当する対策）
+                    const MAX_DEEPSEEK_ATTEMPTS = 3;
+                    let deepseekLastError = null;
 
-                    const data = await response.json();
-                    const rawOutput = data.choices[0].message.content;
-                    aiJson = cleanDeepSeekResponse(rawOutput);
+                    for (let attempt = 1; attempt <= MAX_DEEPSEEK_ATTEMPTS; attempt++) {
+                        const response = await fetchWithKeyRotation(getDeepseekKeys(), (key) => ({
+                            url: DEEPSEEK_API_URL,
+                            options: {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "Authorization": "Bearer " + key
+                                },
+                                body: tutorDeepseekBody
+                            }
+                        }));
+
+                        const data = await response.json();
+                        const message = data?.choices?.[0]?.message || {};
+                        const finishReason = data?.choices?.[0]?.finish_reason;
+                        // contentが空なら、稀にJSONがreasoning_content側に出てしまうケースの救済も試みる
+                        const rawOutput = (message.content && message.content.trim())
+                            || (message.reasoning_content && message.reasoning_content.trim())
+                            || "";
+
+                        if (!rawOutput) {
+                            console.warn(`⚠️ DeepSeekが空の応答を返却しました（${attempt}/${MAX_DEEPSEEK_ATTEMPTS}回目, finish_reason: ${finishReason || "不明"}）→ リトライ`);
+                            deepseekLastError = new Error(`DeepSeekが空の応答を返却しました（finish_reason: ${finishReason || "不明"}）`);
+                            continue;
+                        }
+
+                        try {
+                            aiJson = cleanDeepSeekResponse(rawOutput);
+                            deepseekLastError = null;
+                            break;
+                        } catch (parseErr) {
+                            console.warn(`⚠️ DeepSeekの応答が不正なJSONでした（${attempt}/${MAX_DEEPSEEK_ATTEMPTS}回目）→ リトライ`, parseErr);
+                            deepseekLastError = parseErr;
+                            continue;
+                        }
+                    }
+
+                    if (deepseekLastError) {
+                        throw new Error(`DeepSeekブレインが${MAX_DEEPSEEK_ATTEMPTS}回連続で空/不正な応答を返しました（DeepSeek側の既知の仕様上の問題です）。もう一度送信するか、右上のトグルからGeminiに切り替えてみてください。\n最終エラー: ${deepseekLastError.message}`);
+                    }
 
                 } else {
                     // ✨ Gemini

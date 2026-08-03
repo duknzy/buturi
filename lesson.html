@@ -472,6 +472,9 @@
                     <div class="progress-strip">
                         <span id="lesson-title-display" style="font-weight: 800; color: var(--accent-yellow); font-size: 1.05rem;">---</span>
                         <span style="font-size: 0.85rem; color: var(--text-muted);">パート <b id="part-progress-display" style="color: var(--accent-cyan); font-weight: 900;">-/-</b></span>
+                        <button type="button" class="tactile-btn" id="solve-related-problem-btn" style="background: var(--accent-magenta); box-shadow: 3px 3px 0px #8a004f; font-size: 0.8rem; padding: 0.5rem 0.9rem; margin-left: auto;">
+                            🎯 この授業の続きとして問題を解く
+                        </button>
                     </div>
 
                     <div class="chat-transcript" id="chat-transcript"></div>
@@ -705,6 +708,10 @@
         el("open-settings-btn").addEventListener("click", () => {
             el("settings-textarea").value = customPolicyPrompt;
             el("settings-modal").style.display = "flex";
+        });
+        el("solve-related-problem-btn").addEventListener("click", () => {
+            if (!currentLessonId) return;
+            window.location.href = "index.html?fromLesson=" + encodeURIComponent(currentLessonId);
         });
         el("close-settings-btn").addEventListener("click", () => el("settings-modal").style.display = "none");
         el("reset-settings-btn").addEventListener("click", () => { el("settings-textarea").value = DEFAULT_POLICY_PROMPT; });
