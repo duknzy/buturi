@@ -436,6 +436,11 @@
             <div class="squircle-card new-lesson-form">
                 <div style="font-weight:900; font-size:1.05rem;">🆕 新しい授業を始める</div>
 
+                <div style="display:flex; gap:0.5rem; margin: 0.8rem 0 1rem 0;">
+                    <button type="button" class="tactile-btn mode-tab-btn active" id="mode-tab-photo" style="flex:1; background: var(--accent-cyan); color:#000; box-shadow: 3px 3px 0px #008b94;">📷 参考書から</button>
+                    <button type="button" class="tactile-btn mode-tab-btn" id="mode-tab-topic" style="flex:1; background:#111; color:var(--text-bright-muted); border:1px solid #333; box-shadow:none;">✏️ 単元名だけで</button>
+                </div>
+
                 <div style="margin-bottom: 0.6rem;">
                     <label for="continuation-select" style="font-size:0.85rem; color:var(--text-muted); display:block; margin-bottom:0.3rem;">
                         🔗 これは以前の授業の続きですか？（同じ参考書の前の講など）
@@ -445,13 +450,35 @@
                     </select>
                 </div>
 
-                <label class="file-drop-label" id="file-drop-label" for="image-input">
-                    📷 参考書のページ写真をアップロード（複数枚OK）
-                </label>
-                <input type="file" id="image-input" accept="image/*" multiple style="display:none;">
-                <div class="thumb-row" id="thumb-row"></div>
-                <textarea class="note-textarea" id="note-input" placeholder="（任意）特にここが分からない、というメモがあれば入力してください"></textarea>
-                <button type="button" class="tactile-btn" id="generate-plan-btn" style="background: var(--accent-yellow); color:#000; box-shadow: 3px 3px 0px #a89f00;">
+                <div id="mode-group-photo">
+                    <label class="file-drop-label" id="file-drop-label" for="image-input">
+                        📷 参考書のページ写真をアップロード（複数枚OK）
+                    </label>
+                    <input type="file" id="image-input" accept="image/*" multiple style="display:none;">
+                    <div class="thumb-row" id="thumb-row"></div>
+                    <textarea class="note-textarea" id="note-input" placeholder="（任意）特にここが分からない、というメモがあれば入力してください"></textarea>
+                </div>
+
+                <div id="mode-group-topic" style="display:none;">
+                    <label style="font-size:0.85rem; color:var(--text-muted); display:block; margin-bottom:0.3rem;">
+                        📝 学びたい単元名
+                    </label>
+                    <input type="text" id="topic-input" placeholder="例：数学III 微分方程式／物理 コンデンサー回路 など"
+                        style="width:100%; background:#000; border:1px solid #22222a; color:#fff; padding:0.9rem; border-radius:12px; font-size:1rem; margin-bottom:0.8rem;">
+                    <label style="font-size:0.85rem; color:var(--text-muted); display:block; margin-bottom:0.3rem;">
+                        🎚️ レベル感
+                    </label>
+                    <select id="topic-level-select" style="width:100%; background:#0a0a12; color:#fff; border:1px solid var(--border-color); border-radius:10px; padding:0.6rem; font-size:0.9rem; margin-bottom:0.8rem;">
+                        <option value="教科書レベル（基礎の基礎から）">教科書レベル（基礎の基礎から）</option>
+                        <option value="定期テストレベル">定期テストレベル</option>
+                        <option value="入試基礎レベル" selected>入試基礎レベル</option>
+                        <option value="入試標準〜応用レベル">入試標準〜応用レベル</option>
+                    </select>
+                    <textarea class="note-textarea" id="topic-note-input" placeholder="（任意）特に重点を置いてほしい内容、すでに知っている前提などがあれば入力してください"></textarea>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.4rem;">※参考書がないため、AIが自身の知識だけでカリキュラムと解説を作成します。まれに細部が不正確な場合があるので、重要な公式・定義は自分でも確認してください。</div>
+                </div>
+
+                <button type="button" class="tactile-btn" id="generate-plan-btn" style="background: var(--accent-yellow); color:#000; box-shadow: 3px 3px 0px #a89f00; margin-top: 0.8rem;">
                     🧑‍🏫 授業プランを作ってもらう
                 </button>
             </div>
@@ -541,7 +568,7 @@
 
                     <!-- パネル3: 原本テキスト -->
                     <div class="sidebar-panel" id="tab-source">
-                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.6rem; font-weight: 700;">
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.6rem; font-weight: 700;" id="source-panel-label">
                             🔍 参考書の文字起こし全文
                         </div>
                         <div id="lesson-extracted-source-text" class="source-text-box tex2jax_process"></div>
@@ -687,6 +714,28 @@
         // --------------------------------------------------------------
         let loginUid = null;
         let selectedImages = []; // [{mimeType, data}] （新規授業作成フォーム用）
+        let creationMode = "photo"; // "photo" | "topic"
+
+        function setCreationMode(mode) {
+            creationMode = mode;
+            const photoBtn = el("mode-tab-photo");
+            const topicBtn = el("mode-tab-topic");
+            const photoGroup = el("mode-group-photo");
+            const topicGroup = el("mode-group-topic");
+            if (mode === "topic") {
+                photoBtn.style.background = "#111"; photoBtn.style.color = "var(--text-bright-muted)"; photoBtn.style.border = "1px solid #333"; photoBtn.style.boxShadow = "none";
+                topicBtn.style.background = "var(--accent-cyan)"; topicBtn.style.color = "#000"; topicBtn.style.border = "none"; topicBtn.style.boxShadow = "3px 3px 0px #008b94";
+                photoGroup.style.display = "none";
+                topicGroup.style.display = "block";
+            } else {
+                topicBtn.style.background = "#111"; topicBtn.style.color = "var(--text-bright-muted)"; topicBtn.style.border = "1px solid #333"; topicBtn.style.boxShadow = "none";
+                photoBtn.style.background = "var(--accent-cyan)"; photoBtn.style.color = "#000"; photoBtn.style.border = "none"; photoBtn.style.boxShadow = "3px 3px 0px #008b94";
+                topicGroup.style.display = "none";
+                photoGroup.style.display = "block";
+            }
+        }
+        el("mode-tab-photo").addEventListener("click", () => setCreationMode("photo"));
+        el("mode-tab-topic").addEventListener("click", () => setCreationMode("topic"));
         let chatSelectedImages = []; // [{mimeType, data, previewUrl}] （授業チャット中の追加質問用）
         let draftPlan = null;    // { extracted_text, lesson_title, parts }
         let lastLessonsSnapshot = {}; // 🔗 続きの授業選択プルダウンの元データ
@@ -853,10 +902,15 @@
         });
 
         async function generatePlan() {
-            if (selectedImages.length === 0) {
+            if (creationMode === "photo" && selectedImages.length === 0) {
                 alert("まずは参考書のページ写真をアップロードしてください。");
                 return;
             }
+            if (creationMode === "topic" && !el("topic-input").value.trim()) {
+                alert("学びたい単元名を入力してください。");
+                return;
+            }
+
             const btn = el("generate-plan-btn");
             const regenBtn = el("regenerate-plan-btn");
             const originalText = btn.textContent;
@@ -864,9 +918,12 @@
             btn.disabled = true;
             if (regenBtn) regenBtn.disabled = true;
 
-            const noteText = el("note-input").value.trim();
+            let PLAN_SYSTEM_INSTRUCTION, promptText, parts;
 
-            const PLAN_SYSTEM_INSTRUCTION = `${customPolicyPrompt}
+            if (creationMode === "photo") {
+                const noteText = el("note-input").value.trim();
+
+                PLAN_SYSTEM_INSTRUCTION = `${customPolicyPrompt}
 
 今回はまだ授業本編ではなく、授業の準備をしてください。
 1. 添付された参考書ページの内容を正確に読み取り、全文を書き出すこと（数式は $ $ で囲むこと）
@@ -885,16 +942,48 @@
   ]
 }`;
 
-            let promptText = "添付した参考書のページを解析し、指定のJSONで授業プランを作成してください。";
-            if (noteText) promptText += `\n\n【生徒からのメモ】\n${noteText}`;
+                promptText = "添付した参考書のページを解析し、指定のJSONで授業プランを作成してください。";
+                if (noteText) promptText += `\n\n【生徒からのメモ】\n${noteText}`;
 
-            const parts = [{ text: promptText }];
-            selectedImages.forEach(img => parts.push({ inlineData: { mimeType: img.mimeType, data: img.data } }));
+                parts = [{ text: promptText }];
+                selectedImages.forEach(img => parts.push({ inlineData: { mimeType: img.mimeType, data: img.data } }));
+
+            } else {
+                // ✏️【単元名だけモード】参考書がないので、AI自身の知識でカリキュラムと解説ノートを新規作成する
+                const topicText = el("topic-input").value.trim();
+                const levelText = el("topic-level-select").value;
+                const topicNoteText = el("topic-note-input").value.trim();
+
+                PLAN_SYSTEM_INSTRUCTION = `${customPolicyPrompt}
+
+今回は生徒の手元に参考書がありません。指定された単元について、あなた自身の知識だけを使って、ゼロから授業を設計してください。
+1. 指定された単元・レベル感に沿って、生徒が体系的に理解できるように内容を組み立て、「授業ノート」として全文を書き出すこと（数式は $ $ で囲むこと）。このノートは後の授業本編で「教える内容の正解」として毎回参照されるので、公式・定義・成り立ち・典型的な考え方の流れを、正確かつ網羅的に、ただし冗長になりすぎない密度で書くこと
+2. 内容量を踏まえて、区切りの良い単位で「大まかな授業プラン」を作成すること（目安は2〜6パート程度。多すぎず少なすぎないように。基礎概念→典型パターン→応用、のように学習の階段になるよう並べること）
+3. この単元特有の重要用語・公式・定理（一般的すぎるものは除く）があれば、名称と定義を簡潔に抽出すること
+
+出力は必ず以下のJSON形式のみで返してください。他のテキストは一切含めないこと。
+{
+  "extracted_text": "この単元について新規に作成した授業ノート全文（数式は $ $ で囲む）",
+  "lesson_title": "この授業全体を表す短いタイトル",
+  "parts": [
+    { "title": "パートのタイトル", "summary": "このパートで扱う内容の要約（1〜2文）" }
+  ],
+  "key_terms": [
+    { "name": "重要な用語・公式・定理名", "definition": "簡潔で正確な定義（1〜2文）" }
+  ]
+}`;
+
+                promptText = `以下の単元について、指定のJSONで授業プランと授業ノートを作成してください。\n\n【単元名】\n${topicText}\n\n【レベル感】\n${levelText}`;
+                if (topicNoteText) promptText += `\n\n【生徒からの要望・前提】\n${topicNoteText}`;
+
+                parts = [{ text: promptText }];
+            }
 
             try {
                 const result = await callGeminiJSON(parts, PLAN_SYSTEM_INSTRUCTION);
                 if (!Array.isArray(result.parts) || result.parts.length === 0) throw new Error("プランの形式が不正です。");
                 draftPlan = result;
+                draftPlan.sourceMode = creationMode;
                 renderPlanPreview();
                 el("view-list").classList.add("hidden");
                 el("view-plan-preview").classList.remove("hidden");
@@ -959,6 +1048,7 @@
                     id: newId,
                     title: draftPlan.lesson_title,
                     extractedText: draftPlan.extracted_text,
+                    sourceMode: draftPlan.sourceMode || "photo",
                     parts: draftPlan.parts,
                     currentPartIndex: 0,
                     status: "teaching",
@@ -1043,11 +1133,23 @@
                   `\n※本文中で「第◯講で習った」のようにこれらの用語に言及する場合、上記の定義を正確に使って説明を補うこと。名前だけ引用して説明を省略しないこと。上記にない用語への言及は、無理に説明せず「これは別の回で扱う内容なので、気になったら質問してね」と一言添えること。`
                 : "";
 
+            const isTopicMode = currentLesson.sourceMode === "topic";
+            const sourceLabel = isTopicMode ? "この授業のためにAIが事前に作成した授業ノート" : "参考書から読み取った全文";
+            const photoHandlingBlock = isTopicMode
+                ? `【生徒が問題の写真を添付してきた場合】
+・生徒が会話の中で問題や自分の解答の写真を添付した場合、その内容を最優先の一次情報として扱い、写っている問題文・条件・生徒の解答をそのまま使って説明・回答すること
+・写真に写っている図（力の図示、グラフ、回路図など）について説明する際は、図のどの部分の話をしているか生徒に分かるように具体的に言及すること`
+                : `【生徒が参考書のページ写真を添付してきた場合】
+・生徒が会話の中で参考書のページ写真を添付した場合、それはこの授業の元になっている参考書そのもの（またはその関連ページ）です
+・添付された写真に写っている図・表・独自の記号や用語・説明の展開は、上記「${sourceLabel}」よりも一次情報として優先し、そこに書かれている表現・概念・解法をそのまま使って説明・回答すること
+・「${sourceLabel}」はOCR的に文字起こししたものなので、数式や図が正しく読み取れていない可能性があります。添付された写真の内容と「${sourceLabel}」が食い違う場合は、写真の内容を正としてください
+・写真に写っている図（力の図示、グラフ、回路図など）について説明する際は、図のどの部分の話をしているか生徒に分かるように具体的に言及すること`;
+
             return `${customPolicyPrompt}
 
-以下は参考書から読み取ったテキスト全文です。今回の授業では、このうち指定された「パート」の範囲だけを扱ってください（生徒から質問されない限り、他のパートの内容には深入りしないこと）。
+以下は${isTopicMode ? "参考書の代わりにあなた自身が事前に作成した授業ノート全文です" : "参考書から読み取ったテキスト全文です"}。今回の授業では、このうち指定された「パート」の範囲だけを扱ってください（生徒から質問されない限り、他のパートの内容には深入りしないこと）。
 
-【参考書の全文】
+【${sourceLabel}】
 ${currentLesson.extractedText}
 ${glossaryBlock}
 
@@ -1057,11 +1159,7 @@ ${parts.map((p, i) => `${i + 1}. ${p.title} - ${p.summary}`).join("\n")}
 【今回実際に授業するパート】
 第${idx + 1}回: ${parts[idx].title}（${parts[idx].summary}）
 
-【生徒が参考書のページ写真を添付してきた場合】
-・生徒が会話の中で参考書のページ写真を添付した場合、それはこの授業の元になっている参考書そのもの（またはその関連ページ）です
-・添付された写真に写っている図・表・独自の記号や用語・説明の展開は、上記「参考書の全文」よりも一次情報として優先し、そこに書かれている表現・概念・解法をそのまま使って説明・回答すること
-・「参考書の全文」はOCR的に文字起こししたものなので、数式や図が正しく読み取れていない可能性があります。添付された写真の内容と「参考書の全文」が食い違う場合は、写真の内容を正としてください
-・写真に写っている図（力の図示、グラフ、回路図など）について説明する際は、図のどの部分の話をしているか生徒に分かるように具体的に言及すること
+${photoHandlingBlock}
 
 返答は以下のJSONのみ（説明不要）：
 {
@@ -1248,8 +1346,11 @@ ${parts.map((p, i) => `${i + 1}. ${p.title} - ${p.summary}`).join("\n")}
         // 💡 【サイドバー機能 3】原本テキストの表示
         function renderSourceText() {
             const container = el("lesson-extracted-source-text");
+            const label = el("source-panel-label");
             if (!container || !currentLesson) return;
-            container.textContent = currentLesson.extractedText || "（原本テキストが見つかりません）";
+            const isTopicMode = currentLesson.sourceMode === "topic";
+            if (label) label.textContent = isTopicMode ? "🔍 AIが作成した授業ノート全文" : "🔍 参考書の文字起こし全文";
+            container.textContent = currentLesson.extractedText || (isTopicMode ? "（授業ノートが見つかりません）" : "（原本テキストが見つかりません）");
         }
 
         // 💡 【サイドバータブ切り替えの初期化】
