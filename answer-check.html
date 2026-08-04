@@ -224,10 +224,11 @@
                     <span class="filter-label" style="display:block; margin-bottom:0.4rem;">📚 教科を選択：</span>
                     <div id="subject-select-group" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                         <button type="button" class="subject-select-btn active" data-subject="数学" onclick="setSelectedSubject('数学')">数学</button>
-                        <button type="button" class="subject-select-btn" data-subject="物理" onclick="setSelectedSubject('物理')">物理</button>
-                        <button type="button" class="subject-select-btn" data-subject="化学" onclick="setSelectedSubject('化学')">化学</button>
-                        <button type="button" class="subject-select-btn" data-subject="生物" onclick="setSelectedSubject('生物')">生物</button>
+                        <button type="button" class="subject-select-btn" data-subject="物理" onclick="setSelectedSubject('物理')">物理基礎</button>
+                        <button type="button" class="subject-select-btn" data-subject="化学" onclick="setSelectedSubject('化学')">化学基礎</button>
                         <button type="button" class="subject-select-btn" data-subject="英語" onclick="setSelectedSubject('英語')">英語</button>
+                        <button type="button" class="subject-select-btn" data-subject="国語" onclick="setSelectedSubject('国語')">国語</button>
+                        <button type="button" class="subject-select-btn" data-subject="地歴公民" onclick="setSelectedSubject('地歴公民')">地歴公民</button>
                     </div>
                 </div>
 
@@ -327,22 +328,28 @@
                 answerNote: "数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。手順ごとに改行コード（\\n）を挟んで箇条書き（1., 2.など）で出力すること"
             },
             "物理": {
-                role: "高校物理",
-                fieldExample: "分野名（例：力学 運動方程式、電磁気 コンデンサー など）",
+                role: "高校物理基礎",
+                fieldExample: "分野名（例：力学基礎 等加速度運動、熱 状態変化、波 音の性質、電気 オームの法則 など）",
                 extractedNote: "数式や記号を含む場合は必ず $ $ で挟むこと",
                 answerNote: "数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。手順ごとに改行コード（\\n）を挟んで箇条書き（1., 2.など）で出力すること"
             },
             "化学": {
-                role: "高校化学",
-                fieldExample: "分野名（例：理論化学 mol計算、無機化学、有機化学 構造決定 など）",
+                role: "高校化学基礎",
+                fieldExample: "分野名（例：物質の構成 mol計算、化学結合、酸と塩基、酸化還元反応 など）",
                 extractedNote: "化学式や数値は $H_2O$ のようにLaTeX形式（$で囲む）で表現すること",
                 answerNote: "化学反応式・化学式・数値・単位は必ず $ で囲んだLaTeX形式（例：$2H_2 + O_2 \\rightarrow 2H_2O$）で書くこと。手順ごとに改行コード（\\n）を挟んで箇条書き（1., 2.など）で出力すること"
             },
-            "生物": {
-                role: "高校生物",
-                fieldExample: "分野名（例：遺伝、代謝、体内環境、生態系 など）",
-                extractedNote: "",
-                answerNote: "用語は正確に使うこと。計算が必要な場合（遺伝の分離比など）は数値を$で囲んだLaTeX形式にすること。手順ごとに改行コード（\\n）を挟んで箇条書き（1., 2.など）で出力すること"
+            "国語": {
+                role: "高校国語（現代文・古文・漢文）",
+                fieldExample: "分野名（例：現代文 論理的文章、古文 助動詞の識別、漢文 句法 など）",
+                extractedNote: "古文・漢文は原文のまま。LaTeX記法は使わないこと",
+                answerNote: "根拠となる本文箇所を明示すること。古文・漢文は現代語訳や句法の説明も含めること。手順ごとに改行コード（\\n）を挟んで箇条書き（1., 2.など）で出力すること"
+            },
+            "地歴公民": {
+                role: "高校地理・公民（地理総合、公共・現代社会など）",
+                fieldExample: "分野名（例：地理総合 気候区分、公共 政治のしくみ、公共 経済のしくみ など）",
+                extractedNote: "統計・資料の内容が問題に含まれる場合はその要点も書き起こすこと",
+                answerNote: "用語・制度名は正確に使うこと。手順ごとに改行コード（\\n）を挟んで箇条書き（1., 2.など）で出力すること"
             },
             "英語": {
                 role: "高校英語",
@@ -416,7 +423,7 @@ ${MULTI_QUESTION_INSTRUCTION}
                 btn.classList.toggle("active", btn.getAttribute("data-subject") === subject);
             });
             const kb = document.getElementById("math-keyboard-group");
-            if (kb) kb.style.display = (subject === "英語") ? "none" : "";
+            if (kb) kb.style.display = (subject === "英語" || subject === "国語" || subject === "地歴公民") ? "none" : "";
         };
 
         window.insertMathSymbol = function(startTag, endTag = "") {
