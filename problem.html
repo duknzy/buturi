@@ -165,6 +165,15 @@
             border-radius: 8px;
         }
 
+        /* 💡 数式の構文エラー時、MathJax標準の派手な赤エラー表示を配色に馴染む形に上書き */
+        .chat-bubble mjx-merror,
+        .chat-bubble mjx-merror * {
+            color: var(--accent-yellow) !important;
+            background-color: rgba(255, 245, 0, 0.08) !important;
+            border: 1px dashed rgba(255, 245, 0, 0.25) !important;
+            border-radius: 4px;
+        }
+
         /* 💬【新設】質問ログの保存・閲覧まわりのCSS */
         .qna-save-row {
             display: none;
@@ -1058,6 +1067,30 @@ ${glossaryBlock}`;
             return t.trim();
         }
 
+        // 🩹【新設】AIの応答に「正しいJSONの前後に余計な文章が付いてしまう」事故への保険。
+        //    文字列中の { } は無視しつつ、最初に現れる { から対応する閉じ } までを取り出す。
+        //    見つからない場合はテキストをそのまま返す（従来通りJSON.parseに委ねてエラーにする）。
+        function extractJsonObject(text) {
+            const start = text.indexOf('{');
+            if (start === -1) return text;
+
+            let depth = 0;
+            let inString = false;
+            for (let i = start; i < text.length; i++) {
+                const c = text[i];
+                if (c === '"' && text[i - 1] !== '\\') inString = !inString;
+                if (!inString) {
+                    if (c === '{') depth++;
+                    else if (c === '}') {
+                        depth--;
+                        if (depth === 0) return text.substring(start, i + 1);
+                    }
+                }
+            }
+            // 対応する閉じ括弧が見つからなかった場合は、先頭の余計な文章だけ除いて返す
+            return text.substring(start);
+        }
+
         /**
          * 解答（model_answer）生成の共通呼び出し関数。
          * ACTIVE_ENGINE（"gemini" or "deepseek"）に応じて呼び出し先を切り替える。
@@ -1112,7 +1145,7 @@ ${glossaryBlock}`;
 
                     if (rawText.includes("</think>")) rawText = rawText.split("</think>")[1].trim();
                     try {
-                        return JSON.parse(fixJsonEscapes(stripCodeFence(rawText)));
+                        return JSON.parse(fixJsonEscapes(extractJsonObject(stripCodeFence(rawText))));
                     } catch (parseErr) {
                         console.warn(`⚠️ DeepSeekの応答が不正なJSONでした（${attempt}/${MAX_DEEPSEEK_ATTEMPTS}回目）→ リトライ`, parseErr);
                         deepseekLastError = parseErr;
@@ -1175,7 +1208,7 @@ ${glossaryBlock}`;
                     }
 
                     try {
-                        parsedResult = JSON.parse(fixJsonEscapes(stripCodeFence(candidateText.trim())));
+                        parsedResult = JSON.parse(fixJsonEscapes(extractJsonObject(stripCodeFence(candidateText.trim()))));
                         usedModel = modelName;
                         break;
                     } catch (parseErr) {
@@ -1318,7 +1351,7 @@ ${glossaryBlock}`;
             if (text.startsWith("```json")) text = text.substring(7);
             else if (text.startsWith("```")) text = text.substring(3);
             if (text.endsWith("```")) text = text.substring(0, text.length - 3);
-            text = text.trim();
+            text = extractJsonObject(text.trim());
 
             let inString = false; let result = "";
             for (let i = 0; i < text.length; i++) {
@@ -1468,7 +1501,7 @@ ${glossaryBlock}`;
                         }
 
                         try {
-                            aiJson = JSON.parse(fixJsonEscapes(stripCodeFence(candidateText)));
+                            aiJson = JSON.parse(fixJsonEscapes(extractJsonObject(stripCodeFence(candidateText))));
                             tutorUsedModel = modelName;
                             tutorData = candidateJson;
                             break;
