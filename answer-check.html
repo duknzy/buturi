@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LOLZ // クイック答え合わせ</title>
+    <title>lolz // クイック答え合わせ</title>
     <link rel="stylesheet" href="style.css">
 
     <script>
@@ -31,7 +31,7 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
-            border-bottom: 1px solid #22222a;
+            border-bottom: 1px solid #262b34;
             padding-bottom: 1.5rem;
         }
         .logo {
@@ -49,7 +49,7 @@
         .user-avatar { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--accent-cyan); }
         #logout-btn { background: transparent; border: 1px solid #222; color: var(--text-muted); font-size: 0.8rem; padding: 0.3rem 0.6rem; border-radius: 8px; cursor: pointer; }
         #logout-btn:hover { border-color: var(--accent-magenta); color: var(--accent-magenta); }
-        .login-overlay-box { padding: 4rem; text-align: center; background: rgba(5,5,8,0.6); border: 1px dashed #22222a; border-radius: 16px; }
+        .login-overlay-box { padding: 4rem; text-align: center; background: rgba(5,5,8,0.6); border: 1px dashed #262b34; border-radius: 16px; }
 
         .filter-label {
             font-size: 0.75rem;
@@ -74,11 +74,11 @@
             background: var(--accent-cyan);
             color: #000;
             border-color: var(--accent-cyan);
-            box-shadow: 0 0 10px rgba(0,243,255,0.4);
+            box-shadow: 0 0 10px rgba(124, 158, 255,0.4);
         }
 
         .target-note-box {
-            background: rgba(255, 245, 0, 0.05);
+            background: rgba(251, 191, 36, 0.05);
             border: 1px dashed var(--accent-yellow);
             border-radius: 14px;
             padding: 0.9rem 1.1rem;
@@ -105,7 +105,7 @@
             margin-top: 0.6rem;
             padding: 0.8rem;
             background: #020205;
-            border: 1px dashed #22222a;
+            border: 1px dashed #262b34;
             border-radius: 12px;
             min-height: 40px;
             font-size: 0.9rem;
@@ -115,15 +115,29 @@
         .image-upload-zone {
             display: flex; align-items: center; justify-content: center; gap: 0.5rem;
             width: 100%; padding: 0.8rem; margin: 0.8rem 0 0 0;
-            border: 1px dashed rgba(0, 243, 255, 0.4); border-radius: 12px;
-            background: rgba(0, 243, 255, 0.02); cursor: pointer;
+            border: 1px dashed rgba(124, 158, 255, 0.4); border-radius: 12px;
+            background: rgba(124, 158, 255, 0.02); cursor: pointer;
             font-size: 0.9rem; font-weight: 700; color: var(--accent-cyan);
         }
         .preview-box {
-            width: 100%; max-height: 220px; border-radius: 8px; overflow: hidden;
-            display: none; border: 1px solid #222; margin-top: 0.8rem;
+            width: 100%; margin-top: 0.8rem;
+            display: none; flex-wrap: wrap; gap: 0.6rem;
         }
-        .preview-box img { width: 100%; height: 100%; object-fit: contain; background: #020205; }
+        .preview-thumb {
+            position: relative; width: 96px; height: 96px; border-radius: 8px; overflow: hidden;
+            border: 1px solid #222; background: #020205; flex-shrink: 0;
+        }
+        .preview-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .preview-thumb .preview-remove-btn {
+            position: absolute; top: 2px; right: 2px; width: 20px; height: 20px;
+            border-radius: 50%; background: rgba(0,0,0,0.65); color: #fff; border: none;
+            font-size: 0.75rem; line-height: 1; cursor: pointer; display: flex;
+            align-items: center; justify-content: center;
+        }
+        .preview-thumb .preview-index-badge {
+            position: absolute; bottom: 2px; left: 2px; background: rgba(0,0,0,0.65);
+            color: #fff; font-size: 0.65rem; font-weight: 700; padding: 1px 5px; border-radius: 4px;
+        }
 
         #quick-answer-btn { width: 100%; margin-top: 1.2rem; height: 54px; font-size: 1.05rem; }
 
@@ -143,7 +157,7 @@
             letter-spacing: 0.5px;
         }
         .result-note {
-            background: rgba(0, 243, 255, 0.05);
+            background: rgba(124, 158, 255, 0.05);
             border: 1px dashed var(--accent-cyan);
             border-radius: 12px;
             padding: 0.8rem 1rem;
@@ -162,7 +176,7 @@
         }
         .judgment-buttons .tactile-btn { flex: 1; min-width: 160px; height: 48px; font-size: 0.95rem; }
         .btn-correct { background: #00ff78 !important; color: #000 !important; box-shadow: 3px 3px 0px #00994a !important; }
-        .btn-incorrect { background: var(--accent-magenta) !important; color: #fff !important; box-shadow: 3px 3px 0px #9e004f !important; }
+        .btn-incorrect { background: var(--accent-magenta) !important; color: #fff !important; box-shadow: 3px 3px 0px #b13a54 !important; }
         .item-status-row {
             display: flex; align-items: center; justify-content: space-between;
             margin-top: 1.2rem; gap: 0.8rem; flex-wrap: wrap;
@@ -171,7 +185,7 @@
             font-size: 0.85rem; font-weight: 800; padding: 0.5rem 0.9rem; border-radius: 10px;
         }
         .item-status-badge.status-correct { background: rgba(0,255,120,0.1); color: #00ff78; }
-        .item-status-badge.status-wrong { background: rgba(255,0,127,0.1); color: var(--accent-magenta); }
+        .item-status-badge.status-wrong { background: rgba(251, 113, 133,0.1); color: var(--accent-magenta); }
 
         #next-batch-btn { display: none; width: 100%; margin-top: 0.5rem; }
     </style>
@@ -180,7 +194,7 @@
 
     <div class="dashboard-container page-container">
         <nav class="global-cyber-nav">
-            <div class="nav-brand">SYSTEM OS // LOLZ</div>
+            <div class="nav-brand">lolz</div>
             <div class="nav-links">
                 <a href="index.html" class="nav-btn">🧠 誤答ノート</a>
                 <a href="daily.html" class="nav-btn">🏁 計算スプリント</a>
@@ -201,7 +215,7 @@
                 <p style="color: var(--text-muted); margin-top: 0.5rem; font-weight: 600;">答えだけサクッと確認 → 間違えた問題だけ個別に登録</p>
             </div>
             <div class="auth-status-container">
-                <div id="auth-panel" style="font-weight: 800; border: 1px solid #22222a; padding: 0.5rem 1rem; border-radius: 12px;" class="glass-card">
+                <div id="auth-panel" style="font-weight: 800; border: 1px solid #262b34; padding: 0.5rem 1rem; border-radius: 12px;" class="glass-card">
                     LOADING...
                 </div>
             </div>
@@ -210,7 +224,7 @@
         <div id="login-required-notice" class="login-overlay-box" style="display: none;">
             <h2 style="font-size: 1.5rem; font-weight: 900; color: var(--accent-cyan); margin-bottom: 1rem;">CLOUD SYNC // クラウド同期未接続</h2>
             <p style="color: var(--text-muted); margin-bottom: 2rem;">間違えた問題を登録するために、Googleアカウントでログインしてください。</p>
-            <button type="button" class="tactile-btn" id="main-login-btn" style="padding: 1rem 2rem; font-size: 1.1rem; background:var(--accent-cyan); box-shadow: 4px 4px 0px #008b94;">
+            <button type="button" class="tactile-btn" id="main-login-btn" style="padding: 1rem 2rem; font-size: 1.1rem; background:var(--accent-cyan); box-shadow: 4px 4px 0px #4c5fc7;">
                 Googleアカウントでサインイン
             </button>
         </div>
@@ -254,17 +268,15 @@
 
                 <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.8rem; flex-wrap: wrap;">
                     <label for="problem-image-input" class="image-upload-zone" style="flex: 1; margin-bottom: 0; white-space: nowrap; font-size: 0.9rem; min-width: 150px;">
-                        📸 写真を追加（任意）
+                        📸 写真を追加（複数枚OK・任意）
                     </label>
                     <button type="button" onclick="openGooglePhotosPopout(event)" title="Google Photosを小窓で開く"
                         style="flex-shrink: 0; padding: 0.6rem 1rem; background: #1a1a2e; color: #4fc3f7; border: 1px solid #4fc3f7; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer; white-space: nowrap;">
                         📷 Google Photos
                     </button>
                 </div>
-                <input type="file" id="problem-image-input" accept="image/*" style="display: none;">
-                <div class="preview-box" id="image-preview-container">
-                    <img src="" id="img-preview-target">
-                </div>
+                <input type="file" id="problem-image-input" accept="image/*" multiple style="display: none;">
+                <div class="preview-box" id="image-preview-container"></div>
 
                 <button type="button" class="tactile-btn" id="quick-answer-btn">① 答えだけAIに聞く</button>
             </div>
@@ -429,9 +441,32 @@ ${MULTI_QUESTION_INSTRUCTION}
 
         let currentUser = null;
         let selectedSubject = "数学";
-        let selectedImageBase64 = null;
-        let selectedImageMimeType = null;
+        // 📸 複数枚の写真に対応：{ base64, mimeType, dataUrl } の配列で管理
+        let selectedImages = [];
         let currentBatch = []; // 直近の「答えだけ確認」バッチ結果を保持（各項目を個別に登録判定するために使う）
+
+        function renderImagePreviews() {
+            const container = document.getElementById("image-preview-container");
+            if (!container) return;
+            if (selectedImages.length === 0) {
+                container.style.display = "none";
+                container.innerHTML = "";
+                return;
+            }
+            container.style.display = "flex";
+            container.innerHTML = selectedImages.map((imgObj, i) => `
+                <div class="preview-thumb">
+                    <img src="${imgObj.dataUrl}">
+                    <span class="preview-index-badge">${i + 1}</span>
+                    <button type="button" class="preview-remove-btn" onclick="removeSelectedImage(${i})">✕</button>
+                </div>
+            `).join("");
+        }
+
+        window.removeSelectedImage = function(index) {
+            selectedImages.splice(index, 1);
+            renderImagePreviews();
+        };
         let previewTimeout = null;
 
         window.setSelectedSubject = function(subject) {
@@ -483,9 +518,8 @@ ${MULTI_QUESTION_INSTRUCTION}
         function resetForNextBatch() {
             document.getElementById("target-note-input").value = "";
             document.getElementById("problem-image-input").value = "";
-            document.getElementById("image-preview-container").style.display = "none";
-            selectedImageBase64 = null;
-            selectedImageMimeType = null;
+            selectedImages = [];
+            renderImagePreviews();
             currentBatch = [];
             const preview = document.getElementById("math-preview");
             if (window.MathJax && window.MathJax.typesetClear) window.MathJax.typesetClear([preview]);
@@ -499,7 +533,7 @@ ${MULTI_QUESTION_INSTRUCTION}
         async function runQuickAnswerCheck() {
             const noteInput = document.getElementById("target-note-input");
             const noteText = noteInput.value.trim();
-            if (!noteText && !selectedImageBase64) {
+            if (!noteText && selectedImages.length === 0) {
                 alert("写真を選択するか、対象指定メモ（または問題文）を入力してください。");
                 return;
             }
@@ -513,11 +547,11 @@ ${MULTI_QUESTION_INSTRUCTION}
             btn.textContent = "⚙️ 答えを確認中...";
             btn.disabled = true;
 
-            let parts = [{ "text": "提出されたデータのうち、対象指定メモで示された小問（未指定なら1問だけ自動選択）を解析し、指定のJSON（answers配列）で答えだけ返してください。" }];
+            let parts = [{ "text": "提出されたデータのうち、対象指定メモで示された小問（未指定なら1問だけ自動選択）を解析し、指定のJSON（answers配列）で答えだけ返してください。写真が複数枚ある場合は、同じ問題の続きページである可能性があるので、まとめて1つの問題として解析してください。" }];
             if (noteText) parts[0].text += `\n【対象指定メモ／問題文】\n${noteText}`;
-            if (selectedImageBase64 && selectedImageMimeType) {
-                parts.push({ "inlineData": { "mimeType": selectedImageMimeType, "data": selectedImageBase64 } });
-            }
+            selectedImages.forEach(imgObj => {
+                parts.push({ "inlineData": { "mimeType": imgObj.mimeType, "data": imgObj.base64 } });
+            });
 
             const requestBody = JSON.stringify({
                 "contents": [{ "parts": parts }],
@@ -669,8 +703,8 @@ ${MULTI_QUESTION_INSTRUCTION}
                     errorCount: 1,
                     lastAttemptAt: nowIso,
                     lastResult: false,
-                    // 🖼️ 複数問が写った同じ写真を使い回している可能性があるため、画像はそのまま全項目に添付する
-                    imageData: selectedImageBase64 ? `data:${selectedImageMimeType};base64,${selectedImageBase64}` : null,
+                    // 🖼️ 複数問が写った同じ写真を使い回している可能性があるため、画像はそのまま全項目に添付する（複数枚選択時は1枚目を保存）
+                    imageData: selectedImages.length > 0 ? selectedImages[0].dataUrl : null,
                     answerFormula: item.model_answer,
                     createdAt: nowIso
                 };
@@ -687,7 +721,7 @@ ${MULTI_QUESTION_INSTRUCTION}
                 statusRow.style.display = "flex";
                 statusRow.innerHTML = `
                     <span class="item-status-badge status-wrong">❌ 間違えた（登録済み）</span>
-                    <button type="button" class="tactile-btn" style="background:rgba(0,243,255,0.08); color:var(--accent-cyan); border:1px solid var(--accent-cyan); box-shadow:none; padding:0.5rem 1rem;" onclick="window.open('problem.html?id=${encodeURIComponent(newId)}', '_blank')">📌 この問題を開く</button>
+                    <button type="button" class="tactile-btn" style="background:rgba(124, 158, 255,0.08); color:var(--accent-cyan); border:1px solid var(--accent-cyan); box-shadow:none; padding:0.5rem 1rem;" onclick="window.open('problem.html?id=${encodeURIComponent(newId)}', '_blank')">📌 この問題を開く</button>
                 `;
 
             } catch (error) {
@@ -702,16 +736,11 @@ ${MULTI_QUESTION_INSTRUCTION}
         // --- DOM配線 ---
         const noteInput = document.getElementById("target-note-input");
         const imageInput = document.getElementById("problem-image-input");
-        const previewContainer = document.getElementById("image-preview-container");
-        const previewTarget = document.getElementById("img-preview-target");
 
         if (noteInput) noteInput.addEventListener('input', () => { window.updateMathPreview(false); });
 
-        if (imageInput) {
-            imageInput.addEventListener("change", function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-                selectedImageMimeType = "image/jpeg";
+        function compressImageFile(file) {
+            return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = function(evt) {
                     const img = new Image();
@@ -723,12 +752,35 @@ ${MULTI_QUESTION_INSTRUCTION}
                         canvas.width = width; canvas.height = height;
                         const ctx = canvas.getContext("2d"); ctx.drawImage(img, 0, 0, width, height);
                         const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.7);
-                        selectedImageBase64 = compressedDataUrl.split(',')[1];
-                        previewTarget.src = compressedDataUrl; previewContainer.style.display = "block";
+                        resolve({
+                            mimeType: "image/jpeg",
+                            base64: compressedDataUrl.split(',')[1],
+                            dataUrl: compressedDataUrl
+                        });
                     };
+                    img.onerror = reject;
                     img.src = evt.target.result;
                 };
+                reader.onerror = reject;
                 reader.readAsDataURL(file);
+            });
+        }
+
+        if (imageInput) {
+            imageInput.addEventListener("change", async function(e) {
+                const files = Array.from(e.target.files || []);
+                if (files.length === 0) return;
+                try {
+                    const compressedResults = await Promise.all(files.map(compressImageFile));
+                    selectedImages = selectedImages.concat(compressedResults);
+                    renderImagePreviews();
+                } catch (err) {
+                    console.error(err);
+                    alert("写真の読み込みに失敗しました。もう一度お試しください。");
+                } finally {
+                    // 同じファイルを選び直しても change イベントが発火するようにリセット
+                    imageInput.value = "";
+                }
             });
         }
 

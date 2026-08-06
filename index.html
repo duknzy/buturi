@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LOLZ // 誤答克服ダッシュボード</title>
+    <title>lolz // 誤答克服ダッシュボード</title>
     <link rel="stylesheet" href="style.css">
     
     <script>
@@ -21,13 +21,13 @@
 
     <style>
         .squircle-card {
-            border: 1px solid #22222a;
-            box-shadow: 4px 4px 0px #22222a;
+            border: 1px solid #262b34;
+            box-shadow: 4px 4px 0px #262b34;
         }
         .squircle-card:hover {
             transform: translate(-2px, -2px);
-            border-color: #3a3a4a;
-            box-shadow: 6px 6px 0px #3a3a4a;
+            border-color: #3a4150;
+            box-shadow: 6px 6px 0px #3a4150;
         }
         .glass-card {
             background: var(--card-bg-glass);
@@ -48,14 +48,13 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
-            border-bottom: 1px solid #22222a;
+            border-bottom: 1px solid #262b34;
             padding-bottom: 1.5rem;
         }
 
         .logo {
             font-size: var(--fs-xl);
             font-weight: 900;
-            text-transform: uppercase;
             letter-spacing: -2px;
             line-height: 0.9;
             background: linear-gradient(90deg, var(--text-main) 70%, var(--accent-cyan));
@@ -110,7 +109,7 @@
         .modal-content {
             width: 90%; max-width: 600px;
             border: 1px solid var(--accent-cyan);
-            box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+            box-shadow: 0 0 30px rgba(124, 158, 255, 0.2);
             max-height: 95vh;
             overflow-y: auto;
         }
@@ -129,11 +128,11 @@
             background: rgba(0, 0, 0, 0.5);
             padding: 0.5rem;
             border-radius: 12px;
-            border: 1px solid #22222a;
+            border: 1px solid #262b34;
         }
         .math-key {
-            background: #050508;
-            border: 1px solid #22222a;
+            background: #15181e;
+            border: 1px solid #262b34;
             color: var(--text-bright-muted);
             padding: 0.5rem 0.2rem;
             font-size: 0.85rem;
@@ -147,15 +146,15 @@
             background: #001515;
             border-color: var(--accent-cyan);
             color: var(--text-main);
-            box-shadow: 0 0 8px rgba(0, 243, 255, 0.3);
+            box-shadow: 0 0 8px rgba(124, 158, 255, 0.3);
         }
         .math-key.btn-accent {
             border-color: var(--accent-magenta);
             color: var(--accent-magenta);
         }
         .math-key.btn-accent:hover {
-            background: rgba(255, 0, 127, 0.1);
-            box-shadow: 0 0 8px rgba(255, 0, 127, 0.4);
+            background: rgba(251, 113, 133, 0.1);
+            box-shadow: 0 0 8px rgba(251, 113, 133, 0.4);
         }
 
         /* 💬【新設】質問履歴アーカイブ用のチャットバブル・一覧項目CSS */
@@ -179,7 +178,7 @@
             align-self: flex-start;
         }
         .bubble-user {
-            background: rgba(255, 0, 127, 0.15);
+            background: rgba(251, 113, 133, 0.15);
             border-right: 3px solid var(--accent-magenta);
             color: #ffffff;
             align-self: flex-end;
@@ -201,7 +200,7 @@
             margin-top: 0.6rem;
             padding: 0.8rem;
             background: #020205;
-            border: 1px dashed #22222a;
+            border: 1px dashed #262b34;
             border-radius: 12px;
             min-height: 45px;
             font-size: 0.9rem;
@@ -212,8 +211,8 @@
         .image-upload-zone {
             display: flex; align-items: center; justify-content: center; gap: 0.5rem;
             width: 100%; padding: 0.8rem; margin: 0.8rem 0 0 0;
-            border: 1px dashed rgba(0, 243, 255, 0.4); border-radius: 12px;
-            background: rgba(0, 243, 255, 0.02); cursor: pointer;
+            border: 1px dashed rgba(124, 158, 255, 0.4); border-radius: 12px;
+            background: rgba(124, 158, 255, 0.02); cursor: pointer;
             font-size: 0.9rem; font-weight: 700; color: var(--accent-cyan);
         }
         .preview-box {
@@ -227,7 +226,7 @@
         .user-avatar { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--accent-cyan); }
         #logout-btn { background: transparent; border: 1px solid #222; color: var(--text-muted); font-size: 0.8rem; padding: 0.3rem 0.6rem; border-radius: 8px; cursor: pointer; }
         #logout-btn:hover { border-color: var(--accent-magenta); color: var(--accent-magenta); }
-        .login-overlay-box { grid-column: span 12; padding: 4rem; text-align: center; background: rgba(5,5,8,0.6); border: 1px dashed #22222a; border-radius: 16px; }
+        .login-overlay-box { grid-column: span 12; padding: 4rem; text-align: center; background: rgba(5,5,8,0.6); border: 1px dashed #262b34; border-radius: 16px; }
 
         .card-inner-layout {
             display: flex;
@@ -241,7 +240,7 @@
             height: 105px;
             min-width: 105px;
             background: #020204;
-            border: 1px dashed rgba(0, 243, 255, 0.25);
+            border: 1px dashed rgba(124, 158, 255, 0.25);
             border-radius: 16px;
             overflow: hidden;
             display: flex;
@@ -285,21 +284,21 @@
         }
         /* 物理（シアンブルーのネオン） */
         .glow-physics {
-            background: radial-gradient(circle at center, rgba(0, 243, 255, 0.15) 0%, #02080a 100%) !important;
-            border: 1px solid rgba(0, 243, 255, 0.3) !important;
+            background: radial-gradient(circle at center, rgba(124, 158, 255, 0.15) 0%, #02080a 100%) !important;
+            border: 1px solid rgba(124, 158, 255, 0.3) !important;
         }
         .glow-physics span {
             color: var(--accent-cyan);
-            text-shadow: 0 0 8px rgba(0, 243, 255, 0.8);
+            text-shadow: 0 0 8px rgba(124, 158, 255, 0.8);
         }
         /* 未分類（マゼンタピンクのネオン） */
         .glow-purple {
-            background: radial-gradient(circle at center, rgba(255, 0, 127, 0.15) 0%, #0a0206 100%) !important;
-            border: 1px solid rgba(255, 0, 127, 0.3) !important;
+            background: radial-gradient(circle at center, rgba(251, 113, 133, 0.15) 0%, #0a0206 100%) !important;
+            border: 1px solid rgba(251, 113, 133, 0.3) !important;
         }
         .glow-purple span {
             color: var(--accent-magenta);
-            text-shadow: 0 0 8px rgba(255, 0, 127, 0.8);
+            text-shadow: 0 0 8px rgba(251, 113, 133, 0.8);
         }
 
         /* 全バッジ共通スタイル：枠線を完全消去して今風のフラットデザイン化 */
@@ -314,12 +313,12 @@
         }
 
         /* 各種ステータス色のブラッシュアップ */
-        .badge-critical { background: rgba(255, 0, 127, 0.14) !important; color: var(--accent-magenta) !important; }
-        .badge-overdue  { background: rgba(255, 245, 0, 0.1) !important; color: #fff500 !important; }
-        .badge-safe     { background: rgba(0, 243, 255, 0.08) !important; color: var(--accent-cyan) !important; }
+        .badge-critical { background: rgba(251, 113, 133, 0.14) !important; color: var(--accent-magenta) !important; }
+        .badge-overdue  { background: rgba(251, 191, 36, 0.1) !important; color: #fbbf24 !important; }
+        .badge-safe     { background: rgba(124, 158, 255, 0.08) !important; color: var(--accent-cyan) !important; }
         .badge-new      { background: rgba(255, 255, 255, 0.06) !important; color: #eee !important; }
         .badge-pending  { background: rgba(150, 0, 255, 0.1) !important; color: #b16eff !important; }
-        .badge-physics  { background: rgba(0, 243, 255, 0.08) !important; color: var(--accent-cyan) !important; }
+        .badge-physics  { background: rgba(124, 158, 255, 0.08) !important; color: var(--accent-cyan) !important; }
         .badge-math     { background: rgba(0, 255, 120, 0.08) !important; color: #00ff78 !important; }
 
         /* 🧩【追加】分野バッジをチップ分割表示するための軽量スタイル */
@@ -480,15 +479,15 @@
             color: #fff;
         }
         .filter-btn.active {
-            background: rgba(0, 243, 255, 0.14) !important;
+            background: rgba(124, 158, 255, 0.14) !important;
             color: var(--accent-cyan) !important;
-            box-shadow: 0 0 12px rgba(0, 243, 255, 0.15);
+            box-shadow: 0 0 12px rgba(124, 158, 255, 0.15);
         }
 
         /* 🧠 気づき一覧モーダル用CSS */
         .insight-card-item {
             background: rgba(5, 5, 8, 0.8);
-            border: 1px solid rgba(0, 243, 255, 0.2);
+            border: 1px solid rgba(124, 158, 255, 0.2);
             border-left: 4px solid var(--accent-cyan);
             border-radius: 12px;
             padding: 1.2rem;
@@ -501,11 +500,11 @@
         }
         .insight-card-item:hover {
             border-color: var(--accent-cyan);
-            background: rgba(0, 243, 255, 0.05);
+            background: rgba(124, 158, 255, 0.05);
             transform: translateX(3px);
         }
         .badge-insight {
-            background: rgba(0, 243, 255, 0.15) !important;
+            background: rgba(124, 158, 255, 0.15) !important;
             color: var(--accent-cyan) !important;
         }
 
@@ -534,7 +533,7 @@
         .subject-tab-btn {
             background: rgba(255, 255, 255, 0.03);
             color: var(--text-bright-muted);
-            border: 1px solid #22222a;
+            border: 1px solid #262b34;
             padding: 0.5rem 1rem;
             border-radius: 8px;
             font-size: 0.8rem;
@@ -543,7 +542,7 @@
             transition: all 0.2s cubic-bezier(0.1, 0.8, 0.2, 1);
         }
         .subject-tab-btn:hover {
-            background: rgba(0, 243, 255, 0.08);
+            background: rgba(124, 158, 255, 0.08);
             border-color: var(--accent-cyan);
             color: #fff;
         }
@@ -551,7 +550,7 @@
             background: var(--accent-cyan) !important;
             color: #000 !important;
             font-weight: 900;
-            box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+            box-shadow: 0 0 15px rgba(124, 158, 255, 0.3);
             border-color: var(--accent-cyan) !important;
         }
         .field-select {
@@ -564,7 +563,7 @@
             font-weight: 800;
             cursor: pointer;
             outline: none;
-            box-shadow: 0 0 8px rgba(0, 243, 255, 0.15);
+            box-shadow: 0 0 8px rgba(124, 158, 255, 0.15);
         }
 
         @media (max-width: 1024px) { .size-high, .size-medium { grid-column: span 6; } .size-mini { grid-column: span 3; } }
@@ -577,7 +576,7 @@
     <div class="dashboard-container">
         <!-- GLOBAL CYBER HUD NAV -->
         <nav class="global-cyber-nav">
-            <div class="nav-brand">SYSTEM OS // LOLZ</div>
+            <div class="nav-brand">lolz</div>
             <div class="nav-links">
                 <a href="index.html" class="nav-btn active">🧠 誤答ノート</a>
                 <a href="daily.html" class="nav-btn">🏁 計算スプリント</a>
@@ -594,23 +593,23 @@
 
         <header>
             <div>
-                <h1 class="logo">LOLZ</h1>
+                <h1 class="logo">lolz</h1>
             </div>
             <div class="auth-status-container">
-                <button type="button" class="tactile-btn" id="open-modal-btn" style="background: var(--accent-magenta); box-shadow: 3px 3px 0px #9e004f; display:none;">
+                <button type="button" class="tactile-btn" id="open-modal-btn" style="background: var(--accent-magenta); box-shadow: 3px 3px 0px #b13a54; display:none;">
     ＋ 誤答問題を登録
 </button>
 
 <!-- 🧠【追加】全問題の気づき一覧モーダルを開くボタン -->
-<button type="button" class="tactile-btn" id="open-insight-list-btn" style="background: rgba(0, 243, 255, 0.1); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); box-shadow: 3px 3px 0px rgba(0,243,255,0.2); display:none;">
+<button type="button" class="tactile-btn" id="open-insight-list-btn" style="background: rgba(124, 158, 255, 0.1); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); box-shadow: 3px 3px 0px rgba(124, 158, 255,0.2); display:none;">
     🧠 気づき一覧
 </button>
 
 <!-- 💬【追加】全問題横断の質問履歴アーカイブモーダルを開くボタン -->
-<button type="button" class="tactile-btn" id="open-qna-archive-btn" style="background: rgba(255, 245, 0, 0.08); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); box-shadow: 3px 3px 0px rgba(255,245,0,0.2); display:none;">
+<button type="button" class="tactile-btn" id="open-qna-archive-btn" style="background: rgba(251, 191, 36, 0.08); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); box-shadow: 3px 3px 0px rgba(251, 191, 36,0.2); display:none;">
     💬 質問履歴アーカイブ
 </button>
-                <div id="auth-panel" style="font-weight: 800; border: 1px solid #22222a; padding: 0.5rem 1rem; border-radius: 12px;" class="glass-card">
+                <div id="auth-panel" style="font-weight: 800; border: 1px solid #262b34; padding: 0.5rem 1rem; border-radius: 12px;" class="glass-card">
                     LOADING...
                 </div>
             </div>
@@ -619,7 +618,7 @@
         <div id="login-required-notice" class="login-overlay-box" style="display: none;">
             <h2 style="font-size: 1.5rem; font-weight: 900; color: var(--accent-cyan); margin-bottom: 1rem;">CLOUD SYNC // クラウド同期未接続</h2>
             <p style="color: var(--text-muted); margin-bottom: 2rem;">どの端末からでも誤答ノートを自動同期して復習するために、Googleアカウントでログインしてください。</p>
-            <button type="button" class="tactile-btn" id="main-login-btn" style="padding: 1rem 2rem; font-size: 1.1rem; background:var(--accent-cyan); box-shadow: 4px 4px 0px #008b94;">
+            <button type="button" class="tactile-btn" id="main-login-btn" style="padding: 1rem 2rem; font-size: 1.1rem; background:var(--accent-cyan); box-shadow: 4px 4px 0px #4c5fc7;">
                 Googleアカウントでサインイン
             </button>
         </div>
@@ -649,7 +648,7 @@
 
         <main class="bento-grid" id="main-dashboard-grid" style="display: none;">
             
-            <div class="squircle-card size-high glass-card" style="border-color: rgba(0, 243, 255, 0.3); padding: 1.5rem;">
+            <div class="squircle-card size-high glass-card" style="border-color: rgba(124, 158, 255, 0.3); padding: 1.5rem;">
                 <div class="card-content-top">
                     <span class="badge badge-alert">HYBRID ENGINE: GEMINI + DEEPSEEK</span>
                     <h2 class="card-title" style="color: var(--accent-cyan);">記憶安定度スコア</h2>
@@ -658,7 +657,7 @@
                     <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem; font-size: var(--fs-sm);">
                         <span>総合記憶定着率（推定）</span><span id="retention-rate-display">--%</span>
                     </div>
-                    <div style="width: 100%; height: 6px; background: #111; border-radius: 3px; overflow: hidden; border: 1px solid #22222a;">
+                    <div style="width: 100%; height: 6px; background: #111; border-radius: 3px; overflow: hidden; border: 1px solid #262b34;">
                         <div id="retention-bar-display" style="width: 0%; height: 100%; background: var(--accent-cyan); transition: width 0.8s ease;"></div>
                     </div>
                     <p style="line-height: 1.4; font-size: 0.85rem; color: var(--text-bright-muted); margin-top: 0.8rem;">FSRSの忘却曲線モデルに基き、あなたが今日復習すべき最適な問題を自動算出しています。</p>
@@ -670,13 +669,13 @@
 
             <div id="dynamic-cards-area" style="grid-column: span 12; display: flex; flex-direction: column; gap: 0.6rem;"></div>
 
-            <div class="squircle-card size-mini" style="background: linear-gradient(135deg, #050508, #150015); border-color: rgba(255, 0, 127, 0.2);">
+            <div class="squircle-card size-mini" style="background: linear-gradient(135deg, #15181e, #150015); border-color: rgba(251, 113, 133, 0.2);">
                 <div class="mini-label" style="color: var(--accent-magenta);">TOTAL ERRORS</div>
                 <div class="mini-value" id="total-errors-display" style="color: var(--accent-magenta);">--</div>
                 <div class="mini-sub">未消化の累積誤答数</div>
             </div>
 
-            <div class="squircle-card size-mini" style="background: linear-gradient(135deg, #050508, #001515); border-color: rgba(0, 243, 255, 0.2);">
+            <div class="squircle-card size-mini" style="background: linear-gradient(135deg, #15181e, #001515); border-color: rgba(124, 158, 255, 0.2);">
                 <div class="mini-label" style="color: var(--accent-cyan);">SOLVED TODAY</div>
                 <div class="mini-value" id="solved-today-display" style="color: var(--accent-cyan);">00</div>
                 <div class="mini-sub">本日の克服弱点数</div>
@@ -693,7 +692,7 @@
                 <p style="color: var(--text-muted); font-size: 0.85rem;">テキスト入力、または写真をアップロードして登録します。数式や記号はキーパッドを活用してください。</p>
             </div>
 
-            <div id="linked-lesson-badge" style="display:none; background: linear-gradient(135deg, rgba(255,0,127,0.15), rgba(0,243,255,0.15)); border: 1px solid var(--accent-magenta); border-radius: 10px; padding: 0.6rem 0.9rem; margin-bottom: 0.8rem; font-size: 0.82rem; font-weight: 700; color: #fff;">
+            <div id="linked-lesson-badge" style="display:none; background: linear-gradient(135deg, rgba(251, 113, 133,0.15), rgba(124, 158, 255,0.15)); border: 1px solid var(--accent-magenta); border-radius: 10px; padding: 0.6rem 0.9rem; margin-bottom: 0.8rem; font-size: 0.82rem; font-weight: 700; color: #fff;">
                 🎓 授業「<span id="linked-lesson-title-text"></span>」の続きとして登録されます
             </div>
 
@@ -725,7 +724,7 @@
                     background: var(--accent-cyan);
                     color: #000;
                     border-color: var(--accent-cyan);
-                    box-shadow: 0 0 10px rgba(0,243,255,0.4);
+                    box-shadow: 0 0 10px rgba(124, 158, 255,0.4);
                 }
             </style>
 
@@ -800,7 +799,7 @@
                 <!-- JSで動的にメモカードが生成されます -->
             </div>
 
-            <div style="display: flex; justify-content: flex-end; margin-top: 1.2rem; border-top: 1px solid #22222a; padding-top: 0.8rem;">
+            <div style="display: flex; justify-content: flex-end; margin-top: 1.2rem; border-top: 1px solid #262b34; padding-top: 0.8rem;">
                 <button type="button" class="tactile-btn tactile-btn-secondary" id="close-insight-list-btn">閉じる</button>
             </div>
         </div>
@@ -830,7 +829,7 @@
                 <!-- JSで動的にログカードが生成されます -->
             </div>
 
-            <div style="display: flex; justify-content: flex-end; margin-top: 1.2rem; border-top: 1px solid #22222a; padding-top: 0.8rem;">
+            <div style="display: flex; justify-content: flex-end; margin-top: 1.2rem; border-top: 1px solid #262b34; padding-top: 0.8rem;">
                 <button type="button" class="tactile-btn tactile-btn-secondary" id="close-qna-archive-btn">閉じる</button>
             </div>
         </div>
@@ -844,10 +843,10 @@
                 <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.3rem;" id="qna-archive-detail-meta"></p>
             </div>
             <div class="qna-archive-chat-history" id="qna-archive-detail-messages" style="overflow-y: auto; flex-grow: 1; margin-top: 1rem; padding-right: 0.4rem;"></div>
-            <div style="display: flex; justify-content: space-between; gap: 0.8rem; margin-top: 1.2rem; border-top: 1px solid #22222a; padding-top: 0.8rem;">
-                <button type="button" class="tactile-btn" id="qna-archive-detail-goto-btn" style="background: rgba(0,243,255,0.08); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); box-shadow: none;">📌 問題ページを開く</button>
+            <div style="display: flex; justify-content: space-between; gap: 0.8rem; margin-top: 1.2rem; border-top: 1px solid #262b34; padding-top: 0.8rem;">
+                <button type="button" class="tactile-btn" id="qna-archive-detail-goto-btn" style="background: rgba(124, 158, 255,0.08); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); box-shadow: none;">📌 問題ページを開く</button>
                 <div style="display: flex; gap: 0.8rem;">
-                    <button type="button" class="tactile-btn" id="qna-archive-detail-delete-btn" style="background: rgba(255,0,127,0.1); color: var(--accent-magenta); border: 1px solid var(--accent-magenta); box-shadow: none;">🗑 削除</button>
+                    <button type="button" class="tactile-btn" id="qna-archive-detail-delete-btn" style="background: rgba(251, 113, 133,0.1); color: var(--accent-magenta); border: 1px solid var(--accent-magenta); box-shadow: none;">🗑 削除</button>
                     <button type="button" class="tactile-btn tactile-btn-secondary" id="close-qna-archive-detail-btn">閉じる</button>
                 </div>
             </div>
