@@ -34,7 +34,7 @@
 body {
     background-color: var(--bg-color);
     color: var(--text-main);
-    font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
+    font-family: 'Inter', 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
     min-height: 100vh;
     padding: 2rem;
     overflow-x: hidden;
@@ -120,7 +120,7 @@ body {
 }
 
 .nav-brand {
-    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
     font-weight: 700;
     font-size: 0.85rem;
     letter-spacing: 1.5px;
