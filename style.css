@@ -120,10 +120,10 @@ body {
 }
 
 .nav-brand {
-    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-family: 'Poppins', 'Inter', sans-serif;
     font-weight: 600;
-    font-size: 0.9rem;
-    letter-spacing: 0.2px;
+    font-size: 0.95rem;
+    letter-spacing: -0.2px;
     color: var(--text-bright-muted);
     display: flex;
     align-items: center;
@@ -169,3 +169,10 @@ body {
     border-color: var(--accent-magenta) !important;
     color: #ffffff !important;
 }
+
+.nav-brand .lz-z { color: #7c9eff; }
+.nav-brand .lz-e { color: #fb7185; }
+.nav-brand .lz-n { color: #fbbf24; }
+.nav-brand .lz-i { color: #7c9eff; }
+.nav-brand .lz-t { color: #34d399; }
+.nav-brand .lz-h { color: #fb7185; }
