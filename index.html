@@ -57,13 +57,20 @@
 
         .logo {
             font-family: 'Space Grotesk', sans-serif;
-            font-size: var(--fs-xl);
-            font-weight: 700;
-            letter-spacing: -1px;
-            line-height: 0.9;
-            background: linear-gradient(90deg, var(--text-main) 70%, var(--accent-cyan));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            font-size: clamp(1.6rem, 2vw + 1rem, 2.1rem);
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            line-height: 1.1;
+            color: var(--text-main);
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+        }
+        .logo-reading {
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 400;
+            color: var(--text-muted);
         }
 
         .bento-grid {
@@ -597,7 +604,7 @@
 
         <header>
             <div>
-                <h1 class="logo">Zenith</h1>
+                <h1 class="logo">Zenith<span class="logo-reading">（ゼニス）</span></h1>
             </div>
             <div class="auth-status-container">
                 <button type="button" class="tactile-btn" id="open-modal-btn" style="background: var(--accent-magenta); box-shadow: 3px 3px 0px #b13a54; display:none;">
