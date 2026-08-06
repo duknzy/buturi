@@ -3,11 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zenith // 問題解答セッション</title>
+    <title>LOLZ // 問題解答セッション</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
     
     <script>
         window.MathJax = {
@@ -106,7 +103,7 @@
                 border-radius: 3px;
             }
             .chat-history::-webkit-scrollbar-thumb {
-                background: rgba(124, 158, 255, 0.3);
+                background: rgba(0, 243, 255, 0.3);
                 border-radius: 3px;
             }
             .chat-history::-webkit-scrollbar-thumb:hover {
@@ -145,7 +142,7 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
         }
         .bubble-user { 
-            background: rgba(251, 113, 133, 0.15); 
+            background: rgba(255, 0, 127, 0.15); 
             border-right: 3px solid var(--accent-magenta); 
             color: #ffffff; 
             align-self: flex-end; 
@@ -172,8 +169,8 @@
         .chat-bubble mjx-merror,
         .chat-bubble mjx-merror * {
             color: var(--accent-yellow) !important;
-            background-color: rgba(251, 191, 36, 0.08) !important;
-            border: 1px dashed rgba(251, 191, 36, 0.25) !important;
+            background-color: rgba(255, 245, 0, 0.08) !important;
+            border: 1px dashed rgba(255, 245, 0, 0.25) !important;
             border-radius: 4px;
         }
 
@@ -186,7 +183,7 @@
         .qna-save-btn {
             font-size: 0.75rem;
             padding: 0.5rem 0.9rem;
-            background: rgba(124, 158, 255, 0.08);
+            background: rgba(0, 243, 255, 0.08);
             color: var(--accent-cyan);
             border: 1px dashed var(--accent-cyan);
             box-shadow: none;
@@ -228,11 +225,11 @@
         
         .model-answer-text { font-size: 1.05rem; color: var(--text-bright-muted); font-weight: 500; margin-bottom: 0.5rem; white-space: pre-wrap; line-height: 1.8; letter-spacing: 0.5px; }
         .judgment-buttons { display: flex; gap: 1.5rem; width: 100%; }
-        .btn-correct { background: var(--accent-cyan) !important; box-shadow: 4px 4px 0px #4c5fc7 !important; flex: 1; height: 54px; font-size: 1.1rem; }
-        .btn-incorrect { background: var(--accent-magenta) !important; color: #000 !important; box-shadow: 4px 4px 0px #b13a54 !important; flex: 1; height: 54px; font-size: 1.1rem; }
+        .btn-correct { background: var(--accent-cyan) !important; box-shadow: 4px 4px 0px #008b94 !important; flex: 1; height: 54px; font-size: 1.1rem; }
+        .btn-incorrect { background: var(--accent-magenta) !important; color: #000 !important; box-shadow: 4px 4px 0px #9e004f !important; flex: 1; height: 54px; font-size: 1.1rem; }
         #neon-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 99999; display: block; }
-        .btn-analyze-now { background: #111 !important; color: var(--accent-cyan) !important; border: 1px solid var(--accent-cyan) !important; box-shadow: 3px 3px 0px rgba(124, 158, 255,0.2) !important; font-size: 0.85rem; padding: 0.3rem 0.8rem; border-radius: 8px; cursor: pointer; display: none; font-weight: 800; }
-        .btn-analyze-now:hover { background: rgba(124, 158, 255,0.05) !important; }
+        .btn-analyze-now { background: #111 !important; color: var(--accent-cyan) !important; border: 1px solid var(--accent-cyan) !important; box-shadow: 3px 3px 0px rgba(0,243,255,0.2) !important; font-size: 0.85rem; padding: 0.3rem 0.8rem; border-radius: 8px; cursor: pointer; display: none; font-weight: 800; }
+        .btn-analyze-now:hover { background: rgba(0,243,255,0.05) !important; }
 
         /* 🧠【新設】解答生成AIエンジン選択トグル（Gemini / DeepSeek） */
         .engine-toggle-group {
@@ -250,7 +247,7 @@
         }
         .engine-btn {
             background: #0a0a0a;
-            border: 1px solid #262b34;
+            border: 1px solid #22222a;
             color: var(--text-muted);
             font-size: 0.75rem;
             font-weight: 800;
@@ -262,16 +259,16 @@
         }
         .engine-btn:hover { border-color: var(--border-glow); color: var(--text-bright-muted); }
         .engine-btn.active[data-engine="gemini"] {
-            background: rgba(124, 158, 255, 0.12);
+            background: rgba(0, 243, 255, 0.12);
             border-color: var(--accent-cyan);
             color: var(--accent-cyan);
-            box-shadow: 2px 2px 0px rgba(124, 158, 255,0.15);
+            box-shadow: 2px 2px 0px rgba(0,243,255,0.15);
         }
         .engine-btn.active[data-engine="deepseek"] {
-            background: rgba(251, 191, 36, 0.1);
+            background: rgba(255, 245, 0, 0.1);
             border-color: var(--accent-yellow);
             color: var(--accent-yellow);
-            box-shadow: 2px 2px 0px rgba(251, 191, 36,0.15);
+            box-shadow: 2px 2px 0px rgba(255,245,0,0.15);
         }
         /* 🧠 気づきメモ用サイドドロワー（右からスライドイン、左の解説は隠さない）CSS */
         .modal-overlay {
@@ -290,7 +287,7 @@
             background: rgba(6, 8, 14, 0.98);
             border: none;
             border-left: 1px solid var(--accent-cyan);
-            box-shadow: -8px 0 30px rgba(124, 158, 255, 0.2);
+            box-shadow: -8px 0 30px rgba(0, 243, 255, 0.2);
             padding: 1.8rem;
             overflow-y: auto;
             display: flex;
@@ -314,7 +311,7 @@
         .modal-textarea {
             width: 100%;
             background: #000;
-            border: 1px solid #262b34;
+            border: 1px solid #22222a;
             color: #fff;
             padding: 1rem;
             border-radius: 12px;
@@ -326,7 +323,7 @@
         .modal-textarea:focus {
             outline: none;
             border-color: var(--accent-cyan);
-            box-shadow: 0 0 10px rgba(124, 158, 255, 0.2);
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
         }
 
         /* 💬【新設】質問ログ一覧・詳細表示用の中央配置モーダル（気づきドロワーとは別物） */
@@ -346,9 +343,9 @@
             max-width: 600px;
             max-height: 85vh;
             overflow-y: auto;
-            background: rgba(21, 24, 30, 0.97);
+            background: rgba(10, 10, 18, 0.97);
             border: 1px solid var(--accent-cyan);
-            box-shadow: 0 0 30px rgba(124, 158, 255, 0.2);
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
             padding: 1.8rem;
         }
     </style>
@@ -360,7 +357,7 @@
     <div class="workspace-container">
         <!-- GLOBAL CYBER HUD NAV -->
         <nav class="global-cyber-nav">
-            <div class="nav-brand"><span class="lz-z">Z</span><span class="lz-e">e</span><span class="lz-n">n</span><span class="lz-i">i</span><span class="lz-t">t</span><span class="lz-h">h</span></div>
+            <div class="nav-brand">SYSTEM OS // LOLZ</div>
             <div class="nav-links">
                 <a href="index.html" class="nav-btn">🧠 誤答ノート</a>
                 <a href="daily.html" class="nav-btn">🏁 計算スプリント</a>
@@ -383,10 +380,10 @@
                 
                 <div style="display: flex; align-items: center; gap: 0.4rem; margin-left: 0.5rem; border-left: 1px solid #1a2a35; padding-left: 1rem;">
                     <span id="problem-title-display" style="font-weight: 800; color: #fff; font-size: 0.95rem;">問題名: 読込中...</span>
-                    <button type="button" id="edit-title-btn" style="background: transparent; border: 1px solid #262b34; color: var(--accent-cyan); font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 6px; cursor: pointer; font-weight: 800;">✏️ 名前変更</button>
+                    <button type="button" id="edit-title-btn" style="background: transparent; border: 1px solid #22222a; color: var(--accent-cyan); font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 6px; cursor: pointer; font-weight: 800;">✏️ 名前変更</button>
                     <button type="button" id="delete-prob-btn" style="background: transparent; border: 1px solid #2a0000; color: #ff4545; font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 6px; cursor: pointer; font-weight: 800;">🗑️ 問題を削除</button>
                 </div>
-                <a id="source-lesson-badge" href="#" style="display:none; align-items:center; gap:0.3rem; background: linear-gradient(135deg, rgba(251, 113, 133,0.15), rgba(124, 158, 255,0.15)); border: 1px solid var(--accent-magenta); border-radius: 8px; padding: 0.3rem 0.7rem; font-size: 0.78rem; font-weight: 700; color: #fff; text-decoration: none;">
+                <a id="source-lesson-badge" href="#" style="display:none; align-items:center; gap:0.3rem; background: linear-gradient(135deg, rgba(255,0,127,0.15), rgba(0,243,255,0.15)); border: 1px solid var(--accent-magenta); border-radius: 8px; padding: 0.3rem 0.7rem; font-size: 0.78rem; font-weight: 700; color: #fff; text-decoration: none;">
                     🎓 元の授業: <span id="source-lesson-title-text"></span>
                 </a>
             </div>
@@ -459,14 +456,14 @@
                     </div>
 
                     <div class="reveal-zone" id="answer-reveal-zone">
-                        <div id="strategy-pattern-box" style="display:none; background: rgba(251, 191, 36, 0.06); border: 1px dashed var(--accent-yellow); border-radius: 14px; padding: 1rem 1.2rem; margin-bottom: 1.2rem;">
+                        <div id="strategy-pattern-box" style="display:none; background: rgba(255, 245, 0, 0.06); border: 1px dashed var(--accent-yellow); border-radius: 14px; padding: 1rem 1.2rem; margin-bottom: 1.2rem;">
                             <div style="font-size:0.8rem; color: var(--accent-yellow); font-weight:800; margin-bottom:0.4rem;">🧭 考え方の定石 // まずこう考える</div>
                             <div class="model-answer-text" id="target-strategy-pattern" style="font-size:0.95rem; line-height:1.7; color:var(--text-bright-muted);"></div>
                         </div>
 
-                        <div id="strategy-generate-box" style="display:none; background: rgba(251, 191, 36, 0.04); border: 1px dashed rgba(251, 191, 36,0.4); border-radius: 14px; padding: 1rem 1.2rem; margin-bottom: 1.2rem; text-align:center;">
+                        <div id="strategy-generate-box" style="display:none; background: rgba(255, 245, 0, 0.04); border: 1px dashed rgba(255,245,0,0.4); border-radius: 14px; padding: 1rem 1.2rem; margin-bottom: 1.2rem; text-align:center;">
                             <p style="font-size:0.82rem; color: var(--text-muted); margin-bottom:0.7rem;">この問題は答えだけ確認済みです。間違えた原因を深掘りしたい場合は、定石・罠の解説を追加で生成できます。</p>
-                            <button type="button" class="tactile-btn" id="generate-strategy-btn" style="background: rgba(251, 191, 36,0.1); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); box-shadow: 3px 3px 0px rgba(251, 191, 36,0.2);">🧭 定石・罠の解説を追加生成する</button>
+                            <button type="button" class="tactile-btn" id="generate-strategy-btn" style="background: rgba(255,245,0,0.1); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); box-shadow: 3px 3px 0px rgba(255,245,0,0.2);">🧭 定石・罠の解説を追加生成する</button>
                         </div>
 
                         <div style="font-size:0.8rem; color:var(--text-muted); font-weight:800; margin-bottom:0.2rem;">MODEL ANSWER</div>
@@ -476,16 +473,16 @@
                             <button type="button" class="tactile-btn btn-correct" id="btn-judge-right">🎉 合ってた（克服！）</button>
                         </div>
                         <div style="display: flex; gap: 1rem; margin-top: 1.2rem; width: 100%;">
-                            <button type="button" class="tactile-btn" id="activate-ai-question-btn" style="flex: 1; background: #111; color: var(--accent-cyan); border: 1px solid var(--accent-cyan); box-shadow: 3px 3px 0px rgba(124, 158, 255,0.2);">
+                            <button type="button" class="tactile-btn" id="activate-ai-question-btn" style="flex: 1; background: #111; color: var(--accent-cyan); border: 1px solid var(--accent-cyan); box-shadow: 3px 3px 0px rgba(0,243,255,0.2);">
                                 💡 AIに質問する
                             </button>
-                            <button type="button" class="tactile-btn" id="regenerate-analysis-btn" style="flex: 1; background: #111; color: var(--accent-yellow); border: 1px solid var(--accent-yellow); box-shadow: 3px 3px 0px rgba(251, 191, 36,0.2);">
+                            <button type="button" class="tactile-btn" id="regenerate-analysis-btn" style="flex: 1; background: #111; color: var(--accent-yellow); border: 1px solid var(--accent-yellow); box-shadow: 3px 3px 0px rgba(255,245,0,0.2);">
                                 🔄 解説を再生成する <span id="regen-engine-hint" style="font-size:0.65rem; opacity:0.8;"></span>
                             </button>
                         </div>
 
                         <!-- 🧠【追加】気づきメモモーダルを呼ぶボタン -->
-                        <button type="button" class="tactile-btn" id="open-insight-modal-btn" style="width: 100%; margin-top: 0.8rem; background: rgba(124, 158, 255, 0.05); color: var(--accent-cyan); border: 1px dashed var(--accent-cyan); box-shadow: none;">
+                        <button type="button" class="tactile-btn" id="open-insight-modal-btn" style="width: 100%; margin-top: 0.8rem; background: rgba(0, 243, 255, 0.05); color: var(--accent-cyan); border: 1px dashed var(--accent-cyan); box-shadow: none;">
                             🧠 この問題で得た「気づき・極意」をメモする
                         </button>
                     </div>
@@ -506,20 +503,20 @@
             <textarea class="modal-textarea" id="insight-text-input" placeholder="例: 頂点フォームより2点代入の方が圧倒的に速い！ / $x^2+y^2$ を見たら極座標表示を疑う" style="height: 110px; margin-top: 1rem;"></textarea>
 
             <!-- 💡 数式リアルタイムプレビュー表示エリア -->
-            <div id="insight-preview-box" style="display: none; margin-top: 0.8rem; padding: 0.8rem 1rem; background: rgba(124, 158, 255, 0.04); border: 1px dashed rgba(124, 158, 255, 0.3); border-radius: 12px; font-size: 0.9rem; line-height: 1.6; color: var(--text-main); word-break: break-word;">
+            <div id="insight-preview-box" style="display: none; margin-top: 0.8rem; padding: 0.8rem 1rem; background: rgba(0, 243, 255, 0.04); border: 1px dashed rgba(0, 243, 255, 0.3); border-radius: 12px; font-size: 0.9rem; line-height: 1.6; color: var(--text-main); word-break: break-word;">
                 <div style="font-size: 0.75rem; color: var(--accent-cyan); font-weight: 800; margin-bottom: 0.4rem;">👁️ 数式・記号プレビュー (MathJax)</div>
                 <div id="insight-preview-content" class="tex2jax_process" style="font-weight: 600; white-space: pre-wrap;"></div>
             </div>
 
             <div style="display: flex; gap: 0.8rem; justify-content: flex-end; width: 100%; margin-top: 1.2rem;">
                 <button type="button" class="tactile-btn tactile-btn-secondary" id="close-insight-modal-btn">キャンセル</button>
-                <button type="button" class="tactile-btn" id="save-insight-btn" style="background: var(--accent-cyan); box-shadow: 3px 3px 0px #4c5fc7;">💾 クラウドに保存</button>
+                <button type="button" class="tactile-btn" id="save-insight-btn" style="background: var(--accent-cyan); box-shadow: 3px 3px 0px #008b94;">💾 クラウドに保存</button>
             </div>
 
             <!-- 🧠【追加】解説を見ながら書けるよう、模範解答の参照ビューをドロワー内にも表示 -->
             <div class="insight-drawer-answer-ref">
                 <div style="font-size:0.75rem; color:var(--text-muted); font-weight:800; margin-bottom:0.6rem;">📖 この問題の解説（参照用）</div>
-                <div id="insight-drawer-strategy-box" style="display:none; margin-bottom: 0.8rem; padding-bottom: 0.8rem; border-bottom: 1px dashed #262b34;">
+                <div id="insight-drawer-strategy-box" style="display:none; margin-bottom: 0.8rem; padding-bottom: 0.8rem; border-bottom: 1px dashed #22222a;">
                     <div style="font-size:0.72rem; color: var(--accent-yellow); font-weight:800; margin-bottom:0.3rem;">🧭 考え方の定石</div>
                     <div class="model-answer-text" id="insight-drawer-strategy-text"></div>
                 </div>
@@ -536,7 +533,7 @@
                 <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.3rem;">記録済みの会話を選ぶと、そのやり取り全文を読めます（続きから質問はできません）。</p>
             </div>
             <div id="qna-log-list-container" style="margin-top: 1.2rem;"></div>
-            <div style="display: flex; justify-content: flex-end; margin-top: 1.2rem; border-top: 1px solid #262b34; padding-top: 0.8rem;">
+            <div style="display: flex; justify-content: flex-end; margin-top: 1.2rem; border-top: 1px solid #22222a; padding-top: 0.8rem;">
                 <button type="button" class="tactile-btn tactile-btn-secondary" id="close-qna-log-list-btn">閉じる</button>
             </div>
         </div>
@@ -550,9 +547,9 @@
                 <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.3rem;" id="qna-log-detail-date"></p>
             </div>
             <div class="chat-history qna-log-detail-messages" id="qna-log-detail-messages" style="margin-top: 1rem; max-height: 55vh; overflow-y: auto;"></div>
-            <div style="display: flex; justify-content: flex-end; gap: 0.8rem; margin-top: 1.2rem; border-top: 1px solid #262b34; padding-top: 0.8rem;">
+            <div style="display: flex; justify-content: flex-end; gap: 0.8rem; margin-top: 1.2rem; border-top: 1px solid #22222a; padding-top: 0.8rem;">
                 <button type="button" class="tactile-btn tactile-btn-secondary" id="back-qna-log-detail-btn">← 一覧に戻る</button>
-                <button type="button" class="tactile-btn" id="close-qna-log-detail-btn" style="background: rgba(251, 113, 133,0.1); color: var(--accent-magenta); border: 1px solid var(--accent-magenta); box-shadow: none;">🗑 このログを削除</button>
+                <button type="button" class="tactile-btn" id="close-qna-log-detail-btn" style="background: rgba(255,0,127,0.1); color: var(--accent-magenta); border: 1px solid var(--accent-magenta); box-shadow: none;">🗑 このログを削除</button>
             </div>
         </div>
     </div>
@@ -989,7 +986,7 @@ ${glossaryBlock}`;
                     if (currentProblemData.imageData) {
                         contentHtml += `
                             <div style="position: absolute; bottom: 1rem; right: 1rem; z-index: 10;">
-                                <button type="button" id="toggle-photo-btn" class="tactile-btn" style="background: var(--accent-magenta); font-size: 0.8rem; padding: 0.4rem 0.8rem; box-shadow: 2px 2px 0px #b13a54;">
+                                <button type="button" id="toggle-photo-btn" class="tactile-btn" style="background: var(--accent-magenta); font-size: 0.8rem; padding: 0.4rem 0.8rem; box-shadow: 2px 2px 0px #9e004f;">
                                     📸 元の写真を表示
                                 </button>
                             </div>
@@ -1008,7 +1005,7 @@ ${glossaryBlock}`;
                                 lightbox = document.createElement("div");
                                 lightbox.id = "photo-lightbox";
                                 lightbox.style.cssText = `position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 999999; display: flex; align-items: center; justify-content: center; cursor: zoom-out; opacity: 0; transition: opacity 0.2s ease;`;
-                                lightbox.innerHTML = `<img id="lightbox-img" src="${currentProblemData.imageData}" style="max-width: 92%; max-height: 92%; object-fit: contain; border: 2px solid var(--accent-cyan); box-shadow: 0 0 40px rgba(124, 158, 255, 0.4); border-radius: 16px; transform: scale(0.95); transition: transform 0.2s ease;"><div style="position: absolute; top: 1.5rem; right: 1.5rem; color: #fff; font-size: 1.8rem; font-weight: 900; cursor: pointer; background: rgba(255,255,255,0.1); width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2);">×</div>`;
+                                lightbox.innerHTML = `<img id="lightbox-img" src="${currentProblemData.imageData}" style="max-width: 92%; max-height: 92%; object-fit: contain; border: 2px solid var(--accent-cyan); box-shadow: 0 0 40px rgba(0, 243, 255, 0.4); border-radius: 16px; transform: scale(0.95); transition: transform 0.2s ease;"><div style="position: absolute; top: 1.5rem; right: 1.5rem; color: #fff; font-size: 1.8rem; font-weight: 900; cursor: pointer; background: rgba(255,255,255,0.1); width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2);">×</div>`;
                                 document.body.appendChild(lightbox);
                                 lightbox.addEventListener("click", () => {
                                     lightbox.style.opacity = "0"; lightbox.querySelector("#lightbox-img").style.transform = "scale(0.95)";
@@ -1540,7 +1537,7 @@ ${glossaryBlock}`;
                 .replace(/>/g, "&gt;");
 
             // ### 見出し
-            formatted = formatted.replace(/^###\s*(.+)$/gm, '<h4 style="font-size:0.95rem; font-weight:800; color:var(--accent-cyan); margin:0.6rem 0 0.3rem 0; border-bottom:1px solid rgba(124, 158, 255,0.2); padding-bottom:0.2rem;">$1</h4>');
+            formatted = formatted.replace(/^###\s*(.+)$/gm, '<h4 style="font-size:0.95rem; font-weight:800; color:var(--accent-cyan); margin:0.6rem 0 0.3rem 0; border-bottom:1px solid rgba(0,243,255,0.2); padding-bottom:0.2rem;">$1</h4>');
             // --- 区切り線
             formatted = formatted.replace(/^---\s*$/gm, '<hr style="border:none; border-top:1px dashed rgba(255,255,255,0.15); margin:0.6rem 0;">');
             // **太字**
@@ -1582,7 +1579,7 @@ ${glossaryBlock}`;
         function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener("resize", resizeCanvas); resizeCanvas();
         class Particle { constructor(x, y, color) { this.x = x; this.y = y; this.size = Math.random() * 4 + 2; this.speedX = Math.random() * 12 - 6; this.speedY = Math.random() * -15 - 5; this.gravity = 0.3; this.color = color; this.alpha = 1; this.decay = Math.random() * 0.015 + 0.01; } update() { this.speedY += this.gravity; this.x += this.speedX; this.y += this.speedY; this.alpha -= this.decay; } draw() { ctx.save(); ctx.globalAlpha = this.alpha; ctx.shadowBlur = 15; ctx.shadowColor = this.color; ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); ctx.restore(); } }
-        function triggerNeonExplosion() { const colors = ["#7c9eff", "#fb7185", "#fbbf24"]; const startX = canvas.width / 2, startY = canvas.height * 0.8; for (let i = 0; i < 150; i++) particles.push(new Particle(startX, startY, colors[Math.floor(Math.random() * colors.length)])); animateParticles(); }
+        function triggerNeonExplosion() { const colors = ["#00f3ff", "#ff007f", "#fff500"]; const startX = canvas.width / 2, startY = canvas.height * 0.8; for (let i = 0; i < 150; i++) particles.push(new Particle(startX, startY, colors[Math.floor(Math.random() * colors.length)])); animateParticles(); }
         function animateParticles() { if (particles.length === 0) { ctx.clearRect(0, 0, canvas.width, canvas.height); return; } ctx.clearRect(0, 0, canvas.width, canvas.height); for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].alpha <= 0) particles.splice(i, 1); } requestAnimationFrame(animateParticles); }
 
         // 各種コントロールバインド（即時実行でタイミングのズレを防御）
@@ -1869,10 +1866,10 @@ ${glossaryBlock}`;
 
                     if (memoText) {
                         openInsightBtn.textContent = "🧠 メモ記録済み（クリックで編集）";
-                        openInsightBtn.style.background = "rgba(124, 158, 255, 0.15)";
+                        openInsightBtn.style.background = "rgba(0, 243, 255, 0.15)";
                     } else {
                         openInsightBtn.textContent = "🧠 この問題で得た「気づき・極意」をメモする";
-                        openInsightBtn.style.background = "rgba(124, 158, 255, 0.05)";
+                        openInsightBtn.style.background = "rgba(0, 243, 255, 0.05)";
                     }
 
                     const datesEl = document.getElementById("problem-dates-display");

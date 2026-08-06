@@ -3,11 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zenith // 参考書 授業モード</title>
+    <title>LOLZ // 参考書 授業モード</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
 
     <script>
         window.MathJax = {
@@ -52,20 +49,20 @@
         .lesson-card-title { font-weight: 800; font-size: 1rem; margin-bottom: 0.3rem; }
         .lesson-card-meta { font-size: 0.75rem; color: var(--text-muted); }
         .lesson-progress-badge { font-size: 0.7rem; font-weight: 800; padding: 0.25rem 0.6rem; border-radius: 20px; flex-shrink: 0; }
-        .badge-teaching { background: rgba(124, 158, 255,0.1); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
-        .badge-completed { background: rgba(251, 191, 36,0.1); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); }
+        .badge-teaching { background: rgba(0,243,255,0.1); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
+        .badge-completed { background: rgba(255,245,0,0.1); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); }
 
         .new-lesson-form { display: flex; flex-direction: column; gap: 1rem; }
-        .file-drop-label { border: 1px dashed #3a4150; border-radius: 14px; padding: 1.2rem; text-align: center; cursor: pointer; color: var(--text-muted); font-size: 0.9rem; }
+        .file-drop-label { border: 1px dashed #3a3a4a; border-radius: 14px; padding: 1.2rem; text-align: center; cursor: pointer; color: var(--text-muted); font-size: 0.9rem; }
         .file-drop-label:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
         .thumb-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-        .thumb-row img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid #262b34; }
-        .note-textarea { width: 100%; min-height: 80px; background: #000; border: 1px solid #262b34; color: #fff; padding: 0.8rem; border-radius: 10px; font-family: inherit; resize: vertical; }
+        .thumb-row img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid #22222a; }
+        .note-textarea { width: 100%; min-height: 80px; background: #000; border: 1px solid #22222a; color: #fff; padding: 0.8rem; border-radius: 10px; font-family: inherit; resize: vertical; }
         .settings-link { font-size: 0.8rem; color: var(--text-muted); background: none; border: none; cursor: pointer; text-decoration: underline; align-self: flex-start; }
         .settings-link:hover { color: var(--accent-cyan); }
 
         /* ── プランプレビュー ── */
-        .plan-part-item { border-left: 3px solid var(--accent-yellow); padding: 0.6rem 1rem; margin-bottom: 0.6rem; background: rgba(251, 191, 36,0.03); border-radius: 0 10px 10px 0; }
+        .plan-part-item { border-left: 3px solid var(--accent-yellow); padding: 0.6rem 1rem; margin-bottom: 0.6rem; background: rgba(255,245,0,0.03); border-radius: 0 10px 10px 0; }
         .plan-part-item b { color: var(--accent-yellow); }
         .plan-part-item p { font-size: 0.85rem; color: var(--text-bright-muted); margin-top: 0.2rem; }
 
@@ -143,7 +140,7 @@
             align-self: flex-start; 
         }
         .bubble-user { 
-            background: rgba(251, 113, 133, 0.15); 
+            background: rgba(255, 0, 127, 0.15); 
             border-right: 4px solid var(--accent-magenta); 
             color: #ffffff; 
             align-self: flex-end; 
@@ -155,10 +152,10 @@
             font-weight: 800; 
             margin: 1.2rem 0 0.8rem; 
             letter-spacing: 0.5px; 
-            background: rgba(251, 191, 36, 0.08);
+            background: rgba(255, 245, 0, 0.08);
             padding: 0.4rem 1rem;
             border-radius: 20px;
-            border: 1px solid rgba(251, 191, 36, 0.2);
+            border: 1px solid rgba(255, 245, 0, 0.2);
         }
 
         /* MathJax溢れ防止 */
@@ -192,7 +189,7 @@
         .chat-transcript::-webkit-scrollbar-thumb,
         .parts-toc-container::-webkit-scrollbar-thumb,
         .source-text-box::-webkit-scrollbar-thumb {
-            background: rgba(251, 191, 36, 0.3);
+            background: rgba(255, 245, 0, 0.3);
             border-radius: 3px;
         }
         .chat-transcript::-webkit-scrollbar-thumb:hover,
@@ -205,7 +202,7 @@
         .sidebar-tab-group {
             display: flex;
             gap: 0.4rem;
-            border-bottom: 1px solid #262b34;
+            border-bottom: 1px solid #22222a;
             padding-bottom: 0.6rem;
             margin-bottom: 1rem;
         }
@@ -214,7 +211,7 @@
             text-align: center;
             white-space: nowrap; /* 💡 改行を完全防御 */
             background: transparent;
-            border: 1px solid #262b34;
+            border: 1px solid #22222a;
             color: var(--text-muted);
             font-size: 0.8rem;
             font-weight: 800;
@@ -224,10 +221,10 @@
             transition: all 0.15s ease;
         }
         .sidebar-tab-btn.active {
-            background: rgba(124, 158, 255, 0.12);
+            background: rgba(0, 243, 255, 0.12);
             border-color: var(--accent-cyan);
             color: var(--accent-cyan);
-            box-shadow: 0 0 10px rgba(124, 158, 255, 0.15);
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.15);
         }
         .sidebar-panel {
             display: none;
@@ -255,9 +252,9 @@
             transition: all 0.15s ease;
         }
         .toc-item.current-active {
-            background: rgba(251, 191, 36, 0.08);
+            background: rgba(255, 245, 0, 0.08);
             border-color: var(--accent-yellow);
-            box-shadow: 0 0 14px rgba(251, 191, 36, 0.15);
+            box-shadow: 0 0 14px rgba(255, 245, 0, 0.15);
         }
         .toc-item-header {
             display: flex;
@@ -294,21 +291,21 @@
             flex-shrink: 0;
             line-height: 1.2;
             background: transparent;
-            border: 1px solid var(--accent-magenta, #fb7185);
-            color: var(--accent-magenta, #fb7185);
+            border: 1px solid var(--accent-magenta, #ff007f);
+            color: var(--accent-magenta, #ff007f);
             cursor: pointer;
             transition: all 0.15s ease;
         }
-        .toc-regen-btn:hover { background: rgba(251, 113, 133, 0.12); }
+        .toc-regen-btn:hover { background: rgba(255, 0, 127, 0.12); }
         .toc-regen-btn:disabled { opacity: 0.5; cursor: default; }
         .badge-toc-active {
             color: var(--accent-yellow);
             border: 1px solid var(--accent-yellow);
-            background: rgba(251, 191, 36, 0.15);
+            background: rgba(255, 245, 0, 0.15);
         }
         .badge-toc-done {
             color: var(--text-muted);
-            border: 1px solid #3a4150;
+            border: 1px solid #3a3a4a;
             background: rgba(255, 255, 255, 0.05);
         }
         .badge-toc-upcoming {
@@ -328,7 +325,7 @@
             flex-grow: 1;
             min-height: 250px;
             background: #000;
-            border: 1px solid #262b34;
+            border: 1px solid #22222a;
             color: #fff;
             padding: 0.9rem;
             border-radius: 12px;
@@ -374,11 +371,11 @@
             font-size: 1.1rem;
             transition: all 0.15s ease;
         }
-        .chat-attach-btn:hover { border-color: var(--accent-cyan); background: rgba(124, 158, 255,0.08); }
+        .chat-attach-btn:hover { border-color: var(--accent-cyan); background: rgba(0,243,255,0.08); }
         .chat-attach-btn.has-images { border-color: var(--accent-yellow); color: var(--accent-yellow); }
         .chat-image-thumb-row { display: flex; gap: 0.4rem; flex-wrap: wrap; }
         .chat-image-thumb-wrap { position: relative; }
-        .chat-image-thumb-wrap img { width: 52px; height: 52px; object-fit: cover; border-radius: 8px; border: 1px solid #262b34; }
+        .chat-image-thumb-wrap img { width: 52px; height: 52px; object-fit: cover; border-radius: 8px; border: 1px solid #22222a; }
         .chat-image-thumb-remove {
             position: absolute; top: -6px; right: -6px;
             width: 18px; height: 18px; border-radius: 50%;
@@ -393,8 +390,8 @@
 
         /* ── モーダル（設定） ── */
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); align-items: center; justify-content: center; z-index: 100000; padding: 1rem; }
-        .modal-content { width: 100%; max-width: 600px; background: rgba(21, 24, 30,0.97); border: 1px solid var(--accent-cyan); box-shadow: 0 0 30px rgba(124, 158, 255,0.25); border-radius: 20px; padding: 1.8rem; }
-        .modal-content textarea { width: 100%; min-height: 220px; background: #000; border: 1px solid #262b34; color: #fff; padding: 1rem; border-radius: 12px; font-size: 0.9rem; font-family: inherit; resize: vertical; line-height: 1.6; }
+        .modal-content { width: 100%; max-width: 600px; background: rgba(10,10,18,0.97); border: 1px solid var(--accent-cyan); box-shadow: 0 0 30px rgba(0,243,255,0.25); border-radius: 20px; padding: 1.8rem; }
+        .modal-content textarea { width: 100%; min-height: 220px; background: #000; border: 1px solid #22222a; color: #fff; padding: 1rem; border-radius: 12px; font-size: 0.9rem; font-family: inherit; resize: vertical; line-height: 1.6; }
         .modal-actions { display: flex; justify-content: flex-end; gap: 0.7rem; margin-top: 1rem; }
         .hidden { display: none !important; }
     </style>
@@ -404,7 +401,7 @@
     <div class="lesson-container">
         <!-- GLOBAL CYBER HUD NAV -->
         <nav class="global-cyber-nav">
-            <div class="nav-brand"><span class="lz-z">Z</span><span class="lz-e">e</span><span class="lz-n">n</span><span class="lz-i">i</span><span class="lz-t">t</span><span class="lz-h">h</span></div>
+            <div class="nav-brand">SYSTEM OS // LOLZ</div>
             <div class="nav-links">
                 <a href="index.html" class="nav-btn">🧠 誤答ノート</a>
                 <a href="daily.html" class="nav-btn">🏁 計算スプリント</a>
@@ -441,7 +438,7 @@
                 <div style="font-weight:900; font-size:1.05rem;">🆕 新しい授業を始める</div>
 
                 <div style="display:flex; gap:0.5rem; margin: 0.8rem 0 1rem 0;">
-                    <button type="button" class="tactile-btn mode-tab-btn active" id="mode-tab-photo" style="flex:1; background: var(--accent-cyan); color:#000; box-shadow: 3px 3px 0px #4c5fc7;">📷 参考書から</button>
+                    <button type="button" class="tactile-btn mode-tab-btn active" id="mode-tab-photo" style="flex:1; background: var(--accent-cyan); color:#000; box-shadow: 3px 3px 0px #008b94;">📷 参考書から</button>
                     <button type="button" class="tactile-btn mode-tab-btn" id="mode-tab-topic" style="flex:1; background:#111; color:var(--text-bright-muted); border:1px solid #333; box-shadow:none;">✏️ 単元名だけで</button>
                 </div>
 
@@ -468,7 +465,7 @@
                         📝 学びたい単元名
                     </label>
                     <input type="text" id="topic-input" placeholder="例：数学III 微分方程式／物理 コンデンサー回路 など"
-                        style="width:100%; background:#000; border:1px solid #262b34; color:#fff; padding:0.9rem; border-radius:12px; font-size:1rem; margin-bottom:0.8rem;">
+                        style="width:100%; background:#000; border:1px solid #22222a; color:#fff; padding:0.9rem; border-radius:12px; font-size:1rem; margin-bottom:0.8rem;">
                     <label style="font-size:0.85rem; color:var(--text-muted); display:block; margin-bottom:0.3rem;">
                         🎚️ レベル感
                     </label>
@@ -500,7 +497,7 @@
             <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1rem;">この内容で進めてよければ「授業を始める」を押してください。分割が気に入らなければ作り直せます。</div>
             <div id="plan-preview-parts"></div>
             <div class="lesson-controls">
-                <button type="button" class="tactile-btn" id="confirm-plan-btn" style="background: var(--accent-cyan); box-shadow: 3px 3px 0px #4c5fc7;">✅ この内容で授業を始める</button>
+                <button type="button" class="tactile-btn" id="confirm-plan-btn" style="background: var(--accent-cyan); box-shadow: 3px 3px 0px #008b94;">✅ この内容で授業を始める</button>
                 <button type="button" class="tactile-btn" id="regenerate-plan-btn" style="background:#111; color: var(--accent-yellow); border:1px solid var(--accent-yellow);">🔄 作り直す</button>
                 <button type="button" class="tactile-btn" id="cancel-plan-btn" style="background:#111; color:#fff; border:1px solid #333;">キャンセル</button>
             </div>
@@ -566,7 +563,7 @@
                         <textarea class="lesson-note-textarea" id="lesson-note-input" placeholder="例: ベクトルの内積の公式：a・b = a1b1 + a2b2 + a3b3&#10;・垂直条件は a・b = 0"></textarea>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
                             <span id="note-save-status" style="font-size: 0.75rem; color: var(--text-muted);">クラウド同期中</span>
-                            <button type="button" class="tactile-btn" id="save-lesson-note-btn" style="font-size: 0.75rem; padding: 0.3rem 0.8rem; background: var(--accent-cyan); color:#000; box-shadow: 2px 2px 0px #4c5fc7;">💾 保存</button>
+                            <button type="button" class="tactile-btn" id="save-lesson-note-btn" style="font-size: 0.75rem; padding: 0.3rem 0.8rem; background: var(--accent-cyan); color:#000; box-shadow: 2px 2px 0px #008b94;">💾 保存</button>
                         </div>
                     </div>
 
@@ -591,7 +588,7 @@
             <div class="modal-actions">
                 <button type="button" class="tactile-btn" id="reset-settings-btn" style="background:#111; color:#fff; border:1px solid #333;">デフォルトに戻す</button>
                 <button type="button" class="tactile-btn" id="close-settings-btn" style="background:#111; color:#fff; border:1px solid #333;">キャンセル</button>
-                <button type="button" class="tactile-btn" id="save-settings-btn" style="background: var(--accent-cyan); box-shadow: 3px 3px 0px #4c5fc7;">💾 保存</button>
+                <button type="button" class="tactile-btn" id="save-settings-btn" style="background: var(--accent-cyan); box-shadow: 3px 3px 0px #008b94;">💾 保存</button>
             </div>
         </div>
     </div>
@@ -744,12 +741,12 @@
             const topicGroup = el("mode-group-topic");
             if (mode === "topic") {
                 photoBtn.style.background = "#111"; photoBtn.style.color = "var(--text-bright-muted)"; photoBtn.style.border = "1px solid #333"; photoBtn.style.boxShadow = "none";
-                topicBtn.style.background = "var(--accent-cyan)"; topicBtn.style.color = "#000"; topicBtn.style.border = "none"; topicBtn.style.boxShadow = "3px 3px 0px #4c5fc7";
+                topicBtn.style.background = "var(--accent-cyan)"; topicBtn.style.color = "#000"; topicBtn.style.border = "none"; topicBtn.style.boxShadow = "3px 3px 0px #008b94";
                 photoGroup.style.display = "none";
                 topicGroup.style.display = "block";
             } else {
                 topicBtn.style.background = "#111"; topicBtn.style.color = "var(--text-bright-muted)"; topicBtn.style.border = "1px solid #333"; topicBtn.style.boxShadow = "none";
-                photoBtn.style.background = "var(--accent-cyan)"; photoBtn.style.color = "#000"; photoBtn.style.border = "none"; photoBtn.style.boxShadow = "3px 3px 0px #4c5fc7";
+                photoBtn.style.background = "var(--accent-cyan)"; photoBtn.style.color = "#000"; photoBtn.style.border = "none"; photoBtn.style.boxShadow = "3px 3px 0px #008b94";
                 topicGroup.style.display = "none";
                 photoGroup.style.display = "block";
             }
@@ -1196,7 +1193,7 @@ ${photoHandlingBlock}
                 .replace(/>/g, "&gt;");
 
             // #### または ### 見出し
-            formatted = formatted.replace(/^#{3,4}\s*(.+)$/gm, '<h4 style="font-size:0.98rem; font-weight:800; color:var(--accent-yellow); margin:0.7rem 0 0.4rem 0; border-bottom:1px solid rgba(251, 191, 36,0.2); padding-bottom:0.2rem;">$1</h4>');
+            formatted = formatted.replace(/^#{3,4}\s*(.+)$/gm, '<h4 style="font-size:0.98rem; font-weight:800; color:var(--accent-yellow); margin:0.7rem 0 0.4rem 0; border-bottom:1px solid rgba(255,245,0,0.2); padding-bottom:0.2rem;">$1</h4>');
             // --- 区切り線
             formatted = formatted.replace(/^---\s*$/gm, '<hr style="border:none; border-top:1px dashed rgba(255,255,255,0.15); margin:0.7rem 0;">');
             // **太字**

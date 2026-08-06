@@ -1,5 +1,5 @@
 /* ==========================================================================
-   COMMON DESIGN SYSTEM — Quiet Studio
+   COMMON DESIGN SYSTEM (Tactile Brutalism 2.0)
    ========================================================================== */
 *, *::before, *::after {
     box-sizing: border-box;
@@ -8,126 +8,142 @@
 }
 
 :root {
-    --bg-color: #0d0f13;
-    --card-bg: #15181e;
-    --card-bg-glass: rgba(21, 24, 30, 0.62);
-    --border-color: #262b34;
-    --border-glow: #3a4150;
-
-    /* Accents */
-    --accent-cyan: #7c9eff;      /* primary — soft periwinkle */
-    --accent-magenta: #fb7185;   /* secondary — muted rose */
-    --accent-yellow: #fbbf24;    /* tertiary — warm amber */
-
+    --bg-color: #000000;
+    --card-bg: #050508;
+    --card-bg-glass: rgba(10, 10, 18, 0.5);
+    --border-color: #22222a;
+    --border-glow: #3a3a4a;
+    
+    /* Neon Accents */
+    --accent-cyan: #00f3ff;
+    --accent-magenta: #ff007f;
+    --accent-yellow: #fff500;
+    
     /* Text */
-    --text-main: #f2f3f5;
-    --text-muted: #868c99;
-    --text-bright-muted: #b8bdc9;
-
+    --text-main: #ffffff;
+    --text-muted: #708590;
+    --text-bright-muted: #a0b5c0;
+    
     /* Fonts */
-    --fs-xl: clamp(2.2rem, 5vw + 1rem, 3.8rem);
-    --fs-lg: clamp(1.3rem, 2.2vw + 0.5rem, 2rem);
-    --fs-md: clamp(1.05rem, 1.4vw + 0.2rem, 1.3rem);
-    --fs-sm: 0.88rem;
+    --fs-xl: clamp(2.5rem, 6vw + 1rem, 4.5rem);
+    --fs-lg: clamp(1.4rem, 2.5vw + 0.5rem, 2.2rem);
+    --fs-md: clamp(1.1rem, 1.5vw + 0.2rem, 1.4rem);
+    --fs-sm: 0.9rem;
 }
 
 body {
     background-color: var(--bg-color);
     color: var(--text-main);
-    font-family: 'Inter', 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
+    font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
     min-height: 100vh;
     padding: 2rem;
     overflow-x: hidden;
     position: relative;
-    letter-spacing: 0.01em;
 }
 
-/* スクワークル構造（角丸カード） */
+/* 物理的なノイズテクスチャ */
+body::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    opacity: 0.04;
+    pointer-events: none;
+    z-index: 9999;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* スクワークル構造 */
 .squircle-card, .squircle-tile {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: 18px;
+    border-radius: 32px / 32px;
     padding: 1.8rem;
     position: relative;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     overflow: hidden;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    box-shadow: 4px 4px 0px rgba(0, 243, 255, 0.05);
 }
 
-.squircle-card:hover {
-    border-color: var(--border-glow);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-    transform: translateY(-2px);
-}
-
-/* ボタン */
+/* ボタンの150ms高速アクション */
 .tactile-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     background: var(--accent-cyan);
-    color: #0d0f13;
+    color: #000;
     border: none;
-    border-radius: 10px;
-    padding: 0.75rem 1.4rem;
-    font-weight: 700;
+    border-radius: 14px / 14px;
+    padding: 0.8rem 1.5rem;
+    font-weight: 900;
     cursor: pointer;
-    transition: transform 150ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 150ms ease, box-shadow 150ms ease;
-    box-shadow: 0 2px 8px rgba(124, 158, 255, 0.25);
+    transition: transform 150ms cubic-bezier(0.1, 0.8, 0.2, 1);
+    box-shadow: 3px 3px 0px #008b94;
 }
-.tactile-btn:hover { opacity: 0.92; box-shadow: 0 4px 14px rgba(124, 158, 255, 0.35); }
-.tactile-btn:active { transform: scale(0.97); }
+.tactile-btn:active { transform: scale(0.94) translate(1px, 1px); }
 
 
 /* ==========================================================================
-   PC大画面表示における、問題写真のサイズ肥大化防止設定
+   【新設】PC大画面表示における、問題写真のサイズ肥大化防止設定
    ========================================================================== */
 @media screen and (min-width: 768px) {
+    /* 画像を囲むグレーの枠自体が縦に伸びすぎるのを防ぐ */
     html body .physics-figure-box {
         max-height: 450px !important;
         margin-top: 1rem !important;
     }
 
+    /* 画像に直書きされている width:100%; height:100% を強制上書きして縮める */
     html body .physics-figure-box img {
-        max-width: 500px !important;
-        max-height: 420px !important;
-        width: auto !important;
-        height: auto !important;
+        max-width: 500px !important;  /* 横幅の上限（お好みで400pxなどに縮めてもOK） */
+        max-height: 420px !important; /* 縦幅の上限 */
+        width: auto !important;       /* 縦横比を固定 */
+        height: auto !important;      /* 縦横比を固定 */
     }
 }
 
 /* ==========================================================================
-   GLOBAL NAVIGATION
+   GLOBAL CYBER HUD NAVIGATION
    ========================================================================== */
 .global-cyber-nav {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: rgba(21, 24, 30, 0.9);
+    background: rgba(10, 10, 18, 0.85);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--border-color);
-    border-radius: 14px;
+    border: 1px solid rgba(0, 243, 255, 0.25);
+    border-radius: 16px;
     padding: 0.6rem 1.2rem;
     margin-bottom: 1.5rem;
     gap: 1rem;
     flex-wrap: wrap;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     z-index: 1000;
 }
 
 .nav-brand {
-    font-family: 'Poppins', 'Inter', sans-serif;
-    font-weight: 600;
-    font-size: 0.95rem;
-    letter-spacing: -0.2px;
-    color: var(--text-bright-muted);
+    font-family: monospace;
+    font-weight: 900;
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+    color: var(--accent-cyan, #00f3ff);
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+.nav-brand::before {
+    content: "●";
+    color: #00ff78;
+    font-size: 0.6rem;
+    animation: blink-dot 1.5s infinite;
+}
+
+@keyframes blink-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
 }
 
 .nav-links {
@@ -142,37 +158,39 @@ body {
     align-items: center;
     gap: 0.4rem;
     color: #a0b5c0;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 0.45rem 0.85rem;
-    border-radius: 9px;
+    border-radius: 10px;
     font-size: 0.8rem;
-    font-weight: 600;
+    font-weight: 800;
     text-decoration: none;
     transition: all 0.15s ease;
 }
 
 .nav-btn:hover {
     color: #ffffff;
-    background: rgba(124, 158, 255, 0.12);
-    border-color: var(--accent-cyan);
+    background: rgba(0, 243, 255, 0.12);
+    border-color: #00f3ff;
+    transform: translateY(-1px);
 }
 
 .nav-btn.active {
-    color: #0d0f13;
-    background: var(--accent-cyan);
-    border-color: var(--accent-cyan);
+    color: #000000;
+    background: #00f3ff;
+    border-color: #00f3ff;
+    box-shadow: 0 0 12px rgba(0, 243, 255, 0.4);
 }
 
 .nav-btn.active-timer {
-    background: rgba(251, 113, 133, 0.16) !important;
-    border-color: var(--accent-magenta) !important;
+    background: linear-gradient(135deg, rgba(255, 0, 127, 0.25), rgba(0, 243, 255, 0.25)) !important;
+    border-color: #ff007f !important;
     color: #ffffff !important;
+    box-shadow: 0 0 10px rgba(255, 0, 127, 0.4);
+    animation: pulse-timer-btn 1.5s infinite alternate;
 }
 
-.nav-brand .lz-z { color: #7c9eff; }
-.nav-brand .lz-e { color: #fb7185; }
-.nav-brand .lz-n { color: #fbbf24; }
-.nav-brand .lz-i { color: #7c9eff; }
-.nav-brand .lz-t { color: #34d399; }
-.nav-brand .lz-h { color: #fb7185; }
+@keyframes pulse-timer-btn {
+    0% { box-shadow: 0 0 8px rgba(255, 0, 127, 0.4); }
+    100% { box-shadow: 0 0 18px rgba(0, 243, 255, 0.7); }
+}
