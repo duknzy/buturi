@@ -120,10 +120,24 @@
             font-size: 0.9rem; font-weight: 700; color: var(--accent-cyan);
         }
         .preview-box {
-            width: 100%; max-height: 220px; border-radius: 8px; overflow: hidden;
-            display: none; border: 1px solid #222; margin-top: 0.8rem;
+            width: 100%; display: none; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.8rem;
         }
-        .preview-box img { width: 100%; height: 100%; object-fit: contain; background: #020205; }
+        .preview-box.has-images { display: flex; }
+        .photo-thumb-wrap {
+            position: relative; width: 92px; height: 92px; border-radius: 10px; overflow: hidden;
+            border: 1px solid #222; background: #020205; flex-shrink: 0;
+        }
+        .photo-thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
+        .photo-thumb-remove {
+            position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%;
+            background: rgba(0,0,0,0.75); color: #fff; border: 1px solid rgba(255,255,255,0.35);
+            font-size: 0.75rem; line-height: 1; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-weight: 900;
+        }
+        .photo-thumb-index {
+            position: absolute; bottom: 3px; left: 3px; background: rgba(0,0,0,0.75); color: var(--accent-cyan);
+            font-size: 0.65rem; font-weight: 900; padding: 0.05rem 0.35rem; border-radius: 6px;
+        }
 
         #quick-answer-btn { width: 100%; margin-top: 1.2rem; height: 54px; font-size: 1.05rem; }
 
@@ -187,6 +201,7 @@
                 <a href="custom-sprint.html" class="nav-btn">🎯 カスタムスプリント</a>
                 <a href="lesson.html" class="nav-btn">📖 授業・解説</a>
                 <a href="answer-check.html" class="nav-btn active">⚡ 答え合わせ</a>
+                <a href="mark-test.html" class="nav-btn">🎯 マーク模試</a>
                 <a href="tokei/index.html" class="nav-btn global-timer-link">⏱️ 集中タイマー</a>
                 <a href="#" onclick="openTimerPopout(event)" class="nav-btn" title="別ウィンドウでタイマーを開く">🗔 小窓</a>
                 <a href="#" onclick="openLogPopout(event)" class="nav-btn" title="24hログを小窓で開く">📊 24hログ</a>
@@ -254,17 +269,16 @@
 
                 <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.8rem; flex-wrap: wrap;">
                     <label for="problem-image-input" class="image-upload-zone" style="flex: 1; margin-bottom: 0; white-space: nowrap; font-size: 0.9rem; min-width: 150px;">
-                        📸 写真を追加（任意）
+                        📸 写真を追加（複数可・任意）
                     </label>
                     <button type="button" onclick="openGooglePhotosPopout(event)" title="Google Photosを小窓で開く"
                         style="flex-shrink: 0; padding: 0.6rem 1rem; background: #1a1a2e; color: #4fc3f7; border: 1px solid #4fc3f7; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer; white-space: nowrap;">
                         📷 Google Photos
                     </button>
                 </div>
-                <input type="file" id="problem-image-input" accept="image/*" style="display: none;">
-                <div class="preview-box" id="image-preview-container">
-                    <img src="" id="img-preview-target">
-                </div>
+                <input type="file" id="problem-image-input" accept="image/*" multiple style="display: none;">
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;">💡 問題文＋解答用紙など、複数枚をまとめて選択・追加できます。×で個別に削除できます。</p>
+                <div class="preview-box" id="image-preview-container"></div>
 
                 <button type="button" class="tactile-btn" id="quick-answer-btn">① 答えだけAIに聞く</button>
             </div>
@@ -311,13 +325,13 @@
             return `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
         }
 
-        // 🎯【最重要】1回の入力・1枚の写真に複数の小問が含まれる場合のルール
+        // 🎯【最重要】1回の入力・複数枚の写真に複数の小問が含まれる場合のルール
         const MULTI_QUESTION_INSTRUCTION = `
 【最重要ルール：小問の絞り込みと複数指定】
-提出された画像やテキストには、同じ大問の中に複数の小問（(1)(2)(3)や①②③、290番〜293番のように番号が連続する複数の大問など）がまとめて写っている場合があります。
-- 下の「対象指定メモ」でユーザーが対象を指定している場合は、そこで指定された小問**だけ**を解析・解答すること。指定されていない小問には絶対に答えを書かないこと。
+提出された画像やテキストには、同じ大問の中に複数の小問（(1)(2)(3)や①②③、290番〜293番のように番号が連続する複数の大問など）がまとめて写っている場合があります。写真が複数枚提出されている場合は、それらは1回の見直しでまとめて撮影した「続きのページ」（例：287〜290番のページと291〜293番の次のページ、または問題文ページと生徒の解答用紙ページなど）である可能性が高いので、すべての画像を1つの続き物の情報として横断的に読み取ってください。
+- 下の「対象指定メモ」でユーザーが対象を指定している場合は、そこで指定された小問**だけ**を解析・解答すること。指定されていない小問には絶対に答えを書かないこと。何枚目の画像に写っているかに関わらず、指定された番号を全画像の中から探して対応すること。
 - 対象指定メモが「290~293」のような範囲、または「287, 289, 291」のような複数指定の場合は、指定された数だけそれぞれ**独立した別々の項目**として"answers"配列に入れること。絶対にまとめて要約したり、1つの項目に複数問を混ぜて書いたりしないこと。
-- 対象指定メモが空欄、または対象が曖昧な場合は、画像内で最も分かりやすく完結している小問を1つだけ自分で選び、その項目のextracted_textの冒頭に「（対象指定メモが空欄だったため、○○を対象として解答しました。他の小問も知りたい場合は対象指定メモに書いてください）」のように必ず明記し、"answers"配列にはその1件だけを入れること。
+- 対象指定メモが空欄、または対象が曖昧な場合は、画像内（複数枚ある場合は全画像の中）で最も分かりやすく完結している小問を1つだけ自分で選び、その項目のextracted_textの冒頭に「（対象指定メモが空欄だったため、○○を対象として解答しました。他の小問も知りたい場合は対象指定メモに書いてください）」のように必ず明記し、"answers"配列にはその1件だけを入れること。
 - "answers"配列の各要素には、必ず対応する小問の番号・記号を"label"に入れること（例："290"、"(2)"など）。
 `.trim();
 
@@ -429,8 +443,7 @@ ${MULTI_QUESTION_INSTRUCTION}
 
         let currentUser = null;
         let selectedSubject = "数学";
-        let selectedImageBase64 = null;
-        let selectedImageMimeType = null;
+        let selectedImages = []; // {mimeType, base64, dataUrl} の配列
         let currentBatch = []; // 直近の「答えだけ確認」バッチ結果を保持（各項目を個別に登録判定するために使う）
         let previewTimeout = null;
 
@@ -483,9 +496,8 @@ ${MULTI_QUESTION_INSTRUCTION}
         function resetForNextBatch() {
             document.getElementById("target-note-input").value = "";
             document.getElementById("problem-image-input").value = "";
-            document.getElementById("image-preview-container").style.display = "none";
-            selectedImageBase64 = null;
-            selectedImageMimeType = null;
+            selectedImages = [];
+            renderImagePreviews();
             currentBatch = [];
             const preview = document.getElementById("math-preview");
             if (window.MathJax && window.MathJax.typesetClear) window.MathJax.typesetClear([preview]);
@@ -499,7 +511,7 @@ ${MULTI_QUESTION_INSTRUCTION}
         async function runQuickAnswerCheck() {
             const noteInput = document.getElementById("target-note-input");
             const noteText = noteInput.value.trim();
-            if (!noteText && !selectedImageBase64) {
+            if (!noteText && selectedImages.length === 0) {
                 alert("写真を選択するか、対象指定メモ（または問題文）を入力してください。");
                 return;
             }
@@ -515,9 +527,9 @@ ${MULTI_QUESTION_INSTRUCTION}
 
             let parts = [{ "text": "提出されたデータのうち、対象指定メモで示された小問（未指定なら1問だけ自動選択）を解析し、指定のJSON（answers配列）で答えだけ返してください。" }];
             if (noteText) parts[0].text += `\n【対象指定メモ／問題文】\n${noteText}`;
-            if (selectedImageBase64 && selectedImageMimeType) {
-                parts.push({ "inlineData": { "mimeType": selectedImageMimeType, "data": selectedImageBase64 } });
-            }
+            selectedImages.forEach(img => {
+                parts.push({ "inlineData": { "mimeType": img.mimeType, "data": img.base64 } });
+            });
 
             const requestBody = JSON.stringify({
                 "contents": [{ "parts": parts }],
@@ -669,8 +681,9 @@ ${MULTI_QUESTION_INSTRUCTION}
                     errorCount: 1,
                     lastAttemptAt: nowIso,
                     lastResult: false,
-                    // 🖼️ 複数問が写った同じ写真を使い回している可能性があるため、画像はそのまま全項目に添付する
-                    imageData: selectedImageBase64 ? `data:${selectedImageMimeType};base64,${selectedImageBase64}` : null,
+                    // 🖼️ 複数問・複数ページが写った同じ写真セットを使い回している可能性があるため、画像はそのまま全項目に添付する
+                    images: selectedImages.map(img => img.dataUrl),
+                    imageData: selectedImages.length > 0 ? selectedImages[0].dataUrl : null, // 互換用（1枚目）
                     answerFormula: item.model_answer,
                     createdAt: nowIso
                 };
@@ -703,15 +716,37 @@ ${MULTI_QUESTION_INSTRUCTION}
         const noteInput = document.getElementById("target-note-input");
         const imageInput = document.getElementById("problem-image-input");
         const previewContainer = document.getElementById("image-preview-container");
-        const previewTarget = document.getElementById("img-preview-target");
 
         if (noteInput) noteInput.addEventListener('input', () => { window.updateMathPreview(false); });
 
-        if (imageInput) {
-            imageInput.addEventListener("change", function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-                selectedImageMimeType = "image/jpeg";
+        // 🖼️ 選択中の写真サムネイル一覧を描画（×で個別削除可能）
+        function renderImagePreviews() {
+            if (!previewContainer) return;
+            if (selectedImages.length === 0) {
+                previewContainer.classList.remove("has-images");
+                previewContainer.innerHTML = "";
+                return;
+            }
+            previewContainer.classList.add("has-images");
+            previewContainer.innerHTML = selectedImages.map((img, i) => `
+                <div class="photo-thumb-wrap">
+                    <img src="${img.dataUrl}">
+                    <span class="photo-thumb-index">${i + 1}</span>
+                    <div class="photo-thumb-remove" data-remove-img="${i}">×</div>
+                </div>
+            `).join("");
+            previewContainer.querySelectorAll("[data-remove-img]").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const idx = parseInt(btn.getAttribute("data-remove-img"), 10);
+                    selectedImages.splice(idx, 1);
+                    renderImagePreviews();
+                });
+            });
+        }
+
+        // 📸 1枚の画像ファイルを圧縮してdataURLに変換（Promiseでラップ）
+        function compressImageFile(file) {
+            return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = function(evt) {
                     const img = new Image();
@@ -723,12 +758,33 @@ ${MULTI_QUESTION_INSTRUCTION}
                         canvas.width = width; canvas.height = height;
                         const ctx = canvas.getContext("2d"); ctx.drawImage(img, 0, 0, width, height);
                         const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.7);
-                        selectedImageBase64 = compressedDataUrl.split(',')[1];
-                        previewTarget.src = compressedDataUrl; previewContainer.style.display = "block";
+                        resolve({
+                            mimeType: "image/jpeg",
+                            base64: compressedDataUrl.split(',')[1],
+                            dataUrl: compressedDataUrl
+                        });
                     };
+                    img.onerror = reject;
                     img.src = evt.target.result;
                 };
+                reader.onerror = reject;
                 reader.readAsDataURL(file);
+            });
+        }
+
+        if (imageInput) {
+            imageInput.addEventListener("change", async function(e) {
+                const files = Array.from(e.target.files || []);
+                if (files.length === 0) return;
+                for (const file of files) {
+                    try {
+                        selectedImages.push(await compressImageFile(file));
+                    } catch (err) {
+                        console.error("画像の読み込みに失敗しました:", err);
+                    }
+                }
+                renderImagePreviews();
+                imageInput.value = ""; // 同じファイルを再度追加選択できるようにリセット
             });
         }
 
