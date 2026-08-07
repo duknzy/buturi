@@ -275,7 +275,25 @@
             <div class="squircle-card glass-card" id="grid-section" style="padding: 1.6rem;">
                 <span class="badge badge-alert">SCORING // 突き合わせ</span>
                 <h3 style="font-size: 1.2rem; font-weight: 800; margin-top: 0.6rem;">②解答と正解を突き合わせる</h3>
-                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.3rem;">1行ずつ数字を打ち込んでもいいですし、まとめて貼り付けて一括反映もできます。</p>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.3rem;">問題の写真をAIに解かせる／正解表の写真を読み取る／手入力・まとめ貼り付け、好きな方法で「正解」欄を埋められます。「あなたの解答」は自分で入力してください。</p>
+
+                <div class="squircle-card" id="ai-solve-box" style="padding: 1.2rem; margin-top: 1.2rem; border: 1px dashed var(--accent-magenta); background: rgba(255,0,127,0.03);">
+                    <span class="badge badge-critical">AI SOLVE // 問題の写真から正解を作る</span>
+                    <h4 style="font-size: 1rem; font-weight: 800; margin-top: 0.5rem;">🧠 問題の写真を送ってAIに正解を作らせる</h4>
+                    <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 0.3rem;">問題冊子のページを複数枚まとめてアップロードすればOKです。写っている問題番号ごとにAIが解いて、正解番号・分野・簡潔な解説をグリッドの「正解」欄に自動反映します。⚠️ AIの解答は間違っていることもあるので、最終的には配布された正解と必ず見比べてください。</p>
+
+                    <div style="margin-top: 0.8rem;">
+                        <span class="bulk-label">🎯 対象指定（任意・空欄なら写っている問題を全部解かせる）</span>
+                        <input type="text" id="ai-solve-target-input" style="width:100%; background:#000; border:1px solid #222; color:#fff; padding:0.6rem 0.7rem; border-radius:10px; font-size:0.9rem; margin-top:0.3rem;" placeholder="例：21〜35だけ／21,22,25だけ">
+                    </div>
+
+                    <label for="ai-solve-image-input" class="image-upload-zone">📸 問題ページの写真を追加（複数可）</label>
+                    <input type="file" id="ai-solve-image-input" accept="image/*" multiple style="display:none;">
+                    <div class="preview-box" id="ai-solve-image-preview"></div>
+
+                    <button type="button" class="tactile-btn" id="run-ai-solve-btn" style="width:100%; margin-top: 1rem; height: 48px; background: var(--accent-magenta); box-shadow: 3px 3px 0px #9e004f;">🧠 AIに解かせて正解を作る</button>
+                    <div id="ai-solve-status" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.6rem; display:none;"></div>
+                </div>
 
                 <div class="bulk-input-row">
                     <div class="bulk-input-box">
@@ -291,7 +309,7 @@
                 </div>
 
                 <label for="answer-key-image-input" class="ai-key-zone">
-                    📸 正解表の写真を1枚読み込ませてAIに正解欄を自動入力させる（任意・Geminiキー登録者向け）
+                    📋 （すでに正解表を持っている場合）正解表の写真を1枚読み込ませて正解欄を自動入力（任意）
                 </label>
                 <input type="file" id="answer-key-image-input" accept="image/*" style="display:none;">
                 <div id="answer-key-status" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.4rem; display:none;"></div>
@@ -466,6 +484,8 @@
         let wrongRegistry = {}; // { rowIndex: { problemId, detailed } }
         let detailModalRowIndex = null;
         let detailSelectedImages = [];
+        let aiSolveImages = []; // 問題solving用にアップロードした写真
+        let solvedInfo = {}; // { no: { explanation, shortTitle, field, imageDataUrl } }
 
         window.setSelectedSubject = function(subject) {
             selectedSubject = subject;
@@ -485,6 +505,7 @@
                 rows.push({ no: String(i), my: "", correct: "", field: "" });
             }
             wrongRegistry = {};
+            solvedInfo = {};
             renderGrid();
             document.getElementById("grid-section").style.display = "block";
             document.getElementById("result-section").style.display = "none";
@@ -656,6 +677,195 @@
         });
 
         // ==========================================================================
+        // 🧠 問題の写真からAIに解かせて正解を作る
+        // ==========================================================================
+        function renderAiSolveImagePreviews() {
+            const box = document.getElementById("ai-solve-image-preview");
+            box.classList.toggle("has-images", aiSolveImages.length > 0);
+            box.innerHTML = aiSolveImages.map((img, i) => `
+                <div class="photo-thumb-wrap">
+                    <img src="${img.dataUrl}">
+                    <div class="photo-thumb-remove" data-i="${i}">×</div>
+                </div>
+            `).join("");
+            box.querySelectorAll(".photo-thumb-remove").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    aiSolveImages.splice(parseInt(btn.getAttribute("data-i"), 10), 1);
+                    renderAiSolveImagePreviews();
+                });
+            });
+        }
+
+        document.getElementById("ai-solve-image-input").addEventListener("change", async (e) => {
+            const files = Array.from(e.target.files || []);
+            for (const file of files) {
+                try { aiSolveImages.push(await compressImageFile(file)); }
+                catch (err) { console.error(err); }
+            }
+            renderAiSolveImagePreviews();
+            e.target.value = "";
+        });
+
+        const SOLVE_SUBJECT_ROLE = {
+            "数学": "高校数学（マーク式・共通テスト形式）",
+            "物理": "高校物理（マーク式・共通テスト形式）",
+            "化学": "高校化学（マーク式・共通テスト形式）",
+            "英語(リーディング)": "高校英語 リーディング（マーク式・共通テスト形式）",
+            "英語(リスニング)": "高校英語 リスニング（マーク式・共通テスト形式、放送文の書き起こしが写真にある前提で解答すること）",
+            "その他": "高校の教科（マーク式試験）"
+        };
+
+        function buildAiSolvePrompt(targetNote) {
+            const role = SOLVE_SUBJECT_ROLE[selectedSubject] || SOLVE_SUBJECT_ROLE["その他"];
+            return `
+あなたは${role}のマーク模試を解くAIです。アップロードされた複数枚の画像には、マーク式試験の問題ページが写っています（1枚に複数の問題が写っていることが多いです）。写っている問題をすべて見つけて、それぞれ選択肢の中から最も正しいと考えられる答えの番号を選んでください。
+
+${targetNote ? `【対象指定】以下で指定された問題番号だけを解答してください。それ以外の問題は出力に含めないでください。\n対象：${targetNote}\n` : "【対象指定】特に指定はありません。画像内で読み取れる問題をできるだけすべて解答してください。"}
+
+- 各問題について、画像の何枚目（0始まりのインデックス）に主に写っているかを"imageIndex"に入れてください。
+- "correct"には選択肢の番号（半角数字の文字列のみ、例："3"）を入れてください。
+- "explanation"には、なぜその選択肢が正解かの簡潔な解説（3〜6行程度、箇条書き可）を入れてください。誤りやすい選択肢があれば触れてください。
+- 同じ問題番号を重複して出力しないでください。
+
+出力は必ず以下のJSONフォーマットのみで、他の説明文は一切含めないでください。
+{
+  "answers": [
+    {
+      "no": "問題番号（文字列。例：21）",
+      "correct": "正解の選択肢番号（数字の文字列）",
+      "field": "分野名（簡潔に）",
+      "short_title": "この問題の要約タイトル（15字程度）",
+      "explanation": "簡潔な解説",
+      "imageIndex": 0
+    }
+  ]
+}
+`.trim();
+        }
+
+        async function runAiSolve() {
+            const statusEl = document.getElementById("ai-solve-status");
+            statusEl.style.display = "block";
+
+            if (aiSolveImages.length === 0) {
+                statusEl.textContent = "⚠️ 問題ページの写真を1枚以上追加してください。";
+                return;
+            }
+            if (rows.length === 0) {
+                statusEl.textContent = "⚠️ 先に①で問題数を決めて「採点グリッドを作成する」を押してください。";
+                return;
+            }
+            const keys = getGeminiKeys();
+            if (!keys || keys.length === 0) {
+                statusEl.textContent = "⚠️ Gemini APIキーが未登録です（右上のキー管理から登録してください）。";
+                return;
+            }
+
+            const btn = document.getElementById("run-ai-solve-btn");
+            btn.disabled = true;
+            const originalText = btn.textContent;
+            statusEl.textContent = "🔍 AIが問題を解いています...";
+
+            try {
+                const targetNote = document.getElementById("ai-solve-target-input").value.trim();
+                const prompt = buildAiSolvePrompt(targetNote);
+                const parts = [{ text: prompt }];
+                aiSolveImages.forEach(img => {
+                    parts.push({ inline_data: { mime_type: img.mimeType, data: img.base64 } });
+                });
+                const requestBody = JSON.stringify({ contents: [{ parts }] });
+
+                let parsedResult = null, usedModel = null, lastError = null;
+                const fallbackAttempts = [];
+                for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
+                    btn.textContent = `Gemini(${modelName})が解答中...`;
+                    let response;
+                    try {
+                        response = await fetchWithKeyRotation(keys, (key) => ({
+                            url: buildGeminiUrl(modelName, key),
+                            options: { method: "POST", headers: { "Content-Type": "application/json" }, body: requestBody }
+                        }));
+                    } catch (err) {
+                        lastError = err;
+                        fallbackAttempts.push({ model: modelName, reason: err?.message || "通信エラー" });
+                        continue;
+                    }
+                    const candidateJson = await response.json();
+                    const candidateText = candidateJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (!candidateText) {
+                        lastError = new Error(`Empty response: ${modelName}`);
+                        fallbackAttempts.push({ model: modelName, reason: "空応答" });
+                        continue;
+                    }
+                    let rawJsonText = candidateText.trim();
+                    if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
+                    else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
+                    if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
+                    try {
+                        parsedResult = JSON.parse(fixJsonEscapes(extractJsonObject(rawJsonText.trim())));
+                        usedModel = modelName;
+                        break;
+                    } catch (parseErr) {
+                        lastError = parseErr;
+                        fallbackAttempts.push({ model: modelName, reason: "JSON解析エラー" });
+                        continue;
+                    }
+                }
+                notifyModelFallback(fallbackAttempts, usedModel);
+
+                if (!parsedResult || !Array.isArray(parsedResult.answers)) {
+                    throw new Error(`解答の生成に失敗しました。${lastError?.message || ""}`);
+                }
+
+                let appliedCount = 0, addedCount = 0;
+                parsedResult.answers.forEach(a => {
+                    if (!a || !a.no) return;
+                    const no = String(a.no);
+                    const correct = String(a.correct || "").replace(/[^0-9]/g, "");
+                    if (!correct) return;
+
+                    let rowIdx = rows.findIndex(r => r.no === no);
+                    if (rowIdx === -1) {
+                        // グリッドに存在しない番号は新しい行として追加する
+                        rows.push({ no, my: "", correct: "", field: "" });
+                        rowIdx = rows.length - 1;
+                        addedCount++;
+                    }
+                    rows[rowIdx].correct = correct;
+                    if (a.field) rows[rowIdx].field = a.field;
+                    appliedCount++;
+
+                    const imgIdx = Number.isInteger(a.imageIndex) ? a.imageIndex : null;
+                    solvedInfo[no] = {
+                        explanation: a.explanation || "",
+                        shortTitle: a.short_title || "",
+                        field: a.field || "",
+                        imageDataUrl: (imgIdx !== null && aiSolveImages[imgIdx]) ? aiSolveImages[imgIdx].dataUrl : null
+                    };
+                });
+
+                // 番号順に並べ替えてグリッドへ反映
+                rows.sort((r1, r2) => {
+                    const n1 = parseInt(r1.no, 10), n2 = parseInt(r2.no, 10);
+                    if (!isNaN(n1) && !isNaN(n2)) return n1 - n2;
+                    return String(r1.no).localeCompare(String(r2.no), "ja");
+                });
+                questionCount = rows.length;
+                renderGrid();
+
+                statusEl.textContent = `✅ ${appliedCount}問の正解をグリッドに反映しました${addedCount > 0 ? `（うち${addedCount}問はグリッドに新規追加）` : ""}。内容を確認し、必要なら手動で修正してください。`;
+            } catch (error) {
+                console.error(error);
+                statusEl.textContent = `❌ 解答の生成に失敗しました：${error.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+
+        document.getElementById("run-ai-solve-btn").addEventListener("click", runAiSolve);
+
+        // ==========================================================================
         // ③ 採点確定 → 間違えた問題を軽く自動登録
         // ==========================================================================
         document.getElementById("build-grid-btn").addEventListener("click", buildGrid);
@@ -708,11 +918,14 @@
                 if (wrongRegistry[key]) continue; // 既に登録済みならスキップ
                 const newId = "MARKTEST_" + Date.now() + "_" + r.no;
                 const nowIso = new Date().toISOString();
-                const field = (r.field || "").trim() || examFieldOf() || "マーク模試";
+                const info = solvedInfo[r.no] || null;
+                const field = (r.field || "").trim() || (info && info.field) || examFieldOf() || "マーク模試";
+                const explanationText = `あなたの解答: ${r.my} ／ 正解: ${r.correct}` + (info && info.explanation ? `\n\n【AIの解説】\n${info.explanation}` : "");
+                const images = (info && info.imageDataUrl) ? [info.imageDataUrl] : [];
                 const newProblem = {
                     id: newId,
                     title: `【マーク模試】${examNameOf()} 第${r.no}問（あなたの解答: ${r.my} / 正解: ${r.correct}）`,
-                    short_title: `第${r.no}問（マーク模試）`,
+                    short_title: (info && info.shortTitle) || `第${r.no}問（マーク模試）`,
                     subject: selectedSubject,
                     field: field,
                     trap_description: "",
@@ -720,9 +933,9 @@
                     errorCount: 1,
                     lastAttemptAt: nowIso,
                     lastResult: false,
-                    images: [],
-                    imageData: null,
-                    answerFormula: `あなたの解答: ${r.my} ／ 正解: ${r.correct}`,
+                    images: images,
+                    imageData: images.length > 0 ? images[0] : null,
+                    answerFormula: explanationText,
                     createdAt: nowIso,
                     source: "mark_test",
                     markTest: true,
@@ -772,10 +985,14 @@
         // ==========================================================================
         function openDetailModal(rowNo) {
             detailModalRowIndex = rowNo;
-            detailSelectedImages = [];
+            const info = solvedInfo[rowNo];
+            // 🧠 AIに解かせた際の写真が残っていれば、詳しく記録の初期画像として引き継ぐ（差し替え・削除も可能）
+            detailSelectedImages = (info && info.imageDataUrl)
+                ? [{ mimeType: "image/jpeg", base64: info.imageDataUrl.split(',')[1], dataUrl: info.imageDataUrl }]
+                : [];
             document.getElementById("detail-modal-title").textContent = `第${rowNo}問を詳しく記録`;
             document.getElementById("detail-trap-input").value = "";
-            document.getElementById("detail-strategy-input").value = "";
+            document.getElementById("detail-strategy-input").value = (info && info.explanation) ? `【AIの解説（参考）】\n${info.explanation}` : "";
             renderDetailImagePreviews();
             document.getElementById("detail-modal").style.display = "flex";
         }
