@@ -258,17 +258,9 @@
                         <label>共通の分野タグ（任意）</label>
                         <input type="text" id="exam-field-input" placeholder="例：数学I・A 全範囲">
                     </div>
-                    <div class="setup-field">
-                        <label>問題数</label>
-                        <input type="number" id="question-count-input" value="20" min="1" max="200">
-                    </div>
-                    <div class="setup-field">
-                        <label>選択肢の数（参考表示のみ）</label>
-                        <input type="number" id="choice-count-input" value="4" min="2" max="9">
-                    </div>
                 </div>
 
-                <button type="button" class="tactile-btn" id="build-grid-btn" style="width:100%; margin-top: 1.3rem; height: 54px; font-size: 1.05rem;">② 採点グリッドを作成する</button>
+                <button type="button" class="tactile-btn" id="build-grid-btn" style="width:100%; margin-top: 1.3rem; height: 54px; font-size: 1.05rem;">② 採点グリッドへ進む</button>
             </div>
 
             <!-- ② 採点グリッド -->
@@ -319,10 +311,17 @@
                     <span id="live-score-rate">0%</span>
                 </div>
 
-                <div class="mark-grid-header">
+                <div style="display:flex; align-items:center; gap:0.6rem; margin-top: 0.8rem; flex-wrap: wrap;">
+                    <span class="filter-label" style="margin-bottom:0;">➕ 手動で行を追加：</span>
+                    <input type="number" id="add-row-count-input" value="10" min="1" max="100" style="width: 70px; background:#000; border:1px solid #222; color:#fff; padding:0.4rem; border-radius:8px; text-align:center;">
+                    <button type="button" class="tactile-btn tactile-btn-secondary" id="add-rows-btn" style="height: 38px; font-size: 0.82rem; padding: 0 1rem;">問題を追加</button>
+                </div>
+
+                <div class="mark-grid-header" style="margin-top: 0.8rem;">
                     <span>番号</span><span>あなたの解答</span><span>正解</span><span>判定</span><span>分野（任意）</span>
                 </div>
                 <div class="mark-grid" id="mark-grid"></div>
+                <div id="empty-grid-notice" style="text-align:center; padding: 1.5rem 1rem; color: var(--text-muted); font-size: 0.85rem;">まだ問題がありません。上のAIに解かせる／正解表を読み取る／手動追加のいずれかで問題を追加してください。</div>
 
                 <button type="button" class="tactile-btn" id="confirm-score-btn">③ 採点を確定して間違えた問題を見る</button>
             </div>
@@ -478,7 +477,6 @@
         // ==========================================================================
         let currentUser = null;
         let selectedSubject = "数学";
-        let questionCount = 20;
         let rows = []; // { no, my, correct, field }
         let scoredResult = null; // { correctCount, total, rate, wrongRows: [...] }
         let wrongRegistry = {}; // { rowIndex: { problemId, detailed } }
@@ -494,16 +492,18 @@
             });
         };
 
+        // 次に振る問題番号（既存の数値番号の最大値+1。数値でない番号は無視）
+        function nextRowNo() {
+            let maxNo = 0;
+            rows.forEach(r => { const n = parseInt(r.no, 10); if (!isNaN(n) && n > maxNo) maxNo = n; });
+            return maxNo + 1;
+        }
+
         // ==========================================================================
-        // ① グリッド作成
+        // ① グリッドへ進む／行の追加
         // ==========================================================================
         function buildGrid() {
-            const n = Math.max(1, Math.min(200, parseInt(document.getElementById("question-count-input").value, 10) || 20));
-            questionCount = n;
             rows = [];
-            for (let i = 1; i <= n; i++) {
-                rows.push({ no: String(i), my: "", correct: "", field: "" });
-            }
             wrongRegistry = {};
             solvedInfo = {};
             renderGrid();
@@ -512,8 +512,21 @@
             document.getElementById("grid-section").scrollIntoView({ behavior: "smooth", block: "start" });
         }
 
+        document.getElementById("add-rows-btn").addEventListener("click", () => {
+            const n = Math.max(1, Math.min(100, parseInt(document.getElementById("add-row-count-input").value, 10) || 10));
+            let start = nextRowNo();
+            for (let i = 0; i < n; i++) {
+                rows.push({ no: String(start + i), my: "", correct: "", field: "" });
+            }
+            renderGrid();
+        });
+
         function renderGrid() {
             const gridEl = document.getElementById("mark-grid");
+            const emptyNotice = document.getElementById("empty-grid-notice");
+            emptyNotice.style.display = rows.length === 0 ? "block" : "none";
+            gridEl.style.display = rows.length === 0 ? "none" : "flex";
+
             gridEl.innerHTML = rows.map((r, idx) => `
                 <div class="mark-row" id="mark-row-${idx}">
                     <input type="text" class="row-no" data-idx="${idx}" data-field="no" value="${r.no}">
@@ -569,13 +582,27 @@
             return (text || "").split(/[^0-9]+/).map(s => s.trim()).filter(s => s !== "");
         }
 
+        // 貼り付けた数の方がグリッドの行数より多ければ、不足分の行を自動で増やす
+        function ensureRowCount(n) {
+            let start = nextRowNo();
+            let added = 0;
+            while (rows.length < n) {
+                rows.push({ no: String(start + added), my: "", correct: "", field: "" });
+                added++;
+            }
+        }
+
         document.getElementById("apply-my-answers-btn").addEventListener("click", () => {
             const nums = parseBulkNumbers(document.getElementById("bulk-my-answers").value);
+            if (nums.length === 0) return;
+            ensureRowCount(nums.length);
             nums.forEach((v, i) => { if (rows[i]) rows[i].my = v; });
             renderGrid();
         });
         document.getElementById("apply-correct-answers-btn").addEventListener("click", () => {
             const nums = parseBulkNumbers(document.getElementById("bulk-correct-answers").value);
+            if (nums.length === 0) return;
+            ensureRowCount(nums.length);
             nums.forEach((v, i) => { if (rows[i]) rows[i].correct = v; });
             renderGrid();
         });
@@ -751,10 +778,6 @@ ${targetNote ? `【対象指定】以下で指定された問題番号だけを�
                 statusEl.textContent = "⚠️ 問題ページの写真を1枚以上追加してください。";
                 return;
             }
-            if (rows.length === 0) {
-                statusEl.textContent = "⚠️ 先に①で問題数を決めて「採点グリッドを作成する」を押してください。";
-                return;
-            }
             const keys = getGeminiKeys();
             if (!keys || keys.length === 0) {
                 statusEl.textContent = "⚠️ Gemini APIキーが未登録です（右上のキー管理から登録してください）。";
@@ -850,7 +873,6 @@ ${targetNote ? `【対象指定】以下で指定された問題番号だけを�
                     if (!isNaN(n1) && !isNaN(n2)) return n1 - n2;
                     return String(r1.no).localeCompare(String(r2.no), "ja");
                 });
-                questionCount = rows.length;
                 renderGrid();
 
                 statusEl.textContent = `✅ ${appliedCount}問の正解をグリッドに反映しました${addedCount > 0 ? `（うち${addedCount}問はグリッドに新規追加）` : ""}。内容を確認し、必要なら手動で修正してください。`;
