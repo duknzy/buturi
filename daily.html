@@ -126,7 +126,7 @@
     
     <script type="module">
         import { dailyProblemBank } from "./daily-data.js";
-        import { getDeepseekKeys, fetchWithKeyRotation, initApiKeyManager } from "./api-key-manager.js";
+        import { getGeminiKeys, fetchWithKeyRotation, initApiKeyManager, notifyModelFallback } from "./api-key-manager.js";
 
         const proto = "https" + "://";
         const d = ".";
@@ -152,8 +152,63 @@
         const database = getDatabase(app);
 
         // 🔑【複数キー対応】index.html/problem.htmlと共通の管理UIを注入（未登録なら自動で開く）
-        initApiKeyManager({ needDeepseek: true });
-        const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
+        initApiKeyManager({ needGemini: true });
+
+        const GEMINI_MODEL_FALLBACK_LIST = [
+            'gemini-3.6-flash',
+            'gemini-3.5-flash',
+            'gemini-3-flash-preview',
+            'gemini-2.5-flash',
+            'gemini-3.5-flash-lite',
+            'gemini-3.1-flash-lite',
+            'gemini-2.5-flash-lite'
+        ];
+        function buildGeminiUrl(modelName, apiKey) {
+            return `${proto}generativelanguage${d}googleapis${d}com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        }
+
+        function stripCodeFence(text) {
+            let t = text.trim();
+            if (t.startsWith("```json")) t = t.substring(7);
+            else if (t.startsWith("```")) t = t.substring(3);
+            if (t.endsWith("```")) t = t.substring(0, t.length - 3);
+            return t.trim();
+        }
+        function fixJsonEscapes(str) {
+            let inString = false; let result = "";
+            for (let i = 0; i < str.length; i++) {
+                let c = str[i];
+                if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
+                else if (c === '\\' && inString) {
+                    let next = str[i+1];
+                    if (next === '"') { result += '\\"'; i++; }
+                    else if (next === '\\') { result += '\\\\'; i++; }
+                    else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
+                    else { result += '\\\\'; }
+                } else if (inString && c.charCodeAt(0) < 0x20) {
+                    if (c === '\n') result += '\\n';
+                    else if (c === '\r') result += '\\r';
+                    else if (c === '\t') result += '\\t';
+                    else result += '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0');
+                } else { result += c; }
+            }
+            return result;
+        }
+        // 🩹 出題フォーマットはJSON配列（[...]）なので、オブジェクト版ではなく配列版の抽出関数を使う
+        function extractJsonArray(text) {
+            const start = text.indexOf('[');
+            if (start === -1) return text;
+            let depth = 0; let inString = false;
+            for (let i = start; i < text.length; i++) {
+                const c = text[i];
+                if (c === '"' && text[i - 1] !== '\\') inString = !inString;
+                if (!inString) {
+                    if (c === '[') depth++;
+                    else if (c === ']') { depth--; if (depth === 0) return text.substring(start, i + 1); }
+                }
+            }
+            return text.substring(start);
+        }
 
         let selectedQuestions = [];
         let currentQuestionIndex = 0;
@@ -162,6 +217,63 @@
         let timerInterval = null;
         let currentTodayStr = null;
         let currentSprintCacheRef = null;
+
+        // ==========================================================================
+        // 💾【セッション永続化】別画面に行って戻ってきても続きから再開できるようにする
+        // ==========================================================================
+        const SESSION_STORAGE_KEY = "RE_MIND_DAILY_SPRINT_SESSION";
+
+        function saveSession() {
+            try {
+                const payload = {
+                    dateStr: currentTodayStr,
+                    finished: false,
+                    currentQuestionIndex: currentQuestionIndex,
+                    elapsedMs: Date.now() - startTime
+                };
+                localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+            } catch (e) {
+                console.warn("セッション保存に失敗しました", e);
+            }
+        }
+
+        function saveFinishedSession(finalTimeText) {
+            try {
+                const payload = {
+                    dateStr: currentTodayStr,
+                    finished: true,
+                    finalTime: finalTimeText
+                };
+                localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+            } catch (e) {
+                console.warn("セッション保存に失敗しました", e);
+            }
+        }
+
+        function clearSession() {
+            try { localStorage.removeItem(SESSION_STORAGE_KEY); } catch (e) { /* noop */ }
+        }
+
+        // 今日の分の続き（未完了 or 直後の結果）だけを有効な保存データとして扱う
+        function loadSessionForToday(todayStr) {
+            try {
+                const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+                if (!raw) return null;
+                const session = JSON.parse(raw);
+                if (!session || session.dateStr !== todayStr) return null;
+                return session;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // タブを閉じる／別ページへ移動する直前にも、途中経過を確実に保存する
+        window.addEventListener("pagehide", () => {
+            if (startTime > 0 && selectedQuestions.length > 0
+                && document.getElementById("sprint-result-zone").style.display !== "flex") {
+                saveSession();
+            }
+        });
 
 
         // ==========================================================================
@@ -183,7 +295,20 @@
                 if (cacheData && cacheData.questions) {
                     // 既に今日1回作っていたら、それを流用（リロード対策）
                     selectedQuestions = cacheData.questions;
-                    startSprintTimer();
+
+                    // 🔁【新設】今日分の途中経過が保存されていれば、続きから再開する
+                    const session = loadSessionForToday(todayStr);
+                    if (session && session.finished) {
+                        document.getElementById("sprint-play-zone").style.display = "none";
+                        document.getElementById("sprint-result-zone").style.display = "flex";
+                        document.getElementById("final-time-display").textContent = session.finalTime || "00:00.00";
+                    } else if (session && typeof session.currentQuestionIndex === "number" && session.currentQuestionIndex < selectedQuestions.length) {
+                        currentQuestionIndex = session.currentQuestionIndex;
+                        startSprintTimer(session.elapsedMs || 0);
+                    } else {
+                        currentQuestionIndex = 0;
+                        startSprintTimer(0);
+                    }
                 } else {
                     // 今日まだ作ってないなら、あなたの弱点データを集計してAIに生成させる
                     await generateSprintWithAI(uid, todayStr, sprintCacheRef);
@@ -197,6 +322,7 @@
 
             currentQuestionIndex = 0;
             clearInterval(timerInterval);
+            clearSession();
             document.getElementById("sprint-timer").textContent = "00:00.00";
 
             document.getElementById("sprint-result-zone").style.display = "none";
@@ -209,7 +335,7 @@
             await generateSprintWithAI(loginUid, currentTodayStr, currentSprintCacheRef);
         }
 
-        // ✨ 誤答自動スキャン＆DeepSeek（最新V4・Thinkingモード）問題作成処理
+        // ✨ 誤答自動スキャン＆Gemini問題作成処理
         async function generateSprintWithAI(uid, todayStr, sprintCacheRef) {
             // 🔁【新設】直近数日分の出題履歴を取得し、「最近扱った分野」を集計する
             //    → 弱点分野の自動抽出はやめて、代わりに「直近と被らないようにする」ための重複回避に使う
@@ -232,7 +358,7 @@
                 ? uniqueRecentFields.join("、")
                 : "（まだ出題履歴がありません）";
 
-            // DeepSeekの推論力を引き出すプロンプト
+            // Geminiの推論力を引き出すプロンプト
             const systemPrompt = `
 あなたは日本の高校数学の教育に精通した、極めて優秀なAI数学教師です。
 生徒の数学目的思考力と計算力を限界まで引き上げるため、本日の【数学I,A,II,B,C】の計算特訓タイムアタック問題を【厳密に10問】作成してください（数学IIIの範囲は対象外とします）。
@@ -271,54 +397,71 @@
 
             try {
                     // 🛡️【キーの防衛チェック】1件も登録されていないか検証
-                    if (getDeepseekKeys().length === 0) {
-                        throw new Error("DeepSeekのAPIキーがブラウザに設定されていません。右下の🔑ボタンから登録してください。");
+                    if (getGeminiKeys().length === 0) {
+                        throw new Error("GeminiのAPIキーがブラウザに設定されていません。右下の🔑ボタンから登録してください。");
                     }
 
-                    // 🚀 最新のDeepSeek V4「Pro」＋「Thinking Mode（思考モード）」の公式リクエスト構造
-                    // 🔁 登録済みの複数キーを順に試し、429やエラーの時は自動で次のキーへ切り替える
-                    const sprintDeepseekBody = JSON.stringify({
-                        "model": "deepseek-v4-pro", // ✨最上位のV4 Proモデルを指定（精度最優先）
-                        "messages": [
-                            { "role": "system", "content": "あなたは優秀なAI数学教師です。指定されたJSONフォーマットの配列のみを厳密に返してください。" },
-                            { "role": "user", "content": systemPrompt }
-                        ],
-                        "extra_body": {
-                            "thinking": { "type": "enabled" } // ✨公式の思考プロセス（推論）有効化フラグ
-                        }
+                    // 🚀 Gemini（モデル×キーの二重フォールバック）で問題生成
+                    const sprintGeminiBody = JSON.stringify({
+                        "contents": [{ "parts": [{ "text": systemPrompt }] }],
+                        "systemInstruction": { "parts": [{ "text": "あなたは優秀なAI数学教師です。指定されたJSONフォーマットの配列のみを厳密に返してください。" }] },
+                        "generationConfig": { "responseMimeType": "application/json", "temperature": 0.4 }
                     });
 
-                    const response = await fetchWithKeyRotation(getDeepseekKeys(), (key) => ({
-                        url: DEEPSEEK_API_URL,
-                        options: {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                "Authorization": `Bearer ${key}`
-                            },
-                            body: sprintDeepseekBody
+                    const attempts = [];
+                    let aiQuestions = null;
+                    let usedModel = null;
+
+                    for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
+                        let response;
+                        try {
+                            response = await fetchWithKeyRotation(getGeminiKeys(), (key) => ({
+                                url: buildGeminiUrl(modelName, key),
+                                options: {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: sprintGeminiBody
+                                }
+                            }));
+                        } catch (err) {
+                            console.warn(`⚠️ ${modelName} は登録済みの全キーで失敗しました → 次のモデルへ`, err);
+                            attempts.push({ model: modelName, reason: err.message || "通信エラー" });
+                            continue;
                         }
-                    }));
 
-                    const data = await response.json();
-                    let rawJsonText = data.choices[0].message.content.trim();
+                        const candidateJson = await response.json();
+                        const candidateText = candidateJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (!candidateText) {
+                            attempts.push({ model: modelName, reason: "空応答" });
+                            continue;
+                        }
 
-                    // Markdownのコードブロックタグを正規表現で綺麗に削除
-                    rawJsonText = rawJsonText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+                        let rawJsonText = stripCodeFence(candidateText.trim());
+                        try {
+                            aiQuestions = JSON.parse(extractJsonArray(rawJsonText));
+                        } catch (e) {
+                            try {
+                                aiQuestions = JSON.parse(fixJsonEscapes(extractJsonArray(rawJsonText)));
+                            } catch (e2) {
+                                attempts.push({ model: modelName, reason: "JSON解析失敗" });
+                                continue;
+                            }
+                        }
 
-                    let aiQuestions;
-                    try {
-                        // AIの出力を信じてそのままパースする
-                        aiQuestions = JSON.parse(rawJsonText);
-                    } catch (e) {
-                        // もしAIが \frac などのバックスラッシュをエスケープし忘れていた場合の安全策
-                        // JSONとして不正な単独のバックスラッシュのみを二重に修正して再パース
-                        rawJsonText = rawJsonText.replace(/\\([^"\\/bfnrtu])/g, '\\\\$1');
-                        aiQuestions = JSON.parse(rawJsonText);
+                        if (!Array.isArray(aiQuestions) || aiQuestions.length === 0) {
+                            attempts.push({ model: modelName, reason: "応答配列が異常" });
+                            aiQuestions = null;
+                            continue;
+                        }
+
+                        usedModel = modelName;
+                        break;
                     }
-                    
-                    if (!Array.isArray(aiQuestions) || aiQuestions.length === 0) {
-                        throw new Error("AIの応答配列が異常です。");
+
+                    notifyModelFallback(attempts, usedModel);
+
+                    if (!aiQuestions) {
+                        throw new Error(`全モデルが利用できませんでした。最後の失敗理由: ${attempts[attempts.length - 1]?.reason || "不明"}`);
                     }
 
                     await set(sprintCacheRef, { questions: aiQuestions, generatedAt: new Date().toISOString() });
@@ -330,7 +473,7 @@
 // ──────────────────────────────────────────────────────────
                 } catch (error) {
                     console.error("AI問題生成エラー:", error);
-                    alert("⚠️ DeepSeekによる問題生成に失敗しました。\n\n【エラー内容】\n" + error.message + "\n\n※予備問題データベース（200問）からランダムに10問選出して特訓を開始します！");
+                    alert("⚠️ Geminiによる問題生成に失敗しました。\n\n【エラー内容】\n" + error.message + "\n\n※予備問題データベース（200問）からランダムに10問選出して特訓を開始します！");
                     
                     // 200問の予備問題バンクからランダムにシャッフルして10問を抽出
                     const shuffled = [...dailyProblemBank].sort(() => 0.5 - Math.random());
@@ -340,11 +483,12 @@
                 }
         }
 
-        function startSprintTimer() {
+        function startSprintTimer(resumeElapsedMs = 0) {
             document.getElementById("btn-reveal-ans").style.display = "block";
-            startTime = Date.now();
+            startTime = Date.now() - resumeElapsedMs;
             timerInterval = setInterval(updateTimer, 10);
             renderQuestion();
+            saveSession();
         }
 
         function updateTimer() {
@@ -416,6 +560,9 @@
 
         function nextQuestion() {
             currentQuestionIndex++;
+            if (currentQuestionIndex < selectedQuestions.length) {
+                saveSession();
+            }
             renderQuestion();
         }
 
@@ -425,6 +572,7 @@
             document.getElementById("sprint-play-zone").style.display = "none";
             document.getElementById("sprint-result-zone").style.display = "flex";
             document.getElementById("final-time-display").textContent = finalTime;
+            saveFinishedSession(finalTime);
         }
 
 

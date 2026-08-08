@@ -136,6 +136,7 @@
             <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
                 <span style="font-weight: 900; letter-spacing: -1px; color: var(--accent-cyan)">CUSTOM SPRINT</span>
                 <span class="badge progress-badge" id="sprint-progress">ANALYZING...</span>
+                <button type="button" class="nav-btn" id="btn-abandon-session" title="今のセッションを破棄して条件から選び直す">🎛 条件を変えてやり直す</button>
             </div>
             <div class="timer-display" id="sprint-timer">00:00.00</div>
         </header>
@@ -183,7 +184,7 @@
 
     <script type="module">
         import { dailyProblemBank } from "./daily-data.js";
-        import { getDeepseekKeys, fetchWithKeyRotation, initApiKeyManager } from "./api-key-manager.js";
+        import { getGeminiKeys, fetchWithKeyRotation, initApiKeyManager, notifyModelFallback } from "./api-key-manager.js";
 
         const proto = "https" + "://";
         const d = ".";
@@ -209,8 +210,63 @@
         const database = getDatabase(app);
 
         // 🔑【複数キー対応】index.html/problem.htmlと共通の管理UIを注入（未登録なら自動で開く）
-        initApiKeyManager({ needDeepseek: true });
-        const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
+        initApiKeyManager({ needGemini: true });
+
+        const GEMINI_MODEL_FALLBACK_LIST = [
+            'gemini-3.6-flash',
+            'gemini-3.5-flash',
+            'gemini-3-flash-preview',
+            'gemini-2.5-flash',
+            'gemini-3.5-flash-lite',
+            'gemini-3.1-flash-lite',
+            'gemini-2.5-flash-lite'
+        ];
+        function buildGeminiUrl(modelName, apiKey) {
+            return `${proto}generativelanguage${d}googleapis${d}com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        }
+
+        function stripCodeFence(text) {
+            let t = text.trim();
+            if (t.startsWith("```json")) t = t.substring(7);
+            else if (t.startsWith("```")) t = t.substring(3);
+            if (t.endsWith("```")) t = t.substring(0, t.length - 3);
+            return t.trim();
+        }
+        function fixJsonEscapes(str) {
+            let inString = false; let result = "";
+            for (let i = 0; i < str.length; i++) {
+                let c = str[i];
+                if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
+                else if (c === '\\' && inString) {
+                    let next = str[i+1];
+                    if (next === '"') { result += '\\"'; i++; }
+                    else if (next === '\\') { result += '\\\\'; i++; }
+                    else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
+                    else { result += '\\\\'; }
+                } else if (inString && c.charCodeAt(0) < 0x20) {
+                    if (c === '\n') result += '\\n';
+                    else if (c === '\r') result += '\\r';
+                    else if (c === '\t') result += '\\t';
+                    else result += '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0');
+                } else { result += c; }
+            }
+            return result;
+        }
+        // 🩹 出題フォーマットはJSON配列（[...]）なので、配列版の抽出関数を使う
+        function extractJsonArray(text) {
+            const start = text.indexOf('[');
+            if (start === -1) return text;
+            let depth = 0; let inString = false;
+            for (let i = start; i < text.length; i++) {
+                const c = text[i];
+                if (c === '"' && text[i - 1] !== '\\') inString = !inString;
+                if (!inString) {
+                    if (c === '[') depth++;
+                    else if (c === ']') { depth--; if (depth === 0) return text.substring(start, i + 1); }
+                }
+            }
+            return text.substring(start);
+        }
 
         let selectedQuestions = [];
         let currentQuestionIndex = 0;
@@ -220,6 +276,107 @@
 
         // 直近実行した条件（同じ条件でもう一周・作り直し用）
         let lastCondition = { fieldText: "", levelText: "", count: 10 };
+
+        // ==========================================================================
+        // 💾【セッション永続化】別画面に行って戻ってきても続きから再開できるようにする
+        // ==========================================================================
+        const SESSION_STORAGE_KEY = "RE_MIND_CUSTOM_SPRINT_SESSION";
+
+        function saveSession() {
+            try {
+                const payload = {
+                    finished: false,
+                    questions: selectedQuestions,
+                    currentQuestionIndex: currentQuestionIndex,
+                    lastCondition: lastCondition,
+                    elapsedMs: Date.now() - startTime,
+                    revealed: document.getElementById("sprint-reveal-zone").style.display === "flex"
+                };
+                localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+            } catch (e) {
+                console.warn("セッション保存に失敗しました", e);
+            }
+        }
+
+        function saveFinishedSession(finalTimeText) {
+            try {
+                const payload = {
+                    finished: true,
+                    lastCondition: lastCondition,
+                    finalTime: finalTimeText
+                };
+                localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+            } catch (e) {
+                console.warn("セッション保存に失敗しました", e);
+            }
+        }
+
+        function clearSession() {
+            try { localStorage.removeItem(SESSION_STORAGE_KEY); } catch (e) { /* noop */ }
+        }
+
+        function loadSession() {
+            try {
+                const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+                if (!raw) return null;
+                return JSON.parse(raw);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // ページ表示時に、前回の続き（未完了 or 直後の結果画面）があれば復元する
+        function restoreSessionIfAny() {
+            const session = loadSession();
+            if (!session) return false;
+
+            if (session.finished) {
+                lastCondition = session.lastCondition || lastCondition;
+                document.getElementById("sprint-setup-zone").style.display = "none";
+                document.getElementById("sprint-header").style.display = "none";
+                document.getElementById("sprint-play-zone").style.display = "none";
+                document.getElementById("sprint-result-zone").style.display = "flex";
+                document.getElementById("final-time-display").textContent = session.finalTime || "00:00.00";
+                const fieldLabel = lastCondition.fieldText || "数学全範囲";
+                document.getElementById("result-summary-text").textContent = `「${fieldLabel}」×「${lastCondition.levelText}」×${lastCondition.count}問をすべてクリアしました。`;
+                return true;
+            }
+
+            if (Array.isArray(session.questions) && session.questions.length > 0 && session.currentQuestionIndex < session.questions.length) {
+                selectedQuestions = session.questions;
+                currentQuestionIndex = session.currentQuestionIndex;
+                lastCondition = session.lastCondition || lastCondition;
+                startTime = Date.now() - (session.elapsedMs || 0);
+
+                document.getElementById("sprint-setup-zone").style.display = "none";
+                document.getElementById("sprint-result-zone").style.display = "none";
+                document.getElementById("sprint-header").style.display = "flex";
+                document.getElementById("sprint-play-zone").style.display = "flex";
+
+                clearInterval(timerInterval);
+                timerInterval = setInterval(updateTimer, 10);
+                renderQuestion();
+                return true;
+            }
+
+            return false;
+        }
+
+        document.getElementById("btn-abandon-session").addEventListener("click", () => {
+            clearInterval(timerInterval);
+            clearSession();
+            document.getElementById("sprint-header").style.display = "none";
+            document.getElementById("sprint-play-zone").style.display = "none";
+            document.getElementById("sprint-result-zone").style.display = "none";
+            document.getElementById("sprint-setup-zone").style.display = "flex";
+        });
+
+        // タブを閉じる／別ページへ移動する直前にも、途中経過を確実に保存する
+        window.addEventListener("pagehide", () => {
+            if (document.getElementById("sprint-play-zone").style.display !== "none") {
+                saveSession();
+            }
+        });
 
         // ==========================================================================
         // 🎛【セットアップ画面の操作】
@@ -254,6 +411,7 @@
         // ==========================================================================
         function startCustomSprint(fieldText, levelText, count) {
             lastCondition = { fieldText, levelText, count };
+            clearSession();
 
             document.getElementById("sprint-setup-zone").style.display = "none";
             document.getElementById("sprint-result-zone").style.display = "none";
@@ -271,7 +429,7 @@
             generateCustomSprintWithAI(fieldText, levelText, count);
         }
 
-        // ✨ 指定条件でのAI（DeepSeek）問題作成処理
+        // ✨ 指定条件でのAI（Gemini）問題作成処理
         async function generateCustomSprintWithAI(fieldText, levelText, count) {
             const fieldInstruction = fieldText
                 ? `【出題分野】\n以下の分野・単元から出題してください（複数指定されている場合は満遍なく散らして出題すること）：${fieldText}`
@@ -311,47 +469,70 @@ ${levelText}
 `;
 
             try {
-                if (getDeepseekKeys().length === 0) {
-                    throw new Error("DeepSeekのAPIキーがブラウザに設定されていません。右下の🔑ボタンから登録してください。");
+                if (getGeminiKeys().length === 0) {
+                    throw new Error("GeminiのAPIキーがブラウザに設定されていません。右下の🔑ボタンから登録してください。");
                 }
 
-                const customDeepseekBody = JSON.stringify({
-                    "model": "deepseek-v4-pro",
-                    "messages": [
-                        { "role": "system", "content": "あなたは優秀なAI数学教師です。指定されたJSONフォーマットの配列のみを厳密に返してください。" },
-                        { "role": "user", "content": systemPrompt }
-                    ],
-                    "extra_body": {
-                        "thinking": { "type": "enabled" }
-                    }
+                const customGeminiBody = JSON.stringify({
+                    "contents": [{ "parts": [{ "text": systemPrompt }] }],
+                    "systemInstruction": { "parts": [{ "text": "あなたは優秀なAI数学教師です。指定されたJSONフォーマットの配列のみを厳密に返してください。" }] },
+                    "generationConfig": { "responseMimeType": "application/json", "temperature": 0.4 }
                 });
 
-                const response = await fetchWithKeyRotation(getDeepseekKeys(), (key) => ({
-                    url: DEEPSEEK_API_URL,
-                    options: {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${key}`
-                        },
-                        body: customDeepseekBody
+                const attempts = [];
+                let aiQuestions = null;
+                let usedModel = null;
+
+                for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
+                    let response;
+                    try {
+                        response = await fetchWithKeyRotation(getGeminiKeys(), (key) => ({
+                            url: buildGeminiUrl(modelName, key),
+                            options: {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: customGeminiBody
+                            }
+                        }));
+                    } catch (err) {
+                        console.warn(`⚠️ ${modelName} は登録済みの全キーで失敗しました → 次のモデルへ`, err);
+                        attempts.push({ model: modelName, reason: err.message || "通信エラー" });
+                        continue;
                     }
-                }));
 
-                const data = await response.json();
-                let rawJsonText = data.choices[0].message.content.trim();
-                rawJsonText = rawJsonText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+                    const candidateJson = await response.json();
+                    const candidateText = candidateJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (!candidateText) {
+                        attempts.push({ model: modelName, reason: "空応答" });
+                        continue;
+                    }
 
-                let aiQuestions;
-                try {
-                    aiQuestions = JSON.parse(rawJsonText);
-                } catch (e) {
-                    rawJsonText = rawJsonText.replace(/\\([^"\\/bfnrtu])/g, '\\\\$1');
-                    aiQuestions = JSON.parse(rawJsonText);
+                    let rawJsonText = stripCodeFence(candidateText.trim());
+                    try {
+                        aiQuestions = JSON.parse(extractJsonArray(rawJsonText));
+                    } catch (e) {
+                        try {
+                            aiQuestions = JSON.parse(fixJsonEscapes(extractJsonArray(rawJsonText)));
+                        } catch (e2) {
+                            attempts.push({ model: modelName, reason: "JSON解析失敗" });
+                            continue;
+                        }
+                    }
+
+                    if (!Array.isArray(aiQuestions) || aiQuestions.length === 0) {
+                        attempts.push({ model: modelName, reason: "応答配列が異常" });
+                        aiQuestions = null;
+                        continue;
+                    }
+
+                    usedModel = modelName;
+                    break;
                 }
 
-                if (!Array.isArray(aiQuestions) || aiQuestions.length === 0) {
-                    throw new Error("AIの応答配列が異常です。");
+                notifyModelFallback(attempts, usedModel);
+
+                if (!aiQuestions) {
+                    throw new Error(`全モデルが利用できませんでした。最後の失敗理由: ${attempts[attempts.length - 1]?.reason || "不明"}`);
                 }
 
                 selectedQuestions = aiQuestions;
@@ -367,7 +548,7 @@ ${levelText}
                     const matched = dailyProblemBank.filter(q => keywords.some(kw => (q.field || "").includes(kw) || (q.title || "").includes(kw)));
                     if (matched.length > 0) pool = matched;
                 }
-                alert("⚠️ DeepSeekによる問題生成に失敗しました。\n\n【エラー内容】\n" + error.message + "\n\n※予備問題データベースから条件に近いものをランダムに選出して特訓を開始します！");
+                alert("⚠️ Geminiによる問題生成に失敗しました。\n\n【エラー内容】\n" + error.message + "\n\n※予備問題データベースから条件に近いものをランダムに選出して特訓を開始します！");
 
                 const shuffled = [...pool].sort(() => 0.5 - Math.random());
                 selectedQuestions = shuffled.slice(0, count);
@@ -389,6 +570,7 @@ ${levelText}
             startTime = Date.now();
             timerInterval = setInterval(updateTimer, 10);
             renderQuestion();
+            saveSession();
         }
 
         function updateTimer() {
@@ -460,6 +642,9 @@ ${levelText}
 
         function nextQuestion() {
             currentQuestionIndex++;
+            if (currentQuestionIndex < selectedQuestions.length) {
+                saveSession();
+            }
             renderQuestion();
         }
 
@@ -473,6 +658,8 @@ ${levelText}
 
             const fieldLabel = lastCondition.fieldText || "数学全範囲";
             document.getElementById("result-summary-text").textContent = `「${fieldLabel}」×「${lastCondition.levelText}」×${lastCondition.count}問をすべてクリアしました。`;
+
+            saveFinishedSession(finalTime);
         }
 
 
@@ -495,6 +682,7 @@ ${levelText}
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 loginUid = user.uid;
+                restoreSessionIfAny();
             } else {
                 location.href = "index.html";
             }
