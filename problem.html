@@ -612,6 +612,14 @@
                             <button type="button" class="tactile-btn btn-incorrect" id="btn-judge-wrong">❌ 間違えた（再挑戦）</button>
                             <button type="button" class="tactile-btn btn-correct" id="btn-judge-right">🎉 合ってた（克服！）</button>
                         </div>
+                        <!-- 🛠️【新設】間違っている部分をAIに伝えてから解説を再生成できる指摘欄 -->
+                        <div style="width:100%; margin-top:0.8rem;">
+                            <label for="regen-note-input" style="display:block; font-size:0.78rem; color:var(--text-muted); font-weight:800; margin-bottom:0.3rem;">
+                                🛠 （任意）どこが間違っているかAIに伝えて再生成
+                            </label>
+                            <textarea id="regen-note-input" rows="2" placeholder="例：△ARPの面積が計算に含まれていません。五角形PBQCRの面積に足す形で解き直してください。" style="width:100%; resize:vertical; background: rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.15); border-radius:10px; padding:0.6rem 0.7rem; color:var(--text-main); font-size:0.85rem; font-family:inherit;"></textarea>
+                        </div>
+
                         <div style="display: flex; gap: 1rem; margin-top: 1.2rem; width: 100%;">
                             <button type="button" class="tactile-btn" id="activate-ai-question-btn" style="flex: 1; background: #111; color: var(--accent-cyan); border: 1px solid var(--accent-cyan); box-shadow: 3px 3px 0px rgba(0,243,255,0.2);">
                                 💡 AIに質問する
@@ -945,6 +953,19 @@
 `.trim()
         };
 
+        // 📝 模範解答（answerFormula）をチャット欄と同じルールでHTML整形する共通関数。
+        // 初回表示時に呼ばれる。
+        function formatModelAnswerHtml(rawAnswer) {
+            return String(rawAnswer || "解答データなし")
+                .replace(/\\n/g, '<br>')
+                .replace(/\n/g, '<br>')
+                .replace(/(\d+\.\s*\*\*)/g, '<br><br>$1')
+                .replace(/(\*\*方法\d+：)/g, '<br><br>$1')
+                .replace(/(⇒)/g, '<br> $1')
+                .replace(/(したがって、)/g, '<br><br>$1')
+                .trim();
+        }
+
         // 📝【問題文の可読性改善】AI文字起こしなどで改行が一切入らず、
         // 長文が1つの塊になってしまう問題文を、小問番号の前で自動的に改行して読みやすくする。
         // ・既存の改行（\n / 明示的な "\n" 文字列）はそのまま尊重する
@@ -1202,14 +1223,7 @@ ${glossaryBlock}`;
                 })();
                 
                 let rawAnswer = currentProblemData.answerFormula || "解答データなし";
-                let formattedAnswer = rawAnswer
-                    .replace(/\\n/g, '<br>')
-                    .replace(/\n/g, '<br>')
-                    .replace(/(\d+\.\s*\*\*)/g, '<br><br>$1') 
-                    .replace(/(\*\*方法\d+：)/g, '<br><br>$1') 
-                    .replace(/(⇒)/g, '<br> $1')            
-                    .replace(/(したがって、)/g, '<br><br>$1')   
-                    .trim();
+                let formattedAnswer = formatModelAnswerHtml(rawAnswer);
 
                 document.getElementById("target-model-answer").innerHTML = formattedAnswer;
 
@@ -1849,6 +1863,7 @@ ${glossaryBlock}`;
             const aBubble = document.createElement("div"); 
             aBubble.className = "chat-bubble bubble-ai"; 
             aBubble.innerHTML = renderFormattedMarkdown(aiJson.ai_response); 
+
             chatHistoryArea.appendChild(aBubble);
 
             if (aiJson.current_step_label) stepLabel.textContent = aiJson.current_step_label;
@@ -1980,25 +1995,35 @@ ${glossaryBlock}`;
         }
 
         // 🔄 【追加】AIに超精密なプロンプトで解説をやり直させるロジック（教科別に厳密度の観点を出し分け）
-        function getRegenPrompt(subject) {
+        // 🛠️【拡張】userNoteが指定された場合、生徒が指摘した間違いを最優先で反映させる指示を追加する
+        function getRegenPrompt(subject, userNote) {
             const base = getCreatePrompt(subject);
+            let header;
             if (subject === "英語") {
-                return (
+                header =
                     `あなたは高校英語の「超精密な誤答分析・解説生成AI」です。\n` +
                     `先ほど生成された解説の文法解釈・訳出精度に不備があった可能性があるため、今回は【最高精度】で解説を再生成してください。\n` +
-                    `文構造の分解、訳の正確さ、文法用語の使い方に一切の曖昧さがないよう細心の注意を払ってください。\n\n` +
-                    base
-                );
+                    `文構造の分解、訳の正確さ、文法用語の使い方に一切の曖昧さがないよう細心の注意を払ってください。\n\n`;
+            } else {
+                header =
+                    `あなたは高校${subject}の「超精密な誤答分析・解説生成AI」です。\n` +
+                    `先ほど生成された解説の計算精度、または数式レンダリング（LaTeX記法）に不備があったため、今回は【最高精度・厳密フォーマット】で解説を再生成してください。\n\n` +
+                    `【最重要：数式フォーマットの絶対規律】\n` +
+                    `1. 本文中に登場するすべての数式、変数、関数、数値、演算記号(⇒、等号、プラスマイナス)、分数(\\frac)、点(\\cdot)は、単一の文字であっても【必ず漏れなく】前後に $ または $$ をつけて完全なLaTeX形式にしてください。\n` +
+                    `2. $ で囲まれていない生の「\\frac」や「\\cdot」などの記法が本文中に露出することは絶対に許されません。\n` +
+                    `3. 解説文は、手順ごとに必ず改行コード（\\n）を適切に挟んで、論理の飛躍がない見やすい箇条書き形式（1., 2.など）で出力してください。\n\n`;
             }
-            return (
-                `あなたは高校${subject}の「超精密な誤答分析・解説生成AI」です。\n` +
-                `先ほど生成された解説の計算精度、または数式レンダリング（LaTeX記法）に不備があったため、今回は【最高精度・厳密フォーマット】で解説を再生成してください。\n\n` +
-                `【最重要：数式フォーマットの絶対規律】\n` +
-                `1. 本文中に登場するすべての数式、変数、関数、数値、演算記号(⇒、等号、プラスマイナス)、分数(\\frac)、点(\\cdot)は、単一の文字であっても【必ず漏れなく】前後に $ または $$ をつけて完全なLaTeX形式にしてください。\n` +
-                `2. $ で囲まれていない生の「\\frac」や「\\cdot」などの記法が本文中に露出することは絶対に許されません。\n` +
-                `3. 解説文は、手順ごとに必ず改行コード（\\n）を適切に挟んで、論理の飛躍がない見やすい箇条書き形式（1., 2.など）で出力してください。\n\n` +
-                base
-            );
+
+            let noteBlock = "";
+            if (userNote && userNote.trim()) {
+                noteBlock =
+                    `【最優先事項：生徒からの間違い指摘】\n` +
+                    `生徒から、前回の解答について以下の指摘がありました。この指摘を絶対に無視せず、指摘された誤りを完全に修正したうえで、` +
+                    `model_answer（および内容に影響する場合はstrategy_pattern・trap_descriptionも）を一から作り直してください。\n` +
+                    `指摘内容：${userNote.trim()}\n\n`;
+            }
+
+            return header + noteBlock + base;
         }
 
         async function runRegenerateAnalysis() {
@@ -2009,19 +2034,32 @@ ${glossaryBlock}`;
 
             const regenBtn = document.getElementById("regenerate-analysis-btn");
             if (!regenBtn) return;
+
+            const noteInput = document.getElementById("regen-note-input");
+            const userNote = noteInput ? noteInput.value.trim() : "";
             
             const originalText = regenBtn.innerHTML;
-            regenBtn.textContent = `⚙️ ${getEngineLabel(ACTIVE_ENGINE)}で超精密に再考中...`;
+            regenBtn.textContent = userNote
+                ? `⚙️ ${getEngineLabel(ACTIVE_ENGINE)}が指摘を踏まえて再考中...`
+                : `⚙️ ${getEngineLabel(ACTIVE_ENGINE)}で超精密に再考中...`;
             regenBtn.disabled = true;
 
-            let instructionText = "提出されたデータを、より正確な計算と完璧な$記号（LaTeX）の囲みを用いて、指定のJSONで再出力してください。解説が途中で壊れないよう細心の注意を払ってください。";
+            let instructionText = userNote
+                ? "提出されたデータについて、生徒から間違いの指摘があります。その指摘内容を必ず反映したうえで、より正確な計算と完璧な$記号（LaTeX）の囲みを用いて、指定のJSONで再出力してください。解説が途中で壊れないよう細心の注意を払ってください。"
+                : "提出されたデータを、より正確な計算と完璧な$記号（LaTeX）の囲みを用いて、指定のJSONで再出力してください。解説が途中で壊れないよう細心の注意を払ってください。";
 
             if (currentProblemData.title) {
                 instructionText += `\n\n【対象の問題文】\n${currentProblemData.title}`;
             }
+            if (currentProblemData.answerFormula) {
+                instructionText += `\n\n【前回の模範解答（誤りを含む可能性あり）】\n${currentProblemData.answerFormula}`;
+            }
+            if (userNote) {
+                instructionText += `\n\n【生徒からの間違いの指摘】\n${userNote}`;
+            }
 
             try {
-                const aiResult = await callAnalysisEngine(instructionText, getRegenPrompt(currentProblemData.subject || "数学"));
+                const aiResult = await callAnalysisEngine(instructionText, getRegenPrompt(currentProblemData.subject || "数学", userNote));
 
                 currentProblemData.title = aiResult.extracted_text || currentProblemData.title;
                 currentProblemData.short_title = aiResult.short_title || currentProblemData.short_title;
@@ -2035,6 +2073,8 @@ ${glossaryBlock}`;
                 // Firebaseのデータを上書き保存して同期
                 const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
                 await set(probRef, currentProblemData);
+
+                if (noteInput) noteInput.value = "";
 
                 alert(`⚡ ${getEngineLabel(ACTIVE_ENGINE)}による解説のリフレッシュが完了しました！`);
                 window.location.reload();
