@@ -417,6 +417,24 @@ ${MULTI_QUESTION_INSTRUCTION}
             }
             return result;
         }
+        // 📝【問題文の可読性改善】AI文字起こしで改行が入らず長文が1塊になるのを防ぐ。
+        // problem.htmlの同名関数と同じロジック（小問番号(1)(2)や(i)(ii)の前で改行）。
+        function formatQuestionText(raw) {
+            if (!raw) return "";
+            let t = String(raw)
+                .replace(/\\n/g, '\n')
+                .replace(/\r\n?/g, '\n')
+                .trim();
+
+            const noWordBefore = "(?<![0-9A-Za-zぁ-んァ-ヶー一-龠々'’])";
+
+            t = t.replace(new RegExp(noWordBefore + "\\(\\s*([1-9]|10)\\s*\\)(?!\\d)", "g"), "\n\n($1)");
+            t = t.replace(new RegExp(noWordBefore + "\\(\\s*(i{1,3}|iv)\\s*\\)", "gi"), "\n($1)");
+            t = t.replace(/\n{3,}/g, "\n\n").replace(/^\n+/, "").trim();
+
+            return t.replace(/\n/g, "<br>");
+        }
+
         function stripCodeFence(text) {
             let t = text.trim();
             if (t.startsWith("```json")) t = t.substring(7);
@@ -626,7 +644,7 @@ ${MULTI_QUESTION_INSTRUCTION}
                 card.innerHTML = `
                     <span class="badge badge-safe">RESULT</span>
                     <div class="result-item-label">🎯 ${labelText}</div>
-                    <div class="result-note tex2jax_process">${item.extracted_text}</div>
+                    <div class="result-note tex2jax_process">${formatQuestionText(item.extracted_text)}</div>
                     <div style="font-size:0.8rem; color:var(--text-muted); font-weight:800; margin-bottom:0.4rem;">MODEL ANSWER</div>
                     <div class="model-answer-text tex2jax_process">${(item.model_answer || "").replace(/\\n/g, '<br>').replace(/\n/g, '<br>')}</div>
                     <div class="judgment-buttons" id="judgment-row-${idx}">

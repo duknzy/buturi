@@ -945,6 +945,34 @@
 `.trim()
         };
 
+        // 📝【問題文の可読性改善】AI文字起こしなどで改行が一切入らず、
+        // 長文が1つの塊になってしまう問題文を、小問番号の前で自動的に改行して読みやすくする。
+        // ・既存の改行（\n / 明示的な "\n" 文字列）はそのまま尊重する
+        // ・"(1)" "(2)" のような大問内の小問番号の前で段落を分ける
+        // ・"(i)" "(ii)" のようなローマ数字の小問番号の前でも改行する
+        // ・f(x) や g(t) のような関数表記の "(" は、直前が英数字・かな漢字なので誤爆しない
+        function formatQuestionText(raw) {
+            if (!raw) return "";
+            let t = String(raw)
+                .replace(/\\n/g, '\n')
+                .replace(/\r\n?/g, '\n')
+                .trim();
+
+            const noWordBefore = "(?<![0-9A-Za-zぁ-んァ-ヶー一-龠々'’])";
+
+            // 小問番号 (1)〜(10) の前で段落改行（f(1) 等の関数呼び出しとは区別）
+            t = t.replace(new RegExp(noWordBefore + "\\(\\s*([1-9]|10)\\s*\\)(?!\\d)", "g"), "\n\n($1)");
+
+            // ローマ数字の小問番号 (i)(ii)(iii)(iv) の前で改行
+            t = t.replace(new RegExp(noWordBefore + "\\(\\s*(i{1,3}|iv)\\s*\\)", "gi"), "\n($1)");
+
+            // 改行が3つ以上連続する場合は2つにまとめる
+            t = t.replace(/\n{3,}/g, "\n\n").replace(/^\n+/, "").trim();
+
+            // 改行を<br>に変換（安全のためHTMLタグは含めない前提のプレーンテキストとして扱う）
+            return t.replace(/\n/g, "<br>");
+        }
+
         // 🖼️【複数枚写真対応】新形式の images配列があればそれを優先、無ければ旧形式のimageData単体をラップして返す（後方互換）
         function getProblemImages(p) {
             if (!p) return [];
@@ -1231,7 +1259,7 @@ ${glossaryBlock}`;
                             </div>
                         `;
                     } else {
-                        contentHtml = `<div style="padding:2rem; text-align:center; color:var(--text-muted);">${currentProblemData.title}</div>`;
+                        contentHtml = `<div style="padding:2rem; text-align:left; color:var(--text-muted); line-height:1.9;">${formatQuestionText(currentProblemData.title)}</div>`;
                     }
                 } 
                 else {
@@ -1239,7 +1267,7 @@ ${glossaryBlock}`;
                     // 💡 純粋に問題文テキストだけを美しく引き立たせるスマートな構造に変更。
                     contentHtml = `
                         <div class="tex2jax_process question-text-block">
-                            ${currentProblemData.title}
+                            ${formatQuestionText(currentProblemData.title)}
                         </div>
                     `;
 
@@ -2321,4 +2349,4 @@ ${glossaryBlock}`;
         }
    </script>
 </body>
-</html>
+</html>
