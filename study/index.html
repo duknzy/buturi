@@ -451,6 +451,17 @@
         <input type="text" id="macroInGoal" placeholder="具体的なゴール (例: 記述例題全クリア)" class="p-2 rounded border bg-baseBg sm:col-span-2">
     </div>
     <button onclick="addMacroTask()" class="bg-textMain text-white font-bold py-2 px-4 rounded-lg text-xs hover:bg-slate-800 transition-colors">大計画リストに追加</button>
+
+    <!-- 章ごと一括登録 -->
+    <div class="border-t pt-3 mt-2 space-y-2">
+        <span class="text-[11px] font-bold text-textSub block">📦 章ごとに一括登録（上の科目選択を使用）</span>
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
+            <input type="text" id="macroBulkMaterial" placeholder="教材名 (例: 共テ)" class="p-2 rounded border bg-baseBg">
+            <input type="number" id="macroBulkCount" min="1" placeholder="合計章数 (例: 8)" class="p-2 rounded border bg-baseBg">
+            <input type="text" id="macroBulkGoal" placeholder="ゴール (例: クリア)" class="p-2 rounded border bg-baseBg sm:col-span-2">
+        </div>
+        <button onclick="addMacroTaskBulk()" class="bg-accentOrange text-white font-bold py-2 px-4 rounded-lg text-xs hover:bg-orange-600 transition-colors">章ごとに一括追加</button>
+    </div>
     
     <!-- 削除管理用リスト -->
     <div id="macroTaskGarageList" class="space-y-1.5 pt-2 max-h-[200px] overflow-y-auto text-xs"></div>
@@ -1133,6 +1144,37 @@ window.addMacroTask = async () => {
     document.getElementById('macroInCategory').value = '';
     document.getElementById('macroInGoal').value = '';
     
+    renderMacroTasks();
+    await setDoc(doc(db, `users/${currentUser.uid}/macroPlan/current`), macroPlanData);
+};
+
+// 3.5 ガレージ側での「章ごと一括」追加
+window.addMacroTaskBulk = async () => {
+    const subject = document.getElementById('macroInSubject').value;
+    const material = document.getElementById('macroBulkMaterial').value.trim();
+    const count = parseInt(document.getElementById('macroBulkCount').value, 10);
+    const goal = document.getElementById('macroBulkGoal').value.trim();
+
+    if (!material || !count || count < 1) return alert('教材名と合計章数を入力してください！');
+    if (!goal) return alert('ゴール（例: クリア）を入力してください！');
+
+    if (!macroPlanData.macroTasks) macroPlanData.macroTasks = [];
+
+    const baseId = Date.now();
+    for (let i = 1; i <= count; i++) {
+        macroPlanData.macroTasks.push({
+            id: baseId + i,
+            subject,
+            category: `${material}${i}章`,
+            goal,
+            done: false
+        });
+    }
+
+    document.getElementById('macroBulkMaterial').value = '';
+    document.getElementById('macroBulkCount').value = '';
+    document.getElementById('macroBulkGoal').value = '';
+
     renderMacroTasks();
     await setDoc(doc(db, `users/${currentUser.uid}/macroPlan/current`), macroPlanData);
 };
