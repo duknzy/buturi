@@ -281,7 +281,7 @@
         .question-collapsible-area.is-expanded {
             max-height: 2000px;
         }
-        .question-collapsible-area:not(.is-expanded)::after {
+        .question-collapsible-area.has-overflow:not(.is-expanded)::after {
             content: "";
             position: absolute;
             left: 0; right: 0; bottom: 0;
@@ -1067,6 +1067,7 @@
             if (!area || !toggleBtn) return;
 
             area.classList.remove("is-expanded");
+            area.classList.remove("has-overflow");
             toggleBtn.style.display = "none";
             toggleBtn.textContent = "▼ 全文を表示";
             toggleBtn.onclick = null;
@@ -1074,6 +1075,7 @@
             // レイアウト確定後（画像読み込み等）に高さを判定したいので次フレームで計測
             requestAnimationFrame(() => {
                 if (area.scrollHeight > area.clientHeight + 16) {
+                    area.classList.add("has-overflow");
                     toggleBtn.style.display = "flex";
                     toggleBtn.onclick = () => {
                         const expanded = area.classList.toggle("is-expanded");
@@ -1087,6 +1089,7 @@
                 if (img.complete) return;
                 img.addEventListener("load", () => {
                     if (!area.classList.contains("is-expanded") && area.scrollHeight > area.clientHeight + 16) {
+                        area.classList.add("has-overflow");
                         toggleBtn.style.display = "flex";
                         toggleBtn.onclick = () => {
                             const expanded = area.classList.toggle("is-expanded");
