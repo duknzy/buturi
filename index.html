@@ -660,6 +660,15 @@
         <input type="text" class="problem-search-input" id="problem-search-input" placeholder="問題文・分野・タイトルで検索...">
         <button type="button" class="problem-search-clear-btn" id="problem-search-clear-btn">✕ クリア</button>
     </div>
+    <!-- 🔀【新設】並べ替え -->
+    <div class="filter-row">
+        <span class="filter-label">🔀 並べ替え：</span>
+        <select class="field-select" id="problem-sort-select">
+            <option value="priority">復習優先度順（おすすめ）</option>
+            <option value="newest">追加日が新しい順</option>
+            <option value="oldest">追加日が古い順</option>
+        </select>
+    </div>
     <!-- 上段：教科タブ -->
     <div class="filter-row">
         <span class="filter-label">📚 教科：</span>
@@ -1172,6 +1181,7 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
       let currentSubjectFilter = "ALL";
         let currentFieldFilter = "ALL";
         let currentSearchQuery = "";
+        let currentProblemSortMode = "priority"; // 🔀【新設】"priority"(復習優先度順) / "newest" / "oldest"
 
         // 🗂️ 折りたたみ状態（端末ローカルに保存し、次回訪問時も維持）
         let collapsedSections = new Set();
@@ -1198,6 +1208,15 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
                 currentSearchQuery = "";
                 if (searchInputEl) searchInputEl.value = "";
                 searchClearBtnEl.style.display = "none";
+                rebuildFilterBarAndCards();
+            });
+        }
+
+        // 🔀【新設】並べ替えセレクトのイベントバインド
+        const problemSortSelectEl = document.getElementById("problem-sort-select");
+        if (problemSortSelectEl) {
+            problemSortSelectEl.addEventListener("change", (e) => {
+                currentProblemSortMode = e.target.value;
                 rebuildFilterBarAndCards();
             });
         }
@@ -1455,30 +1474,54 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
                     </div>
                 `;
 
-                if (buckets[timeBadgeClass]) buckets[timeBadgeClass].push(rowHtml);
+                if (buckets[timeBadgeClass]) {
+                    buckets[timeBadgeClass].push({
+                        html: rowHtml,
+                        sortDate: createdInfo ? createdInfo.date.getTime() : 0
+                    });
+                }
             });
 
-            // 🗂️ 緊急度セクションごとに見出し＋行を描画（クリックで開閉可能）
-            sectionOrder.forEach(section => {
-                const rows = buckets[section.key];
-                if (!rows || rows.length === 0) return;
-                const isCollapsed = collapsedSections.has(section.key);
-                dynamicArea.insertAdjacentHTML("beforeend", `
-                    <div class="problem-section-header ${isCollapsed ? 'collapsed' : ''}" data-section-key="${section.key}">
-                        <div class="problem-section-header-left">
-                            <span class="problem-section-chevron">▼</span>
-                            <span>${section.label}</span>
+            if (currentProblemSortMode === "priority") {
+                // 🗂️ 緊急度セクションごとに見出し＋行を描画（クリックで開閉可能）
+                sectionOrder.forEach(section => {
+                    const rows = buckets[section.key];
+                    if (!rows || rows.length === 0) return;
+                    const isCollapsed = collapsedSections.has(section.key);
+                    dynamicArea.insertAdjacentHTML("beforeend", `
+                        <div class="problem-section-header ${isCollapsed ? 'collapsed' : ''}" data-section-key="${section.key}">
+                            <div class="problem-section-header-left">
+                                <span class="problem-section-chevron">▼</span>
+                                <span>${section.label}</span>
+                            </div>
+                            <span class="problem-section-count">${rows.length}</span>
                         </div>
-                        <span class="problem-section-count">${rows.length}</span>
-                    </div>
-                    <div class="problem-section-rows ${isCollapsed ? 'collapsed' : ''}" data-section-rows="${section.key}">
-                        ${rows.join("")}
-                    </div>
-                `);
-            });
+                        <div class="problem-section-rows ${isCollapsed ? 'collapsed' : ''}" data-section-rows="${section.key}">
+                            ${rows.map(r => r.html).join("")}
+                        </div>
+                    `);
+                });
+            } else {
+                // 🔀【新設】追加日順：緊急度による区分けをせず、追加日時だけで並べたフラットな一覧にする
+                const allRows = sectionOrder.flatMap(section => buckets[section.key] || []);
+                allRows.sort((a, b) => currentProblemSortMode === "oldest" ? a.sortDate - b.sortDate : b.sortDate - a.sortDate);
+                if (allRows.length > 0) {
+                    dynamicArea.insertAdjacentHTML("beforeend", `
+                        <div class="problem-section-header" style="cursor: default;">
+                            <div class="problem-section-header-left">
+                                <span>${currentProblemSortMode === "oldest" ? "🗓️ 追加日が古い順" : "🗓️ 追加日が新しい順"}</span>
+                            </div>
+                            <span class="problem-section-count">${allRows.length}</span>
+                        </div>
+                        <div class="problem-section-rows" data-section-rows="__sorted_flat__">
+                            ${allRows.map(r => r.html).join("")}
+                        </div>
+                    `);
+                }
+            }
 
-            // 開閉トグルのイベントバインド
-            dynamicArea.querySelectorAll(".problem-section-header").forEach(headerEl => {
+            // 開閉トグルのイベントバインド（優先度順の見出しのみ対象。追加日順のフラット見出しは開閉不要なので除外）
+            dynamicArea.querySelectorAll(".problem-section-header[data-section-key]").forEach(headerEl => {
                 headerEl.addEventListener("click", () => {
                     const key = headerEl.getAttribute("data-section-key");
                     const rowsEl = dynamicArea.querySelector(`[data-section-rows="${key}"]`);
