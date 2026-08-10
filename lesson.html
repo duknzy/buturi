@@ -713,6 +713,8 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const REQUESTED_ID = urlParams.get('id');
+        const FROM_PROBLEM = urlParams.get('fromProblem'); // 🎓【新設】問題タブからの授業ハンドオフ
+        let pendingSourceProblem = null; // { id, title } ハンドオフ元の問題（プラン確定時に授業へ紐付ける）
 
         function el(id) { return document.getElementById(id); }
 
@@ -865,6 +867,7 @@
         el("regenerate-plan-btn").addEventListener("click", () => generatePlan());
         el("cancel-plan-btn").addEventListener("click", () => {
             draftPlan = null;
+            pendingSourceProblem = null;
             el("view-plan-preview").classList.add("hidden");
             el("view-list").classList.remove("hidden");
         });
@@ -968,6 +971,22 @@
 
         function renderPlanPreview() {
             el("plan-preview-title").textContent = `📘 ${draftPlan.lesson_title}（全${draftPlan.parts.length}回）`;
+
+            const sourceNoticeId = "plan-preview-source-problem-notice";
+            let sourceNoticeEl = document.getElementById(sourceNoticeId);
+            if (pendingSourceProblem) {
+                if (!sourceNoticeEl) {
+                    sourceNoticeEl = document.createElement("div");
+                    sourceNoticeEl.id = sourceNoticeId;
+                    sourceNoticeEl.style.cssText = "font-size:0.8rem; color:var(--accent-yellow); background:rgba(255,245,0,0.06); border:1px solid rgba(255,245,0,0.25); border-radius:10px; padding:0.6rem 0.9rem; margin-bottom:0.8rem;";
+                    el("plan-preview-title").insertAdjacentElement("afterend", sourceNoticeEl);
+                }
+                sourceNoticeEl.textContent = `🔗 問題「${pendingSourceProblem.title}」でのつまずきから作成された授業プランです。内容が合っていなければ、単元名やメモを書き換えて「作り直す」を押してください。`;
+                sourceNoticeEl.style.display = "block";
+            } else if (sourceNoticeEl) {
+                sourceNoticeEl.style.display = "none";
+            }
+
             el("plan-preview-parts").innerHTML = draftPlan.parts.map((p, i) => `
                 <div class="plan-part-item">
                     <b>第${i + 1}回: ${p.title}</b>
@@ -1026,9 +1045,12 @@
                     keyTerms: thisLessonKeyTerms,           // この授業で新しく登場した用語
                     inheritedKeyTerms: inheritedKeyTerms,    // 前回までに教わった用語（そのまま）
                     accumulatedKeyTerms: mergedKeyTerms,      // 次の続き授業へ引き継ぐ累積用語集
-                    ...(continuationId ? { previousLessonId: continuationId, previousLessonTitle } : {})
+                    ...(continuationId ? { previousLessonId: continuationId, previousLessonTitle } : {}),
+                    // 🎓【新設】問題タブの「前提から授業でやり直す」から作られた授業なら、元の問題を紐付ける
+                    ...(pendingSourceProblem ? { sourceProblemId: pendingSourceProblem.id, sourceProblemTitle: pendingSourceProblem.title } : {})
                 };
                 await set(ref(database, 'users/' + loginUid + '/lessons/' + newId), lessonObj);
+                pendingSourceProblem = null;
                 window.location.href = `lesson.html?id=${newId}`;
             } catch (err) {
                 console.error(err);
@@ -1551,8 +1573,43 @@ ${photoHandlingBlock}
                     renderLessonList(lastLessonsSnapshot);
                     renderContinuationOptions(lastLessonsSnapshot);
                 });
+                if (FROM_PROBLEM) {
+                    await handleLessonHandoffFromProblem();
+                }
             }
         });
+
+        // ==========================================================================
+        // 🎓【新設】問題タブから「前提から授業でやり直す」で渡された内容を受け取る
+        // ==========================================================================
+        async function handleLessonHandoffFromProblem() {
+            // URLをきれいにして、再読み込み・再遷移時に誤って再実行されないようにする
+            if (window.location.search.includes("fromProblem")) {
+                const cleanUrl = new URL(window.location.href);
+                cleanUrl.searchParams.delete("fromProblem");
+                window.history.replaceState({}, "", cleanUrl.toString());
+            }
+
+            const raw = sessionStorage.getItem("LOLZ_LESSON_HANDOFF");
+            sessionStorage.removeItem("LOLZ_LESSON_HANDOFF");
+            if (!raw) return;
+
+            let handoff;
+            try { handoff = JSON.parse(raw); } catch (e) { return; }
+            if (!handoff || !handoff.topic) return;
+
+            pendingSourceProblem = handoff.sourceProblemId
+                ? { id: handoff.sourceProblemId, title: handoff.sourceProblemTitle || "無題の問題" }
+                : null;
+
+            setCreationMode("topic");
+            el("topic-input").value = handoff.topic;
+            if (handoff.level) el("topic-level-select").value = handoff.level;
+            el("topic-note-input").value = handoff.note || "";
+
+            showToast(`🎓 「${handoff.sourceProblemTitle || "元の問題"}」からの引き継ぎで、単元「${handoff.topic}」の授業プランを作成します`, "info", 4000);
+            await generatePlan();
+        }
    </script>
 </body>
 </html>

@@ -584,6 +584,10 @@
 </div>
                 <div class="qna-save-row" id="qna-save-row">
                     <button type="button" class="tactile-btn qna-save-btn" id="qna-save-btn">💾 この会話を記録する</button>
+                    <button type="button" class="tactile-btn" id="lesson-handoff-btn" style="background:#111; color:var(--accent-yellow); border:1px solid var(--accent-yellow); box-shadow:none;">🎓 前提から授業でやり直す</button>
+                </div>
+                <div id="lesson-handoff-linked-row" style="display:none; margin-top:0.6rem;">
+                    <a href="#" id="lesson-handoff-linked-link" class="tactile-btn" style="display:block; text-align:center; background:#111; color:var(--accent-cyan); border:1px solid var(--accent-cyan); box-shadow:none; text-decoration:none;"></a>
                 </div>
             </aside>
 
@@ -1176,6 +1180,7 @@ ${glossaryBlock}`;
                 }
                 loadCloudProblemSession(user.uid);
                 listenToQnaLogsForProblem(user.uid, PROBLEM_ID); // 💬【新設】この問題の過去の質問ログを監視
+                listenToLinkedLessonForProblem(user.uid, PROBLEM_ID); // 🎓【新設】この問題から作られた授業を監視
             } else {
                 location.href = "index.html";
             }
@@ -2226,6 +2231,115 @@ ${glossaryBlock}`;
                     btn.style.display = count > 0 ? "block" : "none";
                 }
             });
+        }
+
+        // ==========================================================================
+        // 🎓【新設】前提からやり直す：質問チャットをAIに分析させ、授業タブへ引き継ぐ
+        // ==========================================================================
+        // この問題きっかけで既に作られた授業があれば監視して、リンクボタンを出す
+        function listenToLinkedLessonForProblem(uid, problemId) {
+            const lessonsRootRef = ref(database, 'users/' + uid + '/lessons');
+            onValue(lessonsRootRef, (snapshot) => {
+                const all = snapshot.val() || {};
+                const linkedRow = document.getElementById("lesson-handoff-linked-row");
+                const linkedLink = document.getElementById("lesson-handoff-linked-link");
+                if (!linkedRow || !linkedLink) return;
+
+                // 同じ問題から作られた授業のうち、一番新しいものを採用
+                const matches = Object.entries(all)
+                    .filter(([, l]) => l && l.sourceProblemId === problemId)
+                    .sort((a, b) => new Date(b[1].createdAt || 0) - new Date(a[1].createdAt || 0));
+
+                if (matches.length === 0) {
+                    linkedRow.style.display = "none";
+                    return;
+                }
+                const [lessonId, lesson] = matches[0];
+                linkedLink.textContent = (lesson.status === "completed" ? "✅ 完了済み" : "🎓 進行中") + `の授業へ: ${lesson.title || "無題の授業"}`;
+                linkedLink.href = "lesson.html?id=" + encodeURIComponent(lessonId);
+                linkedRow.style.display = "block";
+            });
+        }
+        const lessonHandoffBtn = document.getElementById("lesson-handoff-btn");
+        if (lessonHandoffBtn) {
+            lessonHandoffBtn.addEventListener("click", async () => {
+                if (!loginUid || qnaTurns.length === 0) return;
+                const originalText = lessonHandoffBtn.textContent;
+                lessonHandoffBtn.disabled = true;
+                lessonHandoffBtn.textContent = "🔍 つまずきの単元を分析中...";
+                try {
+                    const handoff = await analyzeStuckTopicFromQna();
+                    sessionStorage.setItem("LOLZ_LESSON_HANDOFF", JSON.stringify({
+                        topic: handoff.topic,
+                        level: handoff.level,
+                        note: handoff.note,
+                        sourceProblemId: currentProblemData.id || PROBLEM_ID,
+                        sourceProblemTitle: currentProblemData.short_title || "無題の問題"
+                    }));
+                    window.location.href = "lesson.html?fromProblem=1";
+                } catch (error) {
+                    console.error("つまずき単元の分析エラー:", error);
+                    showToast("分析に失敗しました。原因: " + error.message, "error", 8000);
+                    lessonHandoffBtn.disabled = false;
+                    lessonHandoffBtn.textContent = originalText;
+                }
+            });
+        }
+
+        // 現在の問題文＋Q&Aチャット全体をAIに読ませ、「本当につまずいている前提単元」を推定させる
+        async function analyzeStuckTopicFromQna() {
+            const LEVEL_OPTIONS = ["教科書レベル（基礎の基礎から）", "定期テストレベル", "入試基礎レベル", "入試標準〜応用レベル"];
+            const conversationText = qnaTurns.map(t => `【${t.role === "user" ? "生徒" : "AI"}】${t.content}`).join("\n\n");
+
+            const systemInstruction = `あなたはベテランの家庭教師です。生徒がある問題についてAIチューターに質問した記録を渡します。
+生徒はこの解説を読んでもなお理解できておらず、「そもそも前提となる単元の理解が抜け落ちている」可能性があります。
+この会話全体を読み、生徒が実際につまずいている「前提単元」が何かを特定してください。
+注意点：
+- 元の問題自体の単元（例:数列）ではなく、その理解に本当に必要な、より基礎的な前提単元（例:指数関数・対数関数）を優先して特定すること。会話の中でつまずきの原因が明確に前提単元にあると読み取れない場合は、元の問題の単元をそのまま返してよい。
+- topicは「数学III 微分方程式」のように、科目名を含む具体的な単元名にすること
+- levelは次の4つの文字列から会話の内容に最も合うものを一つだけ、一字一句そのまま選ぶこと: ${LEVEL_OPTIONS.map(l => `"${l}"`).join(", ")}
+- noteには、次に作る授業で特に意識してほしいこと（生徒がどこで詰まっていたか、逆に何は分かっていそうか等）を2〜3文でまとめること
+
+出力は必ず以下のJSON形式のみで返してください。他のテキストは一切含めないこと。
+{
+  "topic": "前提単元名",
+  "level": "上記4つのいずれか",
+  "note": "次の授業で意識してほしいことのメモ"
+}`;
+
+            const promptText = `【元の問題文】\n${currentProblemData.title || "（問題文なし）"}\n\n【AIチューターとの質問チャット全文】\n${conversationText}`;
+
+            const requestBody = JSON.stringify({
+                "contents": [{ "role": "user", "parts": [{ "text": promptText }] }],
+                "systemInstruction": { "parts": [{ "text": systemInstruction }] },
+                "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
+            });
+
+            let lastError = null;
+            for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
+                let response;
+                try {
+                    response = await fetchWithKeyRotation(getGeminiKeys(), (key) => ({
+                        url: buildGeminiUrl(modelName, key),
+                        options: { method: "POST", headers: { "Content-Type": "application/json" }, body: requestBody }
+                    }));
+                } catch (err) {
+                    lastError = err;
+                    continue;
+                }
+                const candidateJson = await response.json();
+                const candidateText = candidateJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!candidateText) { lastError = new Error(`Empty response: ${modelName}`); continue; }
+                try {
+                    const parsed = JSON.parse(fixJsonEscapes(extractJsonObject(stripCodeFence(candidateText.trim()))));
+                    if (!LEVEL_OPTIONS.includes(parsed.level)) parsed.level = "入試基礎レベル";
+                    return parsed;
+                } catch (parseErr) {
+                    lastError = parseErr;
+                    continue;
+                }
+            }
+            throw new Error(`全モデルが利用できませんでした。時間を置いて再度お試しください。\n最終エラー: ${lastError?.message || "不明"}`);
         }
 
         // 💾 会話を記録するボタン
