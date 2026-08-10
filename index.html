@@ -877,7 +877,11 @@
 
 
    <script type="module">
-        import { getGeminiKeys, getDeepseekKeys, fetchWithKeyRotation, initApiKeyManager, clearAllKeys, notifyModelFallback } from "./api-key-manager.js";
+        import {
+            getGeminiKeys, getDeepseekKeys, fetchWithKeyRotation, initApiKeyManager, clearAllKeys, notifyModelFallback,
+            GEMINI_MODEL_FALLBACK_LIST, buildGeminiUrl, fixJsonEscapes, extractJsonObject,
+            showToast
+        } from "./api-key-manager.js";
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
         import { getDatabase, ref, set, get, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -901,19 +905,7 @@
         initApiKeyManager({ needGemini: true, needDeepseek: true });
 
         // ✨ 写真解析は画像認識に強い Gemini API のエンドポイントを使用
-        // 🔁【フォールバック対応】無料枠のRPD制限（1日20回など）に達したモデルから順に切り替える
-        const GEMINI_MODEL_FALLBACK_LIST = [
-            'gemini-3.6-flash',
-            'gemini-3.5-flash',
-            'gemini-3-flash-preview',
-            'gemini-2.5-flash',
-            'gemini-3.5-flash-lite',
-            'gemini-3.1-flash-lite',
-            'gemini-2.5-flash-lite'
-        ];
-        function buildGeminiUrl(modelName, apiKey) {
-            return `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-        }
+        // ✨ GEMINI_MODEL_FALLBACK_LIST / buildGeminiUrl は api-key-manager.js から共通インポート
 
         // 🧠【教科ごとの解析プロンプト集】選択中の教科に応じて出し分ける
         const SUBJECT_CREATE_PROMPTS = {
@@ -1509,11 +1501,11 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
         // 📸【Gemini復帰】写真の画像認識が必要なので、ここはGemini Visionをそのまま叩く
         async function analyzeAndAddProblem(userRawText) {
             if (!currentUser) {
-                alert("エラー: ログイン状態が確認できません。Google接続してください。");
+                showToast("ログイン状態が確認できません。Google接続してください。", "error");
                 return;
             }
             if (getGeminiKeys().length === 0) {
-                alert("GeminiのAPIキーが登録されていません。右下の🔑ボタンから登録してください。");
+                showToast("GeminiのAPIキーが登録されていません。右下の🔑ボタンから登録してください。", "error");
                 return;
             }
             
@@ -1563,43 +1555,7 @@ ${glossaryBlock}`;
                     "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
                 });
 
-                const fixJsonEscapes = (str) => {
-                    let inString = false; let result = "";
-                    for (let i = 0; i < str.length; i++) {
-                        let c = str[i];
-                        if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
-                        else if (c === '\\' && inString) {
-                            let next = str[i+1];
-                            if (next === '"') { result += '\\"'; i++; }
-                            else if (next === '\\') { result += '\\\\'; i++; }
-                            else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
-                            else { result += '\\\\'; }
-                        } else if (inString && c.charCodeAt(0) < 0x20) {
-                            if (c === '\n') result += '\\n';
-                            else if (c === '\r') result += '\\r';
-                            else if (c === '\t') result += '\\t';
-                            else result += '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0');
-                        } else { result += c; }
-                    }
-                    return result;
-                };
-
-                // 🩹【新設】JSONの前後に余計な文章が付いてしまう事故への保険。
-                //    文字列中の { } は無視しつつ、最初の { から対応する閉じ } までを取り出す。
-                const extractJsonObject = (text) => {
-                    const start = text.indexOf('{');
-                    if (start === -1) return text;
-                    let depth = 0; let inString = false;
-                    for (let i = start; i < text.length; i++) {
-                        const c = text[i];
-                        if (c === '"' && text[i - 1] !== '\\') inString = !inString;
-                        if (!inString) {
-                            if (c === '{') depth++;
-                            else if (c === '}') { depth--; if (depth === 0) return text.substring(start, i + 1); }
-                        }
-                    }
-                    return text.substring(start);
-                };
+                // ✨ fixJsonEscapes / extractJsonObject は api-key-manager.js から共通インポート
 
                 let parsedResult = null;
                 let usedModel = null;
@@ -1692,7 +1648,7 @@ ${glossaryBlock}`;
 
             } catch (error) {
                 console.error("AI解析エラー発生:", error);
-                alert("❌ AI自動解析に失敗しました！\n\n【原因】:\n" + error.message);
+                showToast("AI自動解析に失敗しました！\n\n【原因】" + error.message, "error", 8000);
             } finally {
                 submitBtn.textContent = "AI自動解析を実行";
                 submitBtn.disabled = false;
@@ -1745,8 +1701,8 @@ ${glossaryBlock}`;
         if (clearKeysBtn) {
             clearKeysBtn.addEventListener("click", () => {
                 clearAllKeys();
-                alert("ブラウザに保存されていたGeminiとDeepSeekのAPIキーを全件消去しました。\n\n再読み込み後に🔑ボタンから新しいAPIキーを登録してください。");
-                location.reload();
+                showToast("ブラウザに保存されていたGeminiとDeepSeekのAPIキーを全件消去しました。再読み込み後に🔑ボタンから新しいAPIキーを登録してください。", "success", 2500);
+                setTimeout(() => { location.reload(); }, 1500);
             });
         }
 
@@ -1822,7 +1778,7 @@ ${glossaryBlock}`;
         if (submitBtn) {
             submitBtn.addEventListener("click", () => {
                 const text = textInput.value.trim();
-                if (!text && selectedImages.length === 0) { alert("写真を選択するかメモを入力してください。"); return; }
+                if (!text && selectedImages.length === 0) { showToast("写真を選択するかメモを入力してください。", "error"); return; }
                 analyzeAndAddProblem(text);
             });
         }
@@ -2085,7 +2041,7 @@ ${glossaryBlock}`;
                     qnaArchiveDetailModal.style.display = "none";
                 } catch (error) {
                     console.error("質問ログ削除エラー:", error);
-                    alert("削除に失敗しました。ネットワークの状態を確認してください。");
+                    showToast("削除に失敗しました。ネットワークの状態を確認してください。", "error");
                 }
             });
         }

@@ -126,7 +126,11 @@
     
     <script type="module">
         import { dailyProblemBank } from "./daily-data.js";
-        import { getGeminiKeys, fetchWithKeyRotation, initApiKeyManager, notifyModelFallback } from "./api-key-manager.js";
+        import {
+            getGeminiKeys, fetchWithKeyRotation, initApiKeyManager, notifyModelFallback,
+            GEMINI_MODEL_FALLBACK_LIST, buildGeminiUrl, stripCodeFence, fixJsonEscapes, extractJsonArray,
+            showToast
+        } from "./api-key-manager.js";
 
         const proto = "https" + "://";
         const d = ".";
@@ -153,62 +157,8 @@
 
         // 🔑【複数キー対応】index.html/problem.htmlと共通の管理UIを注入（未登録なら自動で開く）
         initApiKeyManager({ needGemini: true });
-
-        const GEMINI_MODEL_FALLBACK_LIST = [
-            'gemini-3.6-flash',
-            'gemini-3.5-flash',
-            'gemini-3-flash-preview',
-            'gemini-2.5-flash',
-            'gemini-3.5-flash-lite',
-            'gemini-3.1-flash-lite',
-            'gemini-2.5-flash-lite'
-        ];
-        function buildGeminiUrl(modelName, apiKey) {
-            return `${proto}generativelanguage${d}googleapis${d}com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-        }
-
-        function stripCodeFence(text) {
-            let t = text.trim();
-            if (t.startsWith("```json")) t = t.substring(7);
-            else if (t.startsWith("```")) t = t.substring(3);
-            if (t.endsWith("```")) t = t.substring(0, t.length - 3);
-            return t.trim();
-        }
-        function fixJsonEscapes(str) {
-            let inString = false; let result = "";
-            for (let i = 0; i < str.length; i++) {
-                let c = str[i];
-                if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
-                else if (c === '\\' && inString) {
-                    let next = str[i+1];
-                    if (next === '"') { result += '\\"'; i++; }
-                    else if (next === '\\') { result += '\\\\'; i++; }
-                    else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
-                    else { result += '\\\\'; }
-                } else if (inString && c.charCodeAt(0) < 0x20) {
-                    if (c === '\n') result += '\\n';
-                    else if (c === '\r') result += '\\r';
-                    else if (c === '\t') result += '\\t';
-                    else result += '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0');
-                } else { result += c; }
-            }
-            return result;
-        }
-        // 🩹 出題フォーマットはJSON配列（[...]）なので、オブジェクト版ではなく配列版の抽出関数を使う
-        function extractJsonArray(text) {
-            const start = text.indexOf('[');
-            if (start === -1) return text;
-            let depth = 0; let inString = false;
-            for (let i = start; i < text.length; i++) {
-                const c = text[i];
-                if (c === '"' && text[i - 1] !== '\\') inString = !inString;
-                if (!inString) {
-                    if (c === '[') depth++;
-                    else if (c === ']') { depth--; if (depth === 0) return text.substring(start, i + 1); }
-                }
-            }
-            return text.substring(start);
-        }
+        // ✨ GEMINI_MODEL_FALLBACK_LIST / buildGeminiUrl / stripCodeFence / fixJsonEscapes / extractJsonArray は
+        //    api-key-manager.js から共通インポート（重複定義の解消）
 
         let selectedQuestions = [];
         let currentQuestionIndex = 0;
@@ -473,7 +423,7 @@
 // ──────────────────────────────────────────────────────────
                 } catch (error) {
                     console.error("AI問題生成エラー:", error);
-                    alert("⚠️ Geminiによる問題生成に失敗しました。\n\n【エラー内容】\n" + error.message + "\n\n※予備問題データベース（200問）からランダムに10問選出して特訓を開始します！");
+                    showToast("Geminiによる問題生成に失敗しました。\n\n【エラー内容】" + error.message + "\n\n※予備問題データベース（200問）からランダムに10問選出して特訓を開始します！", "error", 8000);
                     
                     // 200問の予備問題バンクからランダムにシャッフルして10問を抽出
                     const shuffled = [...dailyProblemBank].sort(() => 0.5 - Math.random());
@@ -550,11 +500,11 @@
 
             try {
                 await set(targetRef, remindProblem);
-                alert("🚨 弱点としてロックオン！ダッシュボード（LOLZ）の復習リストに自動転送・同期しました！");
+                showToast("弱点としてロックオン！ダッシュボード（LOLZ）の復習リストに自動転送・同期しました！", "success", 3000);
                 nextQuestion();
             } catch (e) {
                 console.error(e);
-                alert("クラウドへの転送に失敗しました。");
+                showToast("クラウドへの転送に失敗しました。", "error");
             }
         }
 

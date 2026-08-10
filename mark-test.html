@@ -377,7 +377,11 @@
     </div>
 
     <script type="module">
-        import { getGeminiKeys, fetchWithKeyRotation, initApiKeyManager, notifyModelFallback } from "./api-key-manager.js";
+        import {
+            getGeminiKeys, fetchWithKeyRotation, initApiKeyManager, notifyModelFallback,
+            GEMINI_MODEL_FALLBACK_LIST, buildGeminiUrl, fixJsonEscapes, extractJsonObject,
+            showToast
+        } from "./api-key-manager.js";
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
         import { getDatabase, ref, set, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -399,54 +403,8 @@
 
         // 🔑 正解表の写真読み取り（任意機能）のためGeminiキーだけ要求する
         initApiKeyManager({ needGemini: true });
-
-        const GEMINI_MODEL_FALLBACK_LIST = [
-            'gemini-3.6-flash',
-            'gemini-3.5-flash',
-            'gemini-3-flash-preview',
-            'gemini-2.5-flash',
-            'gemini-3.5-flash-lite',
-            'gemini-3.1-flash-lite',
-            'gemini-2.5-flash-lite'
-        ];
-        function buildGeminiUrl(modelName, apiKey) {
-            return `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-        }
-
-        // 🧠 共通ヘルパー：AIの生テキストからJSONを安全に取り出す
-        function fixJsonEscapes(str) {
-            let inString = false; let result = "";
-            for (let i = 0; i < str.length; i++) {
-                let c = str[i];
-                if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
-                else if (c === '\\' && inString) {
-                    let next = str[i+1];
-                    if (next === '"') { result += '\\"'; i++; }
-                    else if (next === '\\') { result += '\\\\'; i++; }
-                    else { result += '\\\\'; }
-                } else if (inString && c.charCodeAt(0) < 0x20) {
-                    if (c === '\n') result += '\\n';
-                    else if (c === '\r') result += '\\r';
-                    else if (c === '\t') result += '\\t';
-                    else result += '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0');
-                } else { result += c; }
-            }
-            return result;
-        }
-        function extractJsonObject(text) {
-            const start = text.indexOf('{');
-            if (start === -1) return text;
-            let depth = 0; let inString = false;
-            for (let i = start; i < text.length; i++) {
-                const c = text[i];
-                if (c === '"' && text[i - 1] !== '\\') inString = !inString;
-                if (!inString) {
-                    if (c === '{') depth++;
-                    else if (c === '}') { depth--; if (depth === 0) return text.substring(start, i + 1); }
-                }
-            }
-            return text.substring(start);
-        }
+        // ✨ GEMINI_MODEL_FALLBACK_LIST / buildGeminiUrl / fixJsonEscapes / extractJsonObject は
+        //    api-key-manager.js から共通インポート（重複定義の解消）
 
         // 📸 画像圧縮ヘルパー
         function compressImageFile(file) {
@@ -485,6 +443,58 @@
         let aiSolveImages = []; // 問題solving用にアップロードした写真
         let solvedInfo = {}; // { no: { explanation, shortTitle, field, imageDataUrl } }
 
+        // ==========================================================================
+        // 💾【セッション永続化】採点グリッド入力中に別画面へ行っても消えないようにする。
+        // 「③採点を確定」した時点でこのセッションは役目を終えるためクリアする
+        // （以降は結果画面側の操作＝クラウド登録によって別途データが残る）。
+        // ==========================================================================
+        const MARKTEST_SESSION_KEY = "RE_MIND_MARKTEST_SESSION";
+
+        function saveMarkTestSession() {
+            try {
+                const payload = {
+                    selectedSubject,
+                    examName: document.getElementById("exam-name-input")?.value || "",
+                    examField: document.getElementById("exam-field-input")?.value || "",
+                    rows
+                };
+                localStorage.setItem(MARKTEST_SESSION_KEY, JSON.stringify(payload));
+            } catch (e) {
+                console.warn("セッション保存に失敗しました", e);
+            }
+        }
+
+        function clearMarkTestSession() {
+            try { localStorage.removeItem(MARKTEST_SESSION_KEY); } catch (e) { /* noop */ }
+        }
+
+        function restoreMarkTestSessionIfAny() {
+            let session;
+            try {
+                const raw = localStorage.getItem(MARKTEST_SESSION_KEY);
+                if (!raw) return;
+                session = JSON.parse(raw);
+            } catch (e) { return; }
+
+            if (!session || !Array.isArray(session.rows) || session.rows.length === 0) return;
+
+            rows = session.rows;
+            if (session.selectedSubject) window.setSelectedSubject(session.selectedSubject);
+            if (session.examName) document.getElementById("exam-name-input").value = session.examName;
+            if (session.examField) document.getElementById("exam-field-input").value = session.examField;
+
+            renderGrid();
+            document.getElementById("grid-section").style.display = "block";
+            showToast("前回の途中の採点グリッドを復元しました。", "info", 3000);
+        }
+
+        // タブを閉じる／別ページへ移動する直前にも、入力途中のグリッドを確実に保存する
+        window.addEventListener("pagehide", () => {
+            if (document.getElementById("grid-section").style.display !== "none" && rows.length > 0) {
+                saveMarkTestSession();
+            }
+        });
+
         window.setSelectedSubject = function(subject) {
             selectedSubject = subject;
             document.querySelectorAll(".subject-select-btn").forEach(btn => {
@@ -506,6 +516,7 @@
             rows = [];
             wrongRegistry = {};
             solvedInfo = {};
+            clearMarkTestSession();
             renderGrid();
             document.getElementById("grid-section").style.display = "block";
             document.getElementById("result-section").style.display = "none";
@@ -519,6 +530,12 @@
                 rows.push({ no: String(start + i), my: "", correct: "", field: "" });
             }
             renderGrid();
+            saveMarkTestSession();
+        });
+
+        ["exam-name-input", "exam-field-input"].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener("input", () => { if (rows.length > 0) saveMarkTestSession(); });
         });
 
         function renderGrid() {
@@ -543,6 +560,7 @@
                     const field = e.target.getAttribute("data-field");
                     rows[idx][field] = e.target.value;
                     if (field === "my" || field === "correct") updateLiveScore();
+                    saveMarkTestSession();
                 });
             });
             updateLiveScore();
@@ -598,6 +616,7 @@
             ensureRowCount(nums.length);
             nums.forEach((v, i) => { if (rows[i]) rows[i].my = v; });
             renderGrid();
+            saveMarkTestSession();
         });
         document.getElementById("apply-correct-answers-btn").addEventListener("click", () => {
             const nums = parseBulkNumbers(document.getElementById("bulk-correct-answers").value);
@@ -605,6 +624,7 @@
             ensureRowCount(nums.length);
             nums.forEach((v, i) => { if (rows[i]) rows[i].correct = v; });
             renderGrid();
+            saveMarkTestSession();
         });
 
         // ==========================================================================
@@ -690,6 +710,7 @@
                     if (rowIdx >= 0 && a.correct) { rows[rowIdx].correct = String(a.correct).replace(/[^0-9]/g, ""); appliedCount++; }
                 });
                 renderGrid();
+                saveMarkTestSession();
                 statusEl.textContent = `✅ ${appliedCount}問分の正解をグリッドに反映しました。番号がズレている場合は手動で修正してください。`;
             } catch (error) {
                 console.error(error);
@@ -874,6 +895,7 @@ ${targetNote ? `【対象指定】以下で指定された問題番号だけを�
                     return String(r1.no).localeCompare(String(r2.no), "ja");
                 });
                 renderGrid();
+                saveMarkTestSession();
 
                 statusEl.textContent = `✅ ${appliedCount}問の正解をグリッドに反映しました${addedCount > 0 ? `（うち${addedCount}問はグリッドに新規追加）` : ""}。内容を確認し、必要なら手動で修正してください。`;
             } catch (error) {
@@ -919,12 +941,13 @@ ${targetNote ? `【対象指定】以下で指定された問題番号だけを�
 
             try {
                 await autoLightRegisterAll(wrongRows);
+                clearMarkTestSession();
                 renderWrongList();
                 document.getElementById("result-section").style.display = "block";
                 document.getElementById("result-section").scrollIntoView({ behavior: "smooth", block: "start" });
             } catch (error) {
                 console.error(error);
-                alert("❌ 誤答の自動登録に失敗しました：\n" + error.message);
+                showToast("誤答の自動登録に失敗しました：" + error.message, "error", 8000);
             } finally {
                 btn.textContent = "③ 採点を確定して間違えた問題を見る";
                 btn.disabled = false;
@@ -1075,7 +1098,7 @@ ${targetNote ? `【対象指定】以下で指定された問題番号だけを�
                 renderWrongList();
             } catch (error) {
                 console.error(error);
-                alert("❌ 詳しく記録できませんでした：\n" + error.message);
+                showToast("詳しく記録できませんでした：" + error.message, "error", 8000);
             } finally {
                 btn.textContent = "この内容で詳しく記録する";
                 btn.disabled = false;
@@ -1107,7 +1130,7 @@ ${targetNote ? `【対象指定】以下で指定された問題番号だけを�
                 setTimeout(() => { btn.textContent = "この模試の結果を保存する"; btn.disabled = false; }, 1500);
             } catch (error) {
                 console.error(error);
-                alert("❌ 保存に失敗しました：\n" + error.message);
+                showToast("保存に失敗しました：" + error.message, "error", 8000);
                 btn.textContent = "この模試の結果を保存する";
                 btn.disabled = false;
             }
@@ -1173,6 +1196,7 @@ ${targetNote ? `【対象指定】以下で指定された問題番号だけを�
                 loginNotice.style.display = "none";
                 mainArea.style.display = "block";
                 listenToHistory(user.uid);
+                restoreMarkTestSessionIfAny();
             } else {
                 currentUser = null;
                 authPanel.innerHTML = `<span style="color:var(--accent-magenta); cursor:pointer;" id="header-login-btn">SIGN IN</span>`;

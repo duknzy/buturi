@@ -595,7 +595,11 @@
     </div>
 
    <script type="module">
-        import { getGeminiKeys, fetchWithKeyRotation, initApiKeyManager } from "./api-key-manager.js";
+        import {
+            getGeminiKeys, fetchWithKeyRotation, initApiKeyManager,
+            GEMINI_MODEL_FALLBACK_LIST, buildGeminiUrl, stripCodeFence, fixJsonEscapes, extractJsonObject,
+            showToast
+        } from "./api-key-manager.js";
 
         const proto = "https" + "://";
         const d = ".";
@@ -620,19 +624,7 @@
         const database = getDatabase(app);
 
         initApiKeyManager({ needGemini: true });
-
-        const GEMINI_MODEL_FALLBACK_LIST = [
-            'gemini-3.6-flash',
-            'gemini-3.5-flash',
-            'gemini-3-flash-preview',
-            'gemini-2.5-flash',
-            'gemini-3.5-flash-lite',
-            'gemini-3.1-flash-lite',
-            'gemini-2.5-flash-lite'
-        ];
-        function buildGeminiUrl(modelName, apiKey) {
-            return `${proto}generativelanguage${d}googleapis${d}com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-        }
+        // ✨ GEMINI_MODEL_FALLBACK_LIST / buildGeminiUrl は api-key-manager.js から共通インポート
 
         const DEFAULT_POLICY_PROMPT = `あなたは大学受験生専属の家庭教師です。生徒が持ち込んだ「特定の参考書」の内容をもとに、わかりやすく解説授業を行ってください。
 
@@ -649,49 +641,7 @@
 ・参考書の記述と、あなたが一般知識として持っている標準的な説明が食い違う場合は、参考書の記述を優先し、その参考書の流儀で説明すること。ただし参考書側に明らかな誤植・矛盾がある場合は、その旨を明示した上で指摘してよい
 ・参考書に載っていない内容を補足する場合は、「ここから先は参考書に載っていない一般的な補足です」のように、参考書本文と自分の補足を生徒がはっきり区別できるように書くこと`;
 
-        function stripCodeFence(text) {
-            let t = text.trim();
-            if (t.startsWith("```json")) t = t.substring(7);
-            else if (t.startsWith("```")) t = t.substring(3);
-            if (t.endsWith("```")) t = t.substring(0, t.length - 3);
-            return t.trim();
-        }
-        function fixJsonEscapes(str) {
-            let inString = false; let result = "";
-            for (let i = 0; i < str.length; i++) {
-                let c = str[i];
-                if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
-                else if (c === '\\' && inString) {
-                    let next = str[i+1];
-                    if (next === '"') { result += '\\"'; i++; }
-                    else if (next === '\\') { result += '\\\\'; i++; }
-                    else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
-                    else { result += '\\\\'; }
-                } else if (inString && c.charCodeAt(0) < 0x20) {
-                    if (c === '\n') result += '\\n';
-                    else if (c === '\r') result += '\\r';
-                    else if (c === '\t') result += '\\t';
-                    else result += '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0');
-                } else { result += c; }
-            }
-            return result;
-        }
-
-        // 🩹【新設】JSONの前後に余計な文章が付いてしまう事故への保険。
-        function extractJsonObject(text) {
-            const start = text.indexOf('{');
-            if (start === -1) return text;
-            let depth = 0; let inString = false;
-            for (let i = start; i < text.length; i++) {
-                const c = text[i];
-                if (c === '"' && text[i - 1] !== '\\') inString = !inString;
-                if (!inString) {
-                    if (c === '{') depth++;
-                    else if (c === '}') { depth--; if (depth === 0) return text.substring(start, i + 1); }
-                }
-            }
-            return text.substring(start);
-        }
+        // ✨ stripCodeFence / fixJsonEscapes / extractJsonObject は api-key-manager.js から共通インポート
 
         // 🔁 Gemini呼び出し共通関数（モデル×キーの二重フォールバック）
         async function callGeminiJSON(parts, systemInstruction) {
@@ -802,7 +752,7 @@
             customPolicyPrompt = text;
             await savePolicyPrompt(loginUid, text);
             el("settings-modal").style.display = "none";
-            alert("授業の方針を保存しました。");
+            showToast("授業の方針を保存しました。", "success", 3000);
         });
 
         // --------------------------------------------------------------
@@ -862,7 +812,7 @@
                 try {
                     selectedImages.push(await normalizeImageFile(file));
                 } catch (err) {
-                    alert(err.message);
+                    showToast(err.message, "error");
                 }
             }
             renderThumbs();
@@ -884,7 +834,7 @@
                 try {
                     chatSelectedImages.push(await normalizeImageFile(file));
                 } catch (err) {
-                    alert(err.message);
+                    showToast(err.message, "error");
                 }
             }
             e.target.value = "";
@@ -921,11 +871,11 @@
 
         async function generatePlan() {
             if (creationMode === "photo" && selectedImages.length === 0) {
-                alert("まずは参考書のページ写真をアップロードしてください。");
+                showToast("まずは参考書のページ写真をアップロードしてください。", "error");
                 return;
             }
             if (creationMode === "topic" && !el("topic-input").value.trim()) {
-                alert("学びたい単元名を入力してください。");
+                showToast("学びたい単元名を入力してください。", "error");
                 return;
             }
 
@@ -944,13 +894,13 @@
                 PLAN_SYSTEM_INSTRUCTION = `${customPolicyPrompt}
 
 今回はまだ授業本編ではなく、授業の準備をしてください。
-1. 添付された参考書ページの内容を正確に読み取り、全文を書き出すこと（数式は $ $ で囲むこと）
+1. 添付された参考書ページの内容を正確に読み取り、全文を書き出すこと（数式は $ $ で囲むこと）。【厳守】要約・省略は絶対禁止。ページ数が多くても、最後のページの内容まで一字一句省略せず全文を書き出すこと。1文でも省いたら失格とみなす。
 2. 内容量を踏まえて、区切りの良い単位で「大まかな授業プラン」を作成すること（目安は2〜6パート程度。多すぎず少なすぎないように）
 3. この範囲の中で、参考書オリジナルの名前がついた法則・定理・原則・手順（例:「タッチの定理」「大原則」「手順①〜⑦」のような、この本独自の呼び方をしているもの）があれば、その名称と定義を簡潔に抽出すること。一般的な物理・数学用語（力、速度など）はここには含めない。「この本オリジナルの呼び方・造語・番号付き手順」だけを対象にすること
 
 出力は必ず以下のJSON形式のみで返してください。他のテキストは一切含めないこと。
 {
-  "extracted_text": "読み取った参考書の全文（数式は $ $ で囲む）",
+  "extracted_text": "読み取った参考書の全文（数式は $ $ で囲む）。省略・要約は禁止、全ページの内容を漏れなく含めること",
   "lesson_title": "この授業全体を表す短いタイトル",
   "parts": [
     { "title": "パートのタイトル", "summary": "このパートで扱う内容の要約（1〜2文）" }
@@ -1008,7 +958,7 @@
                 await forceTriggerMathJax();
             } catch (err) {
                 console.error(err);
-                alert("授業プランの作成に失敗しました。\n原因: " + err.message);
+                showToast("授業プランの作成に失敗しました。原因: " + err.message, "error", 8000);
             } finally {
                 btn.textContent = originalText;
                 btn.disabled = false;
@@ -1082,7 +1032,7 @@
                 window.location.href = `lesson.html?id=${newId}`;
             } catch (err) {
                 console.error(err);
-                alert("授業の開始に失敗しました。\n原因: " + err.message);
+                showToast("授業の開始に失敗しました。原因: " + err.message, "error", 8000);
                 btn.textContent = "✅ この内容で授業を始める";
                 btn.disabled = false;
             }
@@ -1271,7 +1221,7 @@ ${photoHandlingBlock}
 
             const range = findPartDividerRange(partIndex);
             if (!range) {
-                alert("この回の授業データが見つかりませんでした。");
+                showToast("この回の授業データが見つかりませんでした。", "error");
                 return;
             }
 
@@ -1306,7 +1256,7 @@ ${photoHandlingBlock}
                 await forceTriggerMathJax();
             } catch (err) {
                 console.error(err);
-                alert("この回の作り直しに失敗しました。\n原因: " + err.message);
+                showToast("この回の作り直しに失敗しました。原因: " + err.message, "error", 8000);
             } finally {
                 renderPartsTOC();
             }
@@ -1502,7 +1452,7 @@ ${photoHandlingBlock}
                 await sendTurn(displayText, null, imagesToSend);
             } catch (err) {
                 console.error(err);
-                alert("送信に失敗しました。\n原因: " + err.message);
+                showToast("送信に失敗しました。原因: " + err.message, "error", 8000);
             } finally {
                 sendBtn.disabled = false;
                 sendBtn.textContent = "送信";
@@ -1534,7 +1484,7 @@ ${photoHandlingBlock}
                 await sendTurn(null, "次のパートの授業を始めてください。");
             } catch (err) {
                 console.error(err);
-                alert("授業の生成に失敗しました。\n原因: " + err.message);
+                showToast("授業の生成に失敗しました。原因: " + err.message, "error", 8000);
             } finally {
                 btn.disabled = false;
                 updateCompletionUI();
@@ -1547,8 +1497,8 @@ ${photoHandlingBlock}
         async function loadLessonView(uid, lessonId) {
             const snap = await get(ref(database, 'users/' + uid + '/lessons/' + lessonId));
             if (!snap.exists()) {
-                alert("指定された授業が見つかりませんでした。");
-                window.location.href = "lesson.html";
+                showToast("指定された授業が見つかりませんでした。", "error");
+                setTimeout(() => { window.location.href = "lesson.html"; }, 1200);
                 return;
             }
             currentLesson = snap.val();
@@ -1576,7 +1526,7 @@ ${photoHandlingBlock}
                     await sendTurn(null, "このパートの授業を始めてください。");
                 } catch (err) {
                     console.error(err);
-                    alert("授業の生成に失敗しました。\n原因: " + err.message);
+                    showToast("授業の生成に失敗しました。原因: " + err.message, "error", 8000);
                 }
             } else {
                 renderChatTranscript();

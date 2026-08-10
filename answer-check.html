@@ -289,7 +289,11 @@
     </div>
 
     <script type="module">
-        import { getGeminiKeys, fetchWithKeyRotation, initApiKeyManager, notifyModelFallback } from "./api-key-manager.js";
+        import {
+            getGeminiKeys, fetchWithKeyRotation, initApiKeyManager, notifyModelFallback,
+            GEMINI_MODEL_FALLBACK_LIST, buildGeminiUrl, stripCodeFence, fixJsonEscapes, extractJsonObject,
+            showToast
+        } from "./api-key-manager.js";
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
         import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -311,19 +315,8 @@
 
         // 🔑 このページでは画像認識に強いGeminiだけを使うため、Geminiキーだけ要求する
         initApiKeyManager({ needGemini: true });
-
-        const GEMINI_MODEL_FALLBACK_LIST = [
-            'gemini-3.6-flash',
-            'gemini-3.5-flash',
-            'gemini-3-flash-preview',
-            'gemini-2.5-flash',
-            'gemini-3.5-flash-lite',
-            'gemini-3.1-flash-lite',
-            'gemini-2.5-flash-lite'
-        ];
-        function buildGeminiUrl(modelName, apiKey) {
-            return `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-        }
+        // ✨ GEMINI_MODEL_FALLBACK_LIST / buildGeminiUrl / stripCodeFence / fixJsonEscapes / extractJsonObject は
+        //    api-key-manager.js から共通インポート（重複定義の解消）
 
         // 🎯【最重要】1回の入力・複数枚の写真に複数の小問が含まれる場合のルール
         const MULTI_QUESTION_INSTRUCTION = `
@@ -333,6 +326,13 @@
 - 対象指定メモが「290~293」のような範囲、または「287, 289, 291」のような複数指定の場合は、指定された数だけそれぞれ**独立した別々の項目**として"answers"配列に入れること。絶対にまとめて要約したり、1つの項目に複数問を混ぜて書いたりしないこと。
 - 対象指定メモが空欄、または対象が曖昧な場合は、画像内（複数枚ある場合は全画像の中）で最も分かりやすく完結している小問を1つだけ自分で選び、その項目のextracted_textの冒頭に「（対象指定メモが空欄だったため、○○を対象として解答しました。他の小問も知りたい場合は対象指定メモに書いてください）」のように必ず明記し、"answers"配列にはその1件だけを入れること。
 - "answers"配列の各要素には、必ず対応する小問の番号・記号を"label"に入れること（例："290"、"(2)"など）。
+
+【最重要・絶対厳守：問題文の完全な書き写し】
+対象と判断した小問について、extracted_textにはその設問の問題文を一字一句省略せず、最初から最後まで全文をそのまま書き写すこと。
+- (1)(2)(3)のように対象の小問の中にさらに複数の設問がある場合は、その全てを漏れなく含めること。
+- ア、イ、ウ…のような空欄（穴埋め）記号がある場合は、その空欄の記号もひとつも省略せずすべて含めること。
+- model_answerの中で解答・言及している空欄や設問は、必ずextracted_textにも同じ記号・番号で登場していなければならない。extracted_textに書いていない空欄について答えを作ってはならない（矛盾は絶対に許されない）。
+- 問題文が長い場合でも、要約したり途中を省略したりしないこと。
 `.trim();
 
         const QUICK_SUBJECT_CONFIG = {
@@ -388,7 +388,7 @@ ${MULTI_QUESTION_INSTRUCTION}
       "label": "対象にした問題の番号・記号（例：290、(2) など）",
       "field": "${c.fieldExample}",
       "short_title": "この1問だけの要約タイトル（15字程度）",
-      "extracted_text": "対象と判断したこの1問だけの正確な問題文。${c.extractedNote}",
+      "extracted_text": "対象と判断したこの1問だけの正確な問題文。${c.extractedNote} 【厳守】要約・省略は絶対禁止。問題文がどれだけ長くても、最後の設問・選択肢・空欄記号（ア,イ,ウ…等）まで一字一句省略せず全文を書き出すこと。1つでも文・記号を省いたら失格とみなす。",
       "model_answer": "この1問だけの最終的な正しい答えと、簡潔なステップ解説。${c.answerNote}"
     }
   ]
@@ -396,27 +396,8 @@ ${MULTI_QUESTION_INSTRUCTION}
 `.trim();
         }
 
-        // 🧠 共通ヘルパー：AIの生テキストからJSONを安全に取り出す
-        function fixJsonEscapes(str) {
-            let inString = false; let result = "";
-            for (let i = 0; i < str.length; i++) {
-                let c = str[i];
-                if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
-                else if (c === '\\' && inString) {
-                    let next = str[i+1];
-                    if (next === '"') { result += '\\"'; i++; }
-                    else if (next === '\\') { result += '\\\\'; i++; }
-                    else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
-                    else { result += '\\\\'; }
-                } else if (inString && c.charCodeAt(0) < 0x20) {
-                    if (c === '\n') result += '\\n';
-                    else if (c === '\r') result += '\\r';
-                    else if (c === '\t') result += '\\t';
-                    else result += '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0');
-                } else { result += c; }
-            }
-            return result;
-        }
+        // ✨ fixJsonEscapes / stripCodeFence / extractJsonObject は api-key-manager.js から共通インポート
+
         // 📝【問題文の可読性改善】AI文字起こしで改行が入らず長文が1塊になるのを防ぐ。
         // problem.htmlの同名関数と同じロジック（小問番号(1)(2)や(i)(ii)の前で改行）。
         function formatQuestionText(raw) {
@@ -433,30 +414,6 @@ ${MULTI_QUESTION_INSTRUCTION}
             t = t.replace(/\n{3,}/g, "\n\n").replace(/^\n+/, "").trim();
 
             return t.replace(/\n/g, "<br>");
-        }
-
-        function stripCodeFence(text) {
-            let t = text.trim();
-            if (t.startsWith("```json")) t = t.substring(7);
-            else if (t.startsWith("```")) t = t.substring(3);
-            if (t.endsWith("```")) t = t.substring(0, t.length - 3);
-            return t.trim();
-        }
-
-        // 🩹【新設】JSONの前後に余計な文章が付いてしまう事故への保険。
-        function extractJsonObject(text) {
-            const start = text.indexOf('{');
-            if (start === -1) return text;
-            let depth = 0; let inString = false;
-            for (let i = start; i < text.length; i++) {
-                const c = text[i];
-                if (c === '"' && text[i - 1] !== '\\') inString = !inString;
-                if (!inString) {
-                    if (c === '{') depth++;
-                    else if (c === '}') { depth--; if (depth === 0) return text.substring(start, i + 1); }
-                }
-            }
-            return text.substring(start);
         }
 
         let currentUser = null;
@@ -530,11 +487,11 @@ ${MULTI_QUESTION_INSTRUCTION}
             const noteInput = document.getElementById("target-note-input");
             const noteText = noteInput.value.trim();
             if (!noteText && selectedImages.length === 0) {
-                alert("写真を選択するか、対象指定メモ（または問題文）を入力してください。");
+                showToast("写真を選択するか、対象指定メモ（または問題文）を入力してください。", "error");
                 return;
             }
             if (getGeminiKeys().length === 0) {
-                alert("GeminiのAPIキーが登録されていません。右下の🔑ボタンから登録してください。");
+                showToast("GeminiのAPIキーが登録されていません。右下の🔑ボタンから登録してください。", "error");
                 return;
             }
 
@@ -624,7 +581,7 @@ ${MULTI_QUESTION_INSTRUCTION}
 
             } catch (error) {
                 console.error(error);
-                alert("❌ 答えの確認に失敗しました。\n\n【原因】:\n" + error.message);
+                showToast("答えの確認に失敗しました。\n\n【原因】" + error.message, "error", 8000);
             } finally {
                 btn.textContent = originalText;
                 btn.disabled = false;
@@ -723,7 +680,7 @@ ${MULTI_QUESTION_INSTRUCTION}
 
             } catch (error) {
                 console.error(error);
-                alert("クラウドへの登録に失敗しました。\n" + error.message);
+                showToast("クラウドへの登録に失敗しました。" + error.message, "error");
                 btn.textContent = originalText;
                 btn.disabled = false;
                 document.getElementById(`btn-correct-${idx}`).disabled = false;

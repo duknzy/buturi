@@ -114,6 +114,90 @@ export async function fetchWithKeyRotation(keys, buildRequest) {
 }
 
 // --------------------------------------------------------------------------
+// 🧠【共通化】以前は各ページに個別コピペされていたGemini関連の定数・ヘルパー群。
+// モデルの追加/削除やJSON抽出ロジックの修正は、今後ここ1箇所を直せば全ページに反映される。
+// --------------------------------------------------------------------------
+
+// ✨ 無料枠のRPD制限（1日20回など）に達したモデルから順に切り替えるフォールバック順
+export const GEMINI_MODEL_FALLBACK_LIST = [
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-3-flash-preview',
+    'gemini-2.5-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3.1-flash-lite',
+    'gemini-2.5-flash-lite'
+];
+
+export function buildGeminiUrl(modelName, apiKey) {
+    return `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+}
+
+// Markdownのコードブロックタグ（```json ... ```）を取り除く
+export function stripCodeFence(text) {
+    let t = text.trim();
+    if (t.startsWith("```json")) t = t.substring(7);
+    else if (t.startsWith("```")) t = t.substring(3);
+    if (t.endsWith("```")) t = t.substring(0, t.length - 3);
+    return t.trim();
+}
+
+// AIが\fracなどのバックスラッシュをエスケープし忘れた場合の保険的な修正
+export function fixJsonEscapes(str) {
+    let inString = false; let result = "";
+    for (let i = 0; i < str.length; i++) {
+        let c = str[i];
+        if (c === '"' && (i === 0 || str[i-1] !== '\\')) { inString = !inString; result += c; }
+        else if (c === '\\' && inString) {
+            let next = str[i+1];
+            if (next === '"') { result += '\\"'; i++; }
+            else if (next === '\\') { result += '\\\\'; i++; }
+            else if (next === 'n' && (str[i+2] === ' ' || str[i+2] === '"' || str[i+2] === '\\' || !/[a-zA-Z]/.test(str[i+2]))) { result += '\\n'; i++; }
+            else { result += '\\\\'; }
+        } else if (inString && c.charCodeAt(0) < 0x20) {
+            // 🩹 生の制御文字（未エスケープの改行・タブ等）がJSON文字列中に紛れ込んだ場合の保険
+            if (c === '\n') result += '\\n';
+            else if (c === '\r') result += '\\r';
+            else if (c === '\t') result += '\\t';
+            else result += '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0');
+        } else { result += c; }
+    }
+    return result;
+}
+
+// テキストの中から最初の { ... } を対応する括弧の深さで正確に切り出す
+export function extractJsonObject(text) {
+    const start = text.indexOf('{');
+    if (start === -1) return text;
+    let depth = 0; let inString = false;
+    for (let i = start; i < text.length; i++) {
+        const c = text[i];
+        if (c === '"' && text[i - 1] !== '\\') inString = !inString;
+        if (!inString) {
+            if (c === '{') depth++;
+            else if (c === '}') { depth--; if (depth === 0) return text.substring(start, i + 1); }
+        }
+    }
+    return text.substring(start);
+}
+
+// テキストの中から最初の [ ... ] を対応する括弧の深さで正確に切り出す（出題フォーマットが配列の場合）
+export function extractJsonArray(text) {
+    const start = text.indexOf('[');
+    if (start === -1) return text;
+    let depth = 0; let inString = false;
+    for (let i = start; i < text.length; i++) {
+        const c = text[i];
+        if (c === '"' && text[i - 1] !== '\\') inString = !inString;
+        if (!inString) {
+            if (c === '[') depth++;
+            else if (c === ']') { depth--; if (depth === 0) return text.substring(start, i + 1); }
+        }
+    }
+    return text.substring(start);
+}
+
+// --------------------------------------------------------------------------
 // 🖥 管理モーダルUI（右下の🔑ボタンから開く / 未登録時は自動で開く）
 // --------------------------------------------------------------------------
 let uiInjected = false;
@@ -406,4 +490,77 @@ export function notifyModelFallback(attempts, usedModel) {
     const remove = () => { if (toast.parentNode) toast.parentNode.removeChild(toast); };
     toast.querySelector(".apikm-fallback-toast-close").addEventListener("click", remove);
     setTimeout(remove, 8000);
+}
+
+// --------------------------------------------------------------------------
+// 🔔【共通トースト】alert()の代わりに使う、画面を止めない非ブロッキング通知。
+// alert()はOSネイティブのダイアログでクリックするまで操作を止めてしまうため、
+// エラー/成功メッセージの表示にはこちらを使う。破壊的操作の最終確認には
+// 引き続き confirm() を使うこと（あちらは「止めて判断させる」ことが目的のため）。
+// type: "error" | "success" | "info"（省略時は"info"）
+// duration: 自動で消えるまでのms（省略時は6000。0を渡すと自動では消えない）
+// --------------------------------------------------------------------------
+let genericToastStyleInjected = false;
+
+function injectGenericToastStyles() {
+    if (genericToastStyleInjected) return;
+    genericToastStyleInjected = true;
+    const style = document.createElement("style");
+    style.textContent = `
+        #apikm-toast-wrap {
+            position: fixed; left: 50%; top: 1.2rem; transform: translateX(-50%);
+            z-index: 100070; display: flex; flex-direction: column; gap: 0.6rem;
+            width: calc(100% - 2.4rem); max-width: 420px; pointer-events: none;
+        }
+        .apikm-toast {
+            pointer-events: auto;
+            background: rgba(10,10,18,0.97); border-radius: 14px; padding: 0.85rem 1rem;
+            color: var(--text-main, #fff); font-size: 0.85rem; line-height: 1.5; font-weight: 700;
+            display: flex; align-items: flex-start; gap: 0.6rem;
+            box-shadow: 0 6px 22px rgba(0,0,0,0.45);
+            animation: apikm-toast-slide-in 0.2s ease;
+            border: 1px solid var(--border-color, #22222a);
+        }
+        .apikm-toast[data-type="error"] { border-color: #ff4545; box-shadow: 0 0 18px rgba(255,69,69,0.2); }
+        .apikm-toast[data-type="success"] { border-color: #00ff9d; box-shadow: 0 0 18px rgba(0,255,157,0.18); }
+        .apikm-toast[data-type="info"] { border-color: var(--accent-cyan, #00f3ff); box-shadow: 0 0 18px rgba(0,243,255,0.18); }
+        .apikm-toast-icon { flex-shrink: 0; font-size: 1rem; line-height: 1.4; }
+        .apikm-toast-msg { flex-grow: 1; white-space: pre-wrap; }
+        .apikm-toast-x { cursor: pointer; color: var(--text-muted,#708590); font-weight: 900; flex-shrink: 0; }
+        @keyframes apikm-toast-slide-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    `;
+    document.head.appendChild(style);
+}
+
+function getGenericToastWrap() {
+    let wrap = document.getElementById("apikm-toast-wrap");
+    if (!wrap) {
+        wrap = document.createElement("div");
+        wrap.id = "apikm-toast-wrap";
+        document.body.appendChild(wrap);
+    }
+    return wrap;
+}
+
+export function showToast(message, type = "info", duration = 6000) {
+    injectGenericToastStyles();
+    const wrap = getGenericToastWrap();
+
+    const icon = type === "error" ? "⚠️" : type === "success" ? "✅" : "💡";
+    const toast = document.createElement("div");
+    toast.className = "apikm-toast";
+    toast.dataset.type = type;
+    toast.innerHTML = `
+        <span class="apikm-toast-icon">${icon}</span>
+        <span class="apikm-toast-msg"></span>
+        <span class="apikm-toast-x">×</span>
+    `;
+    // メッセージはテキストとして挿入（HTMLインジェクション防止）
+    toast.querySelector(".apikm-toast-msg").textContent = message;
+    wrap.appendChild(toast);
+
+    const remove = () => { if (toast.parentNode) toast.parentNode.removeChild(toast); };
+    toast.querySelector(".apikm-toast-x").addEventListener("click", remove);
+    if (duration > 0) setTimeout(remove, duration);
+    return remove;
 }
