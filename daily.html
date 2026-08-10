@@ -3,6 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#050508">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="LOLZ">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icons/icon.png">
+    <link rel="apple-touch-icon" href="icons/icon.png">
     <title>LOLZ // DAILY SPRINT 10</title>
     <link rel="stylesheet" href="style.css">
     
@@ -59,7 +68,7 @@
     <div class="sprint-container">
         <!-- GLOBAL CYBER HUD NAV -->
         <nav class="global-cyber-nav">
-            <div class="nav-brand">SYSTEM OS // LOLZ</div>
+            <div class="nav-brand">//Lolz</div>
             <div class="nav-links">
                 <a href="index.html" class="nav-btn">🧠 誤答ノート</a>
                 <a href="daily.html" class="nav-btn active">🏁 計算スプリント</a>
@@ -127,9 +136,8 @@
     <script type="module">
         import { dailyProblemBank } from "./daily-data.js";
         import {
-            getGeminiKeys, fetchWithKeyRotation, initApiKeyManager, notifyModelFallback,
-            GEMINI_MODEL_FALLBACK_LIST, buildGeminiUrl, stripCodeFence, fixJsonEscapes, extractJsonArray,
-            showToast
+            getGeminiKeys, initApiKeyManager,
+            showToast, callGeminiJSON
         } from "./api-key-manager.js";
 
         const proto = "https" + "://";
@@ -351,67 +359,15 @@
                         throw new Error("GeminiのAPIキーがブラウザに設定されていません。右下の🔑ボタンから登録してください。");
                     }
 
-                    // 🚀 Gemini（モデル×キーの二重フォールバック）で問題生成
-                    const sprintGeminiBody = JSON.stringify({
-                        "contents": [{ "parts": [{ "text": systemPrompt }] }],
-                        "systemInstruction": { "parts": [{ "text": "あなたは優秀なAI数学教師です。指定されたJSONフォーマットの配列のみを厳密に返してください。" }] },
-                        "generationConfig": { "responseMimeType": "application/json", "temperature": 0.4 }
-                    });
+                    // 🚀 Gemini（モデル×キーの二重フォールバックは api-key-manager.js の callGeminiJSON に共通化済み）
+                    const aiQuestions = await callGeminiJSON(
+                        [{ text: systemPrompt }],
+                        "あなたは優秀なAI数学教師です。指定されたJSONフォーマットの配列のみを厳密に返してください。",
+                        { temperature: 0.4, arrayMode: true }
+                    );
 
-                    const attempts = [];
-                    let aiQuestions = null;
-                    let usedModel = null;
-
-                    for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
-                        let response;
-                        try {
-                            response = await fetchWithKeyRotation(getGeminiKeys(), (key) => ({
-                                url: buildGeminiUrl(modelName, key),
-                                options: {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: sprintGeminiBody
-                                }
-                            }));
-                        } catch (err) {
-                            console.warn(`⚠️ ${modelName} は登録済みの全キーで失敗しました → 次のモデルへ`, err);
-                            attempts.push({ model: modelName, reason: err.message || "通信エラー" });
-                            continue;
-                        }
-
-                        const candidateJson = await response.json();
-                        const candidateText = candidateJson?.candidates?.[0]?.content?.parts?.[0]?.text;
-                        if (!candidateText) {
-                            attempts.push({ model: modelName, reason: "空応答" });
-                            continue;
-                        }
-
-                        let rawJsonText = stripCodeFence(candidateText.trim());
-                        try {
-                            aiQuestions = JSON.parse(extractJsonArray(rawJsonText));
-                        } catch (e) {
-                            try {
-                                aiQuestions = JSON.parse(fixJsonEscapes(extractJsonArray(rawJsonText)));
-                            } catch (e2) {
-                                attempts.push({ model: modelName, reason: "JSON解析失敗" });
-                                continue;
-                            }
-                        }
-
-                        if (!Array.isArray(aiQuestions) || aiQuestions.length === 0) {
-                            attempts.push({ model: modelName, reason: "応答配列が異常" });
-                            aiQuestions = null;
-                            continue;
-                        }
-
-                        usedModel = modelName;
-                        break;
-                    }
-
-                    notifyModelFallback(attempts, usedModel);
-
-                    if (!aiQuestions) {
-                        throw new Error(`全モデルが利用できませんでした。最後の失敗理由: ${attempts[attempts.length - 1]?.reason || "不明"}`);
+                    if (!Array.isArray(aiQuestions) || aiQuestions.length === 0) {
+                        throw new Error("AIの応答が期待した配列形式ではありませんでした。");
                     }
 
                     await set(sprintCacheRef, { questions: aiQuestions, generatedAt: new Date().toISOString() });

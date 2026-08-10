@@ -73,8 +73,11 @@
             .main-question-tile {
                 grid-column: 1;
                 grid-row: 1;
-                max-height: 35vh; /* 💡 どれだけ問題文が長くても画面の35%以上は広がらないように天井を設置 */
-                overflow-y: auto;  /* 💡 万が一上限を超えた場合は、問題エリア内だけで美しくスクロール */
+                /* 💡【修正】以前はここに max-height:35vh; overflow-y:auto; を設定し、画像肥大化を防止していたが、
+                   内側の .question-collapsible-area で「全文を表示」を押して問題文を展開しても、
+                   この外枠が35vhで強制的に切ってしまい、下の方が見えなくなる不具合があった。
+                   .answer-formula-tile と同様に外枠の高さ制限を撤廃し、中身の長さに応じて
+                   自然に伸びる（＝ページ全体の通常スクロールで読める）形に変更 */
             }
             .answer-formula-tile {
                 grid-column: 1;
@@ -492,7 +495,7 @@
     <div class="workspace-container">
         <!-- GLOBAL CYBER HUD NAV -->
         <nav class="global-cyber-nav">
-            <div class="nav-brand">SYSTEM OS // LOLZ</div>
+            <div class="nav-brand">//Lolz</div>
             <button type="button" class="nav-hamburger-btn" aria-label="メニューを開く" aria-expanded="false">
                 <span></span><span></span><span></span>
             </button>
@@ -712,9 +715,9 @@
 
    <script type="module">
         import {
-            getGeminiKeys, getDeepseekKeys, fetchWithKeyRotation, initApiKeyManager, notifyModelFallback,
-            GEMINI_MODEL_FALLBACK_LIST, buildGeminiUrl, stripCodeFence, fixJsonEscapes, extractJsonObject,
-            showToast
+            getDeepseekKeys, fetchWithKeyRotation, initApiKeyManager,
+            stripCodeFence, fixJsonEscapes, extractJsonObject,
+            showToast, callGeminiJSON, callGeminiChat
         } from "./api-key-manager.js";
 
         const proto = "https" + "://";
@@ -745,7 +748,7 @@
         // 🔑【複数キー対応】右下の🔑ボタンから追加/削除できる管理UIを注入。未登録なら自動で開く。
         initApiKeyManager({ needGemini: true, needDeepseek: true });
 
-        // ✨ GEMINI_MODEL_FALLBACK_LIST / buildGeminiUrl は api-key-manager.js から共通インポート
+        // ✨ callGeminiJSON / callGeminiChat は api-key-manager.js から共通インポート済み
         const DEEPSEEK_API_URL = proto + "api" + d + "deepseek" + d + "com/v1/chat/completions";
         const MODEL_NAME = "deepseek-v4-flash";
 
@@ -1433,64 +1436,8 @@ ${glossaryBlock}`;
                     }
                 }
 
-                const requestBody = JSON.stringify({
-                    "contents": [{ "parts": parts }],
-                    "systemInstruction": { "parts": [{ "text": systemInstruction }] },
-                    "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
-                });
-
-                let parsedResult = null;
-                let usedModel = null;
-                let lastError = null;
-                const fallbackAttempts = []; // { model, reason } を蓄積
-
-                for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
-                    let response;
-                    try {
-                        response = await fetchWithKeyRotation(getGeminiKeys(), (key) => ({
-                            url: buildGeminiUrl(modelName, key),
-                            options: {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: requestBody
-                            }
-                        }));
-                    } catch (err) {
-                        console.warn(`⚠️ ${modelName} は登録済みの全キーで失敗しました → 次のモデルへフォールバック`, err);
-                        lastError = err;
-                        fallbackAttempts.push({ model: modelName, reason: err?.message || "不明な通信エラー" });
-                        continue;
-                    }
-
-                    const candidateJson = await response.json();
-                    const candidateText = candidateJson?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-                    if (!candidateText) {
-                        console.warn(`⚠️ ${modelName} が空の応答を返却しました → 次のモデルへフォールバック`);
-                        lastError = new Error(`Empty response: ${modelName}`);
-                        fallbackAttempts.push({ model: modelName, reason: "空応答（finishReason等が原因の可能性）" });
-                        continue;
-                    }
-
-                    try {
-                        parsedResult = JSON.parse(fixJsonEscapes(extractJsonObject(stripCodeFence(candidateText.trim()))));
-                        usedModel = modelName;
-                        break;
-                    } catch (parseErr) {
-                        console.warn(`⚠️ ${modelName} の応答が不正なJSONでした → 次のモデルへフォールバック`, parseErr);
-                        lastError = parseErr;
-                        fallbackAttempts.push({ model: modelName, reason: "JSON解析エラー（応答の形式が崩れていた）" });
-                        continue;
-                    }
-                }
-
-                notifyModelFallback(fallbackAttempts, usedModel);
-
-                if (!parsedResult) {
-                    throw new Error(`全モデルが利用できませんでした（レート制限または不正な応答）。時間を置いて再度お試しください。\n最終エラー: ${lastError?.message || "不明"}`);
-                }
-
-                return parsedResult;
+                // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
+                return await callGeminiJSON(parts, systemInstruction, { temperature: 0.3 });
             }
         }
 
@@ -1720,69 +1667,12 @@ ${glossaryBlock}`;
                     }
 
                 } else {
-                    // ✨ Gemini
+                    // ✨ Gemini（モデル×キーの二重フォールバックループは api-key-manager.js に共通化済み）
                     const geminiContents = conversationMessages.map(m => ({
                         role: m.role === "assistant" ? "model" : "user",
                         parts: [{ text: m.content }]
                     }));
-
-                    const tutorRequestBody = JSON.stringify({
-                        "contents": geminiContents,
-                        "systemInstruction": { "parts": [{ "text": getChatPrompt(currentProblemData.subject) }] },
-                        "generationConfig": { "responseMimeType": "application/json", "temperature": 0.5 }
-                    });
-
-                    let tutorData = null;
-                    let tutorUsedModel = null;
-                    let tutorLastError = null;
-                    const tutorFallbackAttempts = [];
-
-                    for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
-                        let response;
-                        try {
-                            response = await fetchWithKeyRotation(getGeminiKeys(), (key) => ({
-                                url: buildGeminiUrl(modelName, key),
-                                options: {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: tutorRequestBody
-                                }
-                            }));
-                        } catch (err) {
-                            console.warn(`⚠️ ${modelName} は登録済みの全キーで失敗しました → 次のモデルへフォールバック`, err);
-                            tutorLastError = err;
-                            tutorFallbackAttempts.push({ model: modelName, reason: err?.message || "不明な通信エラー" });
-                            continue;
-                        }
-
-                        const candidateJson = await response.json();
-                        const candidateText = candidateJson?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-                        if (!candidateText) {
-                            console.warn(`⚠️ ${modelName} が空の応答を返却しました → 次のモデルへフォールバック`);
-                            tutorLastError = new Error(`Empty response: ${modelName}`);
-                            tutorFallbackAttempts.push({ model: modelName, reason: "空応答（finishReason等が原因の可能性）" });
-                            continue;
-                        }
-
-                        try {
-                            aiJson = JSON.parse(fixJsonEscapes(extractJsonObject(stripCodeFence(candidateText))));
-                            tutorUsedModel = modelName;
-                            tutorData = candidateJson;
-                            break;
-                        } catch (parseErr) {
-                            console.warn(`⚠️ ${modelName} の応答が不正なJSONでした → 次のモデルへフォールバック`, parseErr);
-                            tutorLastError = parseErr;
-                            tutorFallbackAttempts.push({ model: modelName, reason: "JSON解析エラー（応答の形式が崩れていた）" });
-                            continue;
-                        }
-                    }
-
-                    notifyModelFallback(tutorFallbackAttempts, tutorUsedModel);
-
-                    if (!tutorData) {
-                        throw new Error(`全モデルが利用できませんでした（レート制限または不正な応答）。時間を置いて再度お試しください。\n最終エラー: ${tutorLastError?.message || "不明"}`);
-                    }
+                    aiJson = await callGeminiChat(geminiContents, getChatPrompt(currentProblemData.subject), { temperature: 0.5 });
                 }
 
                 chatHistory.push({ "role": "assistant", "content": JSON.stringify(aiJson) });
@@ -2309,37 +2199,10 @@ ${glossaryBlock}`;
 
             const promptText = `【元の問題文】\n${currentProblemData.title || "（問題文なし）"}\n\n【AIチューターとの質問チャット全文】\n${conversationText}`;
 
-            const requestBody = JSON.stringify({
-                "contents": [{ "role": "user", "parts": [{ "text": promptText }] }],
-                "systemInstruction": { "parts": [{ "text": systemInstruction }] },
-                "generationConfig": { "responseMimeType": "application/json", "temperature": 0.3 }
-            });
-
-            let lastError = null;
-            for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
-                let response;
-                try {
-                    response = await fetchWithKeyRotation(getGeminiKeys(), (key) => ({
-                        url: buildGeminiUrl(modelName, key),
-                        options: { method: "POST", headers: { "Content-Type": "application/json" }, body: requestBody }
-                    }));
-                } catch (err) {
-                    lastError = err;
-                    continue;
-                }
-                const candidateJson = await response.json();
-                const candidateText = candidateJson?.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!candidateText) { lastError = new Error(`Empty response: ${modelName}`); continue; }
-                try {
-                    const parsed = JSON.parse(fixJsonEscapes(extractJsonObject(stripCodeFence(candidateText.trim()))));
-                    if (!LEVEL_OPTIONS.includes(parsed.level)) parsed.level = "入試基礎レベル";
-                    return parsed;
-                } catch (parseErr) {
-                    lastError = parseErr;
-                    continue;
-                }
-            }
-            throw new Error(`全モデルが利用できませんでした。時間を置いて再度お試しください。\n最終エラー: ${lastError?.message || "不明"}`);
+            // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
+            const parsed = await callGeminiJSON([{ text: promptText }], systemInstruction, { temperature: 0.3 });
+            if (!LEVEL_OPTIONS.includes(parsed.level)) parsed.level = "入試基礎レベル";
+            return parsed;
         }
 
         // 💾 会話を記録するボタン
@@ -2479,4 +2342,4 @@ ${glossaryBlock}`;
         }
    </script>
 </body>
-</html>
+</html>

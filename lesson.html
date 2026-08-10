@@ -3,6 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#050508">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="LOLZ">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icons/icon.png">
+    <link rel="apple-touch-icon" href="icons/icon.png">
     <title>LOLZ // 参考書 授業モード</title>
     <link rel="stylesheet" href="style.css">
 
@@ -401,7 +410,7 @@
     <div class="lesson-container">
         <!-- GLOBAL CYBER HUD NAV -->
         <nav class="global-cyber-nav">
-            <div class="nav-brand">SYSTEM OS // LOLZ</div>
+            <div class="nav-brand">//Lolz</div>
             <div class="nav-links">
                 <a href="index.html" class="nav-btn">🧠 誤答ノート</a>
                 <a href="daily.html" class="nav-btn">🏁 計算スプリント</a>
@@ -596,9 +605,8 @@
 
    <script type="module">
         import {
-            getGeminiKeys, fetchWithKeyRotation, initApiKeyManager,
-            GEMINI_MODEL_FALLBACK_LIST, buildGeminiUrl, stripCodeFence, fixJsonEscapes, extractJsonObject,
-            showToast
+            initApiKeyManager,
+            showToast, callGeminiJSON, callGeminiChat, normalizeImageFile
         } from "./api-key-manager.js";
 
         const proto = "https" + "://";
@@ -624,7 +632,7 @@
         const database = getDatabase(app);
 
         initApiKeyManager({ needGemini: true });
-        // ✨ GEMINI_MODEL_FALLBACK_LIST / buildGeminiUrl は api-key-manager.js から共通インポート
+        // ✨ callGeminiJSON / callGeminiChat / normalizeImageFile は api-key-manager.js から共通インポート済み
 
         const DEFAULT_POLICY_PROMPT = `あなたは大学受験生専属の家庭教師です。生徒が持ち込んだ「特定の参考書」の内容をもとに、わかりやすく解説授業を行ってください。
 
@@ -641,41 +649,8 @@
 ・参考書の記述と、あなたが一般知識として持っている標準的な説明が食い違う場合は、参考書の記述を優先し、その参考書の流儀で説明すること。ただし参考書側に明らかな誤植・矛盾がある場合は、その旨を明示した上で指摘してよい
 ・参考書に載っていない内容を補足する場合は、「ここから先は参考書に載っていない一般的な補足です」のように、参考書本文と自分の補足を生徒がはっきり区別できるように書くこと`;
 
-        // ✨ stripCodeFence / fixJsonEscapes / extractJsonObject は api-key-manager.js から共通インポート
-
-        // 🔁 Gemini呼び出し共通関数（モデル×キーの二重フォールバック）
-        async function callGeminiJSON(parts, systemInstruction) {
-            const requestBody = JSON.stringify({
-                "contents": [{ "parts": parts }],
-                "systemInstruction": { "parts": [{ "text": systemInstruction }] },
-                "generationConfig": { "responseMimeType": "application/json", "temperature": 0.4 }
-            });
-
-            let lastError = null;
-            for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
-                let response;
-                try {
-                    response = await fetchWithKeyRotation(getGeminiKeys(), (key) => ({
-                        url: buildGeminiUrl(modelName, key),
-                        options: { method: "POST", headers: { "Content-Type": "application/json" }, body: requestBody }
-                    }));
-                } catch (err) {
-                    console.warn(`⚠️ ${modelName} は登録済みの全キーで失敗しました → 次のモデルへ`, err);
-                    lastError = err;
-                    continue;
-                }
-                const candidateJson = await response.json();
-                const candidateText = candidateJson?.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!candidateText) { lastError = new Error(`Empty response: ${modelName}`); continue; }
-                try {
-                    return JSON.parse(fixJsonEscapes(extractJsonObject(stripCodeFence(candidateText.trim()))));
-                } catch (parseErr) {
-                    lastError = parseErr;
-                    continue;
-                }
-            }
-            throw new Error(`全モデルが利用できませんでした。時間を置いて再度お試しください。\n最終エラー: ${lastError?.message || "不明"}`);
-        }
+        // ✨ callGeminiJSON / callGeminiChat / normalizeImageFile は api-key-manager.js から共通インポート
+        //    （モデル×キーの二重フォールバックループ・画像正規化ロジックはそちらに一本化）
 
         // --------------------------------------------------------------
         // 状態
@@ -760,53 +735,7 @@
         // --------------------------------------------------------------
         // 画像アップロード（新規授業フォーム）
         // --------------------------------------------------------------
-        // 🩹 Geminiが受け付けるMIMEタイプ（これ以外は再エンコードして矯正する）
-        const GEMINI_SUPPORTED_IMAGE_MIME = ["image/png", "image/jpeg", "image/webp"];
-
-        // iPhoneのHEIC/HEIF写真や、ブラウザがMIMEを正しく判定できない
-        // （application/octet-stream等になる）ファイルを、canvasでimage/jpegに
-        // 再エンコードし直すことで「Unsupported MIME type」400エラーを防ぐ。
-        // ※ file.type（宣言されたMIME）はHEICの場合しばしば信用できない
-        //   （octet-streamになったり、逆にimage/heicと出てもcanvasでは開けなかったりする）ため、
-        //   拡張子でも判定し、読み込みはdata URLではなくobjectURLで行う
-        //   （data URLだと誤ったMIME宣言のせいでブラウザがデコードを拒否することがある）
-        async function normalizeImageFile(file) {
-            const lowerName = (file.name || "").toLowerCase();
-            const isHeic = file.type === "image/heic" || file.type === "image/heif"
-                || lowerName.endsWith(".heic") || lowerName.endsWith(".heif");
-
-            if (!isHeic && GEMINI_SUPPORTED_IMAGE_MIME.includes(file.type)) {
-                const dataUrl = await new Promise((res, rej) => {
-                    const r = new FileReader();
-                    r.onload = () => res(r.result);
-                    r.onerror = rej;
-                    r.readAsDataURL(file);
-                });
-                return { mimeType: file.type, data: dataUrl.split(",")[1], previewUrl: dataUrl };
-            }
-
-            console.warn(`⚠️ ${isHeic ? "HEIC/HEIF画像" : `未対応/未判定のMIMEタイプ(${file.type || "不明"})`}を検出 → image/jpegへ再エンコードします`);
-            const objectUrl = URL.createObjectURL(file);
-            try {
-                const img = await new Promise((res, rej) => {
-                    const im = new Image();
-                    im.onload = () => res(im);
-                    im.onerror = () => rej(new Error("画像の読み込みに失敗しました"));
-                    im.src = objectUrl;
-                });
-                const canvas = document.createElement("canvas");
-                canvas.width = img.naturalWidth;
-                canvas.height = img.naturalHeight;
-                canvas.getContext("2d").drawImage(img, 0, 0);
-                const jpegUrl = canvas.toDataURL("image/jpeg", 0.92);
-                return { mimeType: "image/jpeg", data: jpegUrl.split(",")[1], previewUrl: jpegUrl };
-            } catch (e) {
-                console.error("画像の再エンコードに失敗しました（このブラウザはHEIC非対応の可能性）", e);
-                throw new Error(`「${file.name}」を変換できませんでした。iPhoneの「設定 > カメラ > フォーマット」で「互換性優先」にするか、写真アプリの共有時にJPEGへ変換してから再度アップロードしてください。`);
-            } finally {
-                URL.revokeObjectURL(objectUrl);
-            }
-        }
+        // ✨ normalizeImageFile（HEIC変換等）は api-key-manager.js から共通インポート
 
         el("image-input").addEventListener("change", async (e) => {
             const files = Array.from(e.target.files || []);
@@ -1387,39 +1316,7 @@ ${photoHandlingBlock}
             await set(ref(database, 'users/' + loginUid + '/lessons/' + currentLessonId), currentLesson);
         }
 
-        // --------------------------------------------------------------
-        // Gemini呼び出し（会話履歴をrole付きで送る版）
-        // --------------------------------------------------------------
-        async function callGeminiChat(contentsWithRoles, systemInstruction) {
-            const requestBody = JSON.stringify({
-                "contents": contentsWithRoles,
-                "systemInstruction": { "parts": [{ "text": systemInstruction }] },
-                "generationConfig": { "responseMimeType": "application/json", "temperature": 0.4 }
-            });
-            let lastError = null;
-            for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
-                let response;
-                try {
-                    response = await fetchWithKeyRotation(getGeminiKeys(), (key) => ({
-                        url: buildGeminiUrl(modelName, key),
-                        options: { method: "POST", headers: { "Content-Type": "application/json" }, body: requestBody }
-                    }));
-                } catch (err) {
-                    lastError = err;
-                    continue;
-                }
-                const candidateJson = await response.json();
-                const candidateText = candidateJson?.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!candidateText) { lastError = new Error(`Empty response: ${modelName}`); continue; }
-                try {
-                    return JSON.parse(fixJsonEscapes(extractJsonObject(stripCodeFence(candidateText.trim()))));
-                } catch (parseErr) {
-                    lastError = parseErr;
-                    continue;
-                }
-            }
-            throw new Error(`全モデルが利用できませんでした。時間を置いて再度お試しください。\n最終エラー: ${lastError?.message || "不明"}`);
-        }
+        // ✨ callGeminiChat（会話履歴をrole付きで送る版）は api-key-manager.js から共通インポート
 
         async function sendTurn(userDisplayText, hiddenInstructionOverride, turnImages) {
             const contentsWithRoles = (currentLesson.chatHistory || [])
@@ -1490,6 +1387,21 @@ ${photoHandlingBlock}
             if (isLastPart) {
                 currentLesson.status = "completed";
                 await saveLesson();
+
+                // 🎓【新設】この授業が「前提から授業でやり直す」経由(=sourceProblemIdあり)なら、
+                //    元の問題の復習優先度を引き上げる（誤答ノートのFSRS的な復習判定に反映される）
+                if (currentLesson.sourceProblemId) {
+                    try {
+                        await set(
+                            ref(database, 'users/' + loginUid + '/problems/' + currentLesson.sourceProblemId + '/lessonReviewPriorityAt'),
+                            new Date().toISOString()
+                        );
+                        showToast(`🎓 お疲れさま！元の問題「${currentLesson.sourceProblemTitle || "問題"}」を復習リストの最優先に上げました。`, "success", 4500);
+                    } catch (e) {
+                        console.error("復習優先度の更新に失敗しました:", e);
+                    }
+                }
+
                 updateCompletionUI();
                 btn.disabled = false;
                 return;

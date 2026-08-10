@@ -3,6 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#050508">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="LOLZ">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icons/icon.png">
+    <link rel="apple-touch-icon" href="icons/icon.png">
     <title>LOLZ // マーク模試モード</title>
     <link rel="stylesheet" href="style.css">
 
@@ -193,7 +202,7 @@
 
     <div class="dashboard-container page-container">
         <nav class="global-cyber-nav">
-            <div class="nav-brand">SYSTEM OS // LOLZ</div>
+            <div class="nav-brand">//Lolz</div>
             <div class="nav-links">
                 <a href="index.html" class="nav-btn">🧠 誤答ノート</a>
                 <a href="daily.html" class="nav-btn">🏁 計算スプリント</a>
@@ -378,9 +387,8 @@
 
     <script type="module">
         import {
-            getGeminiKeys, fetchWithKeyRotation, initApiKeyManager, notifyModelFallback,
-            GEMINI_MODEL_FALLBACK_LIST, buildGeminiUrl, fixJsonEscapes, extractJsonObject,
-            showToast
+            getGeminiKeys, initApiKeyManager,
+            showToast, callGeminiJSON
         } from "./api-key-manager.js";
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -653,55 +661,20 @@
 }
 `.trim();
 
-                const requestBody = JSON.stringify({
-                    contents: [{
-                        parts: [
-                            { text: prompt },
-                            { inline_data: { mime_type: img.mimeType, data: img.base64 } }
-                        ]
-                    }]
-                });
-
-                let parsedResult = null, usedModel = null, lastError = null;
-                const fallbackAttempts = [];
-                for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
-                    statusEl.textContent = `🔍 Gemini(${modelName})が読み取り中...`;
-                    let response;
-                    try {
-                        response = await fetchWithKeyRotation(keys, (key) => ({
-                            url: buildGeminiUrl(modelName, key),
-                            options: { method: "POST", headers: { "Content-Type": "application/json" }, body: requestBody }
-                        }));
-                    } catch (err) {
-                        lastError = err;
-                        fallbackAttempts.push({ model: modelName, reason: err?.message || "通信エラー" });
-                        continue;
-                    }
-                    const candidateJson = await response.json();
-                    const candidateText = candidateJson?.candidates?.[0]?.content?.parts?.[0]?.text;
-                    if (!candidateText) {
-                        lastError = new Error(`Empty response: ${modelName}`);
-                        fallbackAttempts.push({ model: modelName, reason: "空応答" });
-                        continue;
-                    }
-                    let rawJsonText = candidateText.trim();
-                    if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
-                    else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
-                    if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
-                    try {
-                        parsedResult = JSON.parse(fixJsonEscapes(extractJsonObject(rawJsonText.trim())));
-                        usedModel = modelName;
-                        break;
-                    } catch (parseErr) {
-                        lastError = parseErr;
-                        fallbackAttempts.push({ model: modelName, reason: "JSON解析エラー" });
-                        continue;
-                    }
+                // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
+                let parsedResult;
+                try {
+                    parsedResult = await callGeminiJSON(
+                        [{ text: prompt }, { inlineData: { mimeType: img.mimeType, data: img.base64 } }],
+                        "画像に写っている正解表を、指定のJSONフォーマットで正確に読み取ってください。",
+                        { temperature: 0.2 }
+                    );
+                } catch (err) {
+                    throw new Error(`読み取りに失敗しました。${err?.message || ""}`);
                 }
-                notifyModelFallback(fallbackAttempts, usedModel);
 
                 if (!parsedResult || !Array.isArray(parsedResult.answers)) {
-                    throw new Error(`読み取りに失敗しました。${lastError?.message || ""}`);
+                    throw new Error(`読み取りに失敗しました。応答の形式が正解表と一致しませんでした。`);
                 }
 
                 let appliedCount = 0;
@@ -815,50 +788,19 @@ ${targetNote ? `【対象指定】以下で指定された問題番号だけを�
                 const prompt = buildAiSolvePrompt(targetNote);
                 const parts = [{ text: prompt }];
                 aiSolveImages.forEach(img => {
-                    parts.push({ inline_data: { mime_type: img.mimeType, data: img.base64 } });
+                    parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
                 });
-                const requestBody = JSON.stringify({ contents: [{ parts }] });
 
-                let parsedResult = null, usedModel = null, lastError = null;
-                const fallbackAttempts = [];
-                for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
-                    btn.textContent = `Gemini(${modelName})が解答中...`;
-                    let response;
-                    try {
-                        response = await fetchWithKeyRotation(keys, (key) => ({
-                            url: buildGeminiUrl(modelName, key),
-                            options: { method: "POST", headers: { "Content-Type": "application/json" }, body: requestBody }
-                        }));
-                    } catch (err) {
-                        lastError = err;
-                        fallbackAttempts.push({ model: modelName, reason: err?.message || "通信エラー" });
-                        continue;
-                    }
-                    const candidateJson = await response.json();
-                    const candidateText = candidateJson?.candidates?.[0]?.content?.parts?.[0]?.text;
-                    if (!candidateText) {
-                        lastError = new Error(`Empty response: ${modelName}`);
-                        fallbackAttempts.push({ model: modelName, reason: "空応答" });
-                        continue;
-                    }
-                    let rawJsonText = candidateText.trim();
-                    if (rawJsonText.startsWith("```json")) rawJsonText = rawJsonText.substring(7);
-                    else if (rawJsonText.startsWith("```")) rawJsonText = rawJsonText.substring(3);
-                    if (rawJsonText.endsWith("```")) rawJsonText = rawJsonText.substring(0, rawJsonText.length - 3);
-                    try {
-                        parsedResult = JSON.parse(fixJsonEscapes(extractJsonObject(rawJsonText.trim())));
-                        usedModel = modelName;
-                        break;
-                    } catch (parseErr) {
-                        lastError = parseErr;
-                        fallbackAttempts.push({ model: modelName, reason: "JSON解析エラー" });
-                        continue;
-                    }
+                // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
+                let parsedResult;
+                try {
+                    parsedResult = await callGeminiJSON(parts, "問題ページの画像を解析し、指定のJSONフォーマットで正確に解答してください。", { temperature: 0.3 });
+                } catch (err) {
+                    throw new Error(`解答の生成に失敗しました。${err?.message || ""}`);
                 }
-                notifyModelFallback(fallbackAttempts, usedModel);
 
                 if (!parsedResult || !Array.isArray(parsedResult.answers)) {
-                    throw new Error(`解答の生成に失敗しました。${lastError?.message || ""}`);
+                    throw new Error(`解答の生成に失敗しました。応答の形式が期待と一致しませんでした。`);
                 }
 
                 let appliedCount = 0, addedCount = 0;

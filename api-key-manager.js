@@ -198,6 +198,130 @@ export function extractJsonArray(text) {
 }
 
 // --------------------------------------------------------------------------
+// 🧠【共通化】各ページに個別コピペされていた「Geminiにcontentsを投げて、モデルを
+// 順にフォールバックしながらJSONで受け取る」ループ本体。ここを直せば、
+// モデル追加・リトライ仕様の変更・エラーメッセージの修正が全ページに一括反映される。
+//
+// - callGeminiJSON(parts, systemInstruction, options)  : 単発質問（画像添付OK）用
+// - callGeminiChat(contents, systemInstruction, options): 複数ターンの会話履歴を渡す用
+// どちらも中身は同じで、渡す contents の組み立て方が違うだけ。
+//
+// options:
+//   temperature: number（省略時 0.4）
+//   arrayMode: true にすると応答をJSON配列として抽出する（省略時はJSONオブジェクト）
+//   silentFallback: true にすると notifyModelFallback（画面右下トースト）を出さない
+// --------------------------------------------------------------------------
+async function runGeminiFallbackLoop(contents, systemInstruction, options = {}) {
+    const { temperature = 0.4, arrayMode = false, silentFallback = false } = options;
+    const keys = getGeminiKeys();
+    const requestBody = JSON.stringify({
+        "contents": contents,
+        "systemInstruction": { "parts": [{ "text": systemInstruction }] },
+        "generationConfig": { "responseMimeType": "application/json", "temperature": temperature }
+    });
+
+    let lastError = null;
+    const fallbackAttempts = [];
+
+    for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
+        let response;
+        try {
+            response = await fetchWithKeyRotation(keys, (key) => ({
+                url: buildGeminiUrl(modelName, key),
+                options: { method: "POST", headers: { "Content-Type": "application/json" }, body: requestBody }
+            }));
+        } catch (err) {
+            console.warn(`⚠️ ${modelName} は登録済みの全キーで失敗しました → 次のモデルへフォールバック`, err);
+            lastError = err;
+            fallbackAttempts.push({ model: modelName, reason: err?.message || "不明な通信エラー" });
+            continue;
+        }
+
+        const candidateJson = await response.json();
+        const candidateText = candidateJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!candidateText) {
+            console.warn(`⚠️ ${modelName} が空の応答を返却しました → 次のモデルへフォールバック`);
+            lastError = new Error(`Empty response: ${modelName}`);
+            fallbackAttempts.push({ model: modelName, reason: "空応答（finishReason等が原因の可能性）" });
+            continue;
+        }
+
+        try {
+            const extractor = arrayMode ? extractJsonArray : extractJsonObject;
+            const parsed = JSON.parse(fixJsonEscapes(extractor(stripCodeFence(candidateText.trim()))));
+            if (!silentFallback) notifyModelFallback(fallbackAttempts, modelName);
+            return parsed;
+        } catch (parseErr) {
+            console.warn(`⚠️ ${modelName} の応答が不正なJSONでした → 次のモデルへフォールバック`, parseErr);
+            lastError = parseErr;
+            fallbackAttempts.push({ model: modelName, reason: "JSON解析エラー（応答の形式が崩れていた）" });
+            continue;
+        }
+    }
+
+    if (!silentFallback) notifyModelFallback(fallbackAttempts, null);
+    throw new Error(`全モデルが利用できませんでした（レート制限または不正な応答）。時間を置いて再度お試しください。\n最終エラー: ${lastError?.message || "不明"}`);
+}
+
+// ✨ 単発質問用（parts配列＝テキスト＋画像を1ターンとして送る）
+export async function callGeminiJSON(parts, systemInstruction, options = {}) {
+    return runGeminiFallbackLoop([{ "role": "user", "parts": parts }], systemInstruction, options);
+}
+
+// ✨ 複数ターンの会話履歴用（contentsは [{role:"user"|"model", parts:[...]}...] の配列そのもの）
+export async function callGeminiChat(contents, systemInstruction, options = {}) {
+    return runGeminiFallbackLoop(contents, systemInstruction, options);
+}
+
+// --------------------------------------------------------------------------
+// 🖼【共通化】各ページに個別コピペされていた画像の正規化ロジック。
+// Geminiが受け付けるMIMEタイプ（png/jpeg/webp）以外や、iPhoneのHEIC/HEIF、
+// ブラウザがMIMEを正しく判定できない（application/octet-stream等になる）ファイルを、
+// canvasでimage/jpegに再エンコードし直すことで「Unsupported MIME type」400エラーを防ぐ。
+// 戻り値: { mimeType, data(base64), previewUrl(dataURL) }
+// --------------------------------------------------------------------------
+export const GEMINI_SUPPORTED_IMAGE_MIME = ["image/png", "image/jpeg", "image/webp"];
+
+export async function normalizeImageFile(file) {
+    const lowerName = (file.name || "").toLowerCase();
+    const isHeic = file.type === "image/heic" || file.type === "image/heif"
+        || lowerName.endsWith(".heic") || lowerName.endsWith(".heif");
+
+    if (!isHeic && GEMINI_SUPPORTED_IMAGE_MIME.includes(file.type)) {
+        const dataUrl = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(r.result);
+            r.onerror = rej;
+            r.readAsDataURL(file);
+        });
+        return { mimeType: file.type, data: dataUrl.split(",")[1], previewUrl: dataUrl };
+    }
+
+    console.warn(`⚠️ ${isHeic ? "HEIC/HEIF画像" : `未対応/未判定のMIMEタイプ(${file.type || "不明"})`}を検出 → image/jpegへ再エンコードします`);
+    const objectUrl = URL.createObjectURL(file);
+    try {
+        const img = await new Promise((res, rej) => {
+            const im = new Image();
+            im.onload = () => res(im);
+            im.onerror = () => rej(new Error("画像の読み込みに失敗しました"));
+            im.src = objectUrl;
+        });
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext("2d").drawImage(img, 0, 0);
+        const jpegUrl = canvas.toDataURL("image/jpeg", 0.92);
+        return { mimeType: "image/jpeg", data: jpegUrl.split(",")[1], previewUrl: jpegUrl };
+    } catch (e) {
+        console.error("画像の再エンコードに失敗しました（このブラウザはHEIC非対応の可能性）", e);
+        throw new Error(`「${file.name}」を変換できませんでした。iPhoneの「設定 > カメラ > フォーマット」で「互換性優先」にするか、写真アプリの共有時にJPEGへ変換してから再度アップロードしてください。`);
+    } finally {
+        URL.revokeObjectURL(objectUrl);
+    }
+}
+
+// --------------------------------------------------------------------------
 // 🖥 管理モーダルUI（右下の🔑ボタンから開く / 未登録時は自動で開く）
 // --------------------------------------------------------------------------
 let uiInjected = false;
