@@ -65,6 +65,18 @@
         .lesson-progress-badge { font-size: 0.7rem; font-weight: 800; padding: 0.25rem 0.6rem; border-radius: 20px; flex-shrink: 0; }
         .badge-teaching { background: rgba(0,243,255,0.1); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
         .badge-completed { background: rgba(255,245,0,0.1); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); }
+        .lesson-level-badge { display:inline-block; margin-left:0.4rem; padding:0.1rem 0.5rem; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid var(--border-color); color:var(--text-bright-muted); font-size:0.7rem; }
+
+        /* 🪜 単元別レベルロードマップ */
+        .roadmap-tile { margin-bottom: 0.8rem; cursor: default; }
+        .roadmap-topic-title { font-weight: 800; font-size: 0.95rem; margin-bottom: 0.7rem; }
+        .roadmap-steps { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
+        .roadmap-step { flex: 1; min-width: 90px; text-align: center; padding: 0.55rem 0.4rem; border-radius: 12px; font-size: 0.72rem; font-weight: 800; border: 1px solid var(--border-color); color: var(--text-muted); background: rgba(255,255,255,0.02); transition: all 0.15s ease; }
+        .roadmap-step.rm-done { background: rgba(0,243,255,0.1); color: var(--accent-cyan); border-color: var(--accent-cyan); cursor: pointer; }
+        .roadmap-step.rm-teaching { background: rgba(255,245,0,0.1); color: var(--accent-yellow); border-color: var(--accent-yellow); cursor: pointer; animation: pulse-timer-btn 1.8s infinite alternate; }
+        .roadmap-step.rm-next { background: rgba(255,0,127,0.08); color: var(--accent-magenta); border: 1px dashed var(--accent-magenta); cursor: pointer; }
+        .roadmap-step.rm-locked { opacity: 0.45; }
+        .roadmap-arrow { color: var(--text-muted); font-size: 0.8rem; flex-shrink: 0; }
 
         .new-lesson-form { display: flex; flex-direction: column; gap: 1rem; }
         .file-drop-label { border: 1px dashed #3a3a4a; border-radius: 14px; padding: 1.2rem; text-align: center; cursor: pointer; color: var(--text-muted); font-size: 0.9rem; }
@@ -499,6 +511,11 @@
                 </button>
             </div>
 
+            <div id="roadmap-wrap" style="display:none; margin-bottom: 1.2rem;">
+                <div style="font-weight:900; font-size:1rem; margin: 0.5rem 0;">🗺️ 単元別 レベルアップ・ロードマップ</div>
+                <div id="roadmap-list"></div>
+            </div>
+
             <div id="lesson-list-wrap">
                 <div style="font-weight:900; font-size:1rem; margin: 0.5rem 0;">📚 これまでの授業</div>
                 <div id="lesson-list"></div>
@@ -536,6 +553,9 @@
 
                     <div id="completed-banner" class="completed-banner hidden">
                         🎉 この授業はすべてのパートが終了しました！お疲れさまでした。
+                        <div id="level-up-cta-wrap" style="margin-top:1rem; display:none;">
+                            <button type="button" class="tactile-btn" id="level-up-cta-btn" style="background: var(--accent-magenta); box-shadow: 3px 3px 0px #8a004f; font-size:0.95rem;"></button>
+                        </div>
                     </div>
 
                     <div class="chat-input-wrap" id="chat-input-wrap">
@@ -620,7 +640,7 @@
 
         const { initializeApp } = await import(fbBase + "firebase-app.js");
         const { getAuth, onAuthStateChanged } = await import(fbBase + "firebase-auth.js");
-        const { getDatabase, ref, set, get, onValue } = await import(fbBase + "firebase-database.js");
+        const { getDatabase, ref, set, get, update, onValue } = await import(fbBase + "firebase-database.js");
 
         const firebaseConfig = {
             apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY",
@@ -695,6 +715,16 @@
         const REQUESTED_ID = urlParams.get('id');
         const FROM_PROBLEM = urlParams.get('fromProblem'); // 🎓【新設】問題タブからの授業ハンドオフ
         let pendingSourceProblem = null; // { id, title } ハンドオフ元の問題（プラン確定時に授業へ紐付ける）
+
+        // 🪜【新設】単元レベル・アップ機構：教科書→定期テスト→入試基礎→入試標準〜応用 の順で難度を上げていく
+        const LEVEL_ORDER = ["教科書レベル（基礎の基礎から）", "定期テストレベル", "入試基礎レベル", "入試標準〜応用レベル"];
+        const LEVEL_SHORT = ["教科書", "定期テスト", "入試基礎", "入試標準〜応用"];
+        function nextLevelOf(levelText) {
+            const idx = LEVEL_ORDER.indexOf(levelText);
+            if (idx === -1 || idx >= LEVEL_ORDER.length - 1) return null;
+            return LEVEL_ORDER[idx + 1];
+        }
+        let pendingLevelUp = null; // { fromLessonId, fromLevel, fromNote, fromKeyTerms } プラン確定時に前レベルの授業へ紐付ける
 
         function el(id) { return document.getElementById(id); }
 
@@ -802,6 +832,7 @@
         el("cancel-plan-btn").addEventListener("click", () => {
             draftPlan = null;
             pendingSourceProblem = null;
+            pendingLevelUp = null;
             el("view-plan-preview").classList.add("hidden");
             el("view-list").classList.remove("hidden");
         });
@@ -823,7 +854,7 @@
             btn.disabled = true;
             if (regenBtn) regenBtn.disabled = true;
 
-            let PLAN_SYSTEM_INSTRUCTION, promptText, parts;
+            let PLAN_SYSTEM_INSTRUCTION, promptText, parts, topicTextForSave, levelTextForSave;
 
             if (creationMode === "photo") {
                 const noteText = el("note-input").value.trim();
@@ -858,6 +889,8 @@
                 const topicText = el("topic-input").value.trim();
                 const levelText = el("topic-level-select").value;
                 const topicNoteText = el("topic-note-input").value.trim();
+                topicTextForSave = topicText;
+                levelTextForSave = levelText;
 
                 PLAN_SYSTEM_INSTRUCTION = `${customPolicyPrompt}
 
@@ -865,6 +898,10 @@
 1. 指定された単元・レベル感に沿って、生徒が体系的に理解できるように内容を組み立て、「授業ノート」として全文を書き出すこと（数式は $ $ で囲むこと）。このノートは後の授業本編で「教える内容の正解」として毎回参照されるので、公式・定義・成り立ち・典型的な考え方の流れを、正確かつ網羅的に、ただし冗長になりすぎない密度で書くこと
 2. 内容量を踏まえて、区切りの良い単位で「大まかな授業プラン」を作成すること（目安は2〜6パート程度。多すぎず少なすぎないように。基礎概念→典型パターン→応用、のように学習の階段になるよう並べること）
 3. この単元特有の重要用語・公式・定理（一般的すぎるものは除く）があれば、名称と定義を簡潔に抽出すること
+4. もしプロンプト中に【重要：レベルアップ授業です】という指示がある場合は、そこに書かれている「前回の授業ノート」を熟読した上で、以下の方針で授業を組み立てること：
+   ・前回学んだ内容を「存在しないもの」として無視したり、逆に体系的に教え直したりしない
+   ・授業の冒頭（目安として最初のパートの導入部分）で、前回の内容を軽く復習として触れる。ただし分量はあくまで「軽め」にとどめ、単なる繰り返しにしないこと。「前回は〜だったが、今回はこれを土台にして〜を見ていく」のように、今回のレベルへの橋渡しとして位置づけること
+   ・授業本編の大部分は、既習事項を道具・土台として自然に参照しながら（例：「前回学んだ○○を使うと」）、そこにはなかった発展的な内容・そのレベルならではの着眼点に重点を置くこと
 
 出力は必ず以下のJSON形式のみで返してください。他のテキストは一切含めないこと。
 {
@@ -881,6 +918,15 @@
                 promptText = `以下の単元について、指定のJSONで授業プランと授業ノートを作成してください。\n\n【単元名】\n${topicText}\n\n【レベル感】\n${levelText}`;
                 if (topicNoteText) promptText += `\n\n【生徒からの要望・前提】\n${topicNoteText}`;
 
+                // 🪜【新設】レベルアップ授業の場合、前レベルの授業ノート＆既習キーワードを渡し、
+                // 「同じことをだらだら教える」事態を避けるよう明示的に指示する
+                if (pendingLevelUp) {
+                    const termsLine = (pendingLevelUp.fromKeyTerms && pendingLevelUp.fromKeyTerms.length > 0)
+                        ? pendingLevelUp.fromKeyTerms.join("、")
+                        : "（特になし）";
+                    promptText += `\n\n【重要：レベルアップ授業です】\nこの生徒は同じ単元をすでに「${pendingLevelUp.fromLevel}」で学習済みです。以下はその時に作成した授業ノート全文と、登場した重要キーワードの一覧です。この内容を「存在しないもの」として無視するのではなく、授業の土台として積極的に活用してください。具体的には、授業の冒頭で軽く復習として触れつつ（分量は軽めに、単なる繰り返しにはしないこと）、「前回学んだ○○を使うと〜」のように本編でも道具として自然に参照しながら、授業本編の大部分は前回にはなかった発展的な内容・「${levelText}」ならではの着眼点に重点を置いてください。前回と同じ内容をゼロから体系的に教え直すことは避けてください。\n\n【前回（${pendingLevelUp.fromLevel}）の授業ノート】\n${pendingLevelUp.fromNote || "（記録なし）"}\n\n【前回までの既習キーワード】\n${termsLine}`;
+                }
+
                 parts = [{ text: promptText }];
             }
 
@@ -889,6 +935,10 @@
                 if (!Array.isArray(result.parts) || result.parts.length === 0) throw new Error("プランの形式が不正です。");
                 draftPlan = result;
                 draftPlan.sourceMode = creationMode;
+                if (creationMode === "topic") {
+                    draftPlan.topicKey = topicTextForSave;
+                    draftPlan.level = levelTextForSave;
+                }
                 renderPlanPreview();
                 el("view-list").classList.add("hidden");
                 el("view-plan-preview").classList.remove("hidden");
@@ -965,6 +1015,7 @@
 
                 const newId = "LESSON_" + Date.now();
                 const now = new Date().toISOString();
+                const levelIndex = draftPlan.level ? LEVEL_ORDER.indexOf(draftPlan.level) : -1;
                 const lessonObj = {
                     id: newId,
                     title: draftPlan.lesson_title,
@@ -981,10 +1032,27 @@
                     accumulatedKeyTerms: mergedKeyTerms,      // 次の続き授業へ引き継ぐ累積用語集
                     ...(continuationId ? { previousLessonId: continuationId, previousLessonTitle } : {}),
                     // 🎓【新設】問題タブの「前提から授業でやり直す」から作られた授業なら、元の問題を紐付ける
-                    ...(pendingSourceProblem ? { sourceProblemId: pendingSourceProblem.id, sourceProblemTitle: pendingSourceProblem.title } : {})
+                    ...(pendingSourceProblem ? { sourceProblemId: pendingSourceProblem.id, sourceProblemTitle: pendingSourceProblem.title } : {}),
+                    // 🪜【新設】単元名モードの授業には、レベル・単元識別キーを保存（レベルアップ機構・ロードマップ表示用）
+                    ...(draftPlan.level ? { level: draftPlan.level, levelIndex } : {}),
+                    ...(draftPlan.topicKey ? { topicKey: draftPlan.topicKey } : {}),
+                    ...(pendingLevelUp ? { levelUpFromLessonId: pendingLevelUp.fromLessonId } : {})
                 };
                 await set(ref(database, 'users/' + loginUid + '/lessons/' + newId), lessonObj);
+
+                // 🪜 レベルアップ元の授業がある場合、その授業側にも「次のレベルへ進んだ」リンクを書き戻す
+                if (pendingLevelUp && pendingLevelUp.fromLessonId) {
+                    try {
+                        await update(ref(database, 'users/' + loginUid + '/lessons/' + pendingLevelUp.fromLessonId), {
+                            levelUpToLessonId: newId
+                        });
+                    } catch (e) {
+                        console.warn("⚠️ 前レベルの授業への書き戻しに失敗しました:", e);
+                    }
+                }
+
                 pendingSourceProblem = null;
+                pendingLevelUp = null;
                 window.location.href = `lesson.html?id=${newId}`;
             } catch (err) {
                 console.error(err);
@@ -1025,19 +1093,115 @@
                 const badgeClass = done ? "badge-completed" : "badge-teaching";
                 const badgeText = done ? "完了" : `パート ${((l.currentPartIndex || 0) + 1)}/${total}`;
                 const updated = new Date(l.updatedAt).toLocaleString("ja-JP");
+
+                // 🪜 レベル表示＋「次のレベルへ」控えめボタン（完了済み・単元名モード・まだ次のレベルに進んでいない場合のみ）
+                const levelBadge = l.level ? `<span class="lesson-level-badge">🎚️ ${LEVEL_SHORT[l.levelIndex] || l.level}</span>` : "";
+                const nxt = l.level ? nextLevelOf(l.level) : null;
+                const showLevelUpBtn = done && nxt && !l.levelUpToLessonId;
+                const levelUpBtnHtml = showLevelUpBtn
+                    ? `<button type="button" class="tactile-btn lesson-levelup-btn" data-levelup-id="${l.id}" style="font-size:0.72rem; padding:0.35rem 0.7rem; background:transparent; color:var(--accent-yellow); border:1px solid var(--accent-yellow); box-shadow:none;">🎓 ${LEVEL_SHORT[LEVEL_ORDER.indexOf(nxt)]}へ進む</button>`
+                    : "";
+
                 return `
                     <div class="squircle-tile lesson-card-row" data-lesson-id="${l.id}">
                         <div>
                             <div class="lesson-card-title">${l.title || "無題の授業"}</div>
-                            <div class="lesson-card-meta">最終更新: ${updated}</div>
+                            <div class="lesson-card-meta">最終更新: ${updated} ${levelBadge}</div>
                         </div>
-                        <span class="lesson-progress-badge ${badgeClass}">${badgeText}</span>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            ${levelUpBtnHtml}
+                            <span class="lesson-progress-badge ${badgeClass}">${badgeText}</span>
+                        </div>
                     </div>
                 `;
             }).join("");
             listEl.querySelectorAll("[data-lesson-id]").forEach(row => {
                 row.addEventListener("click", () => {
                     window.location.href = `lesson.html?id=${row.getAttribute("data-lesson-id")}`;
+                });
+            });
+            listEl.querySelectorAll("[data-levelup-id]").forEach(btn => {
+                btn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const lesson = (lastLessonsSnapshot || {})[btn.getAttribute("data-levelup-id")];
+                    if (lesson) startLevelUp(lesson);
+                });
+            });
+        }
+
+        // --------------------------------------------------------------
+        // 🪜 単元別レベルアップ・ロードマップ
+        // --------------------------------------------------------------
+        function renderTopicRoadmap(lessonsObj) {
+            const wrap = el("roadmap-wrap");
+            const listEl = el("roadmap-list");
+            const lessons = Object.values(lessonsObj || {});
+            const topics = {};
+            lessons.forEach(l => {
+                if (!l.topicKey || !l.level) return;
+                if (!topics[l.topicKey]) topics[l.topicKey] = [];
+                topics[l.topicKey].push(l);
+            });
+            const topicKeys = Object.keys(topics);
+            if (topicKeys.length === 0) {
+                wrap.style.display = "none";
+                listEl.innerHTML = "";
+                return;
+            }
+            wrap.style.display = "block";
+
+            const topicEntries = topicKeys.map(key => {
+                const group = topics[key];
+                const slots = [null, null, null, null];
+                group.forEach(l => {
+                    const idx = (typeof l.levelIndex === "number" && l.levelIndex >= 0) ? l.levelIndex : LEVEL_ORDER.indexOf(l.level);
+                    if (idx < 0 || idx > 3) return;
+                    // 同じレベルの授業が複数あれば、最終更新が新しい方を採用
+                    if (!slots[idx] || new Date(l.updatedAt) > new Date(slots[idx].updatedAt)) slots[idx] = l;
+                });
+                const latestUpdate = group.reduce((max, l) => Math.max(max, new Date(l.updatedAt).getTime()), 0);
+                return { key, slots, latestUpdate };
+            }).sort((a, b) => b.latestUpdate - a.latestUpdate);
+
+            listEl.innerHTML = topicEntries.map(({ key, slots }) => {
+                let highestCompletedIndex = -1;
+                slots.forEach((s, i) => { if (s && s.status === "completed") highestCompletedIndex = i; });
+                const nextIndex = highestCompletedIndex + 1;
+
+                const stepsHtml = slots.map((s, i) => {
+                    let cls = "roadmap-step";
+                    let label = LEVEL_SHORT[i];
+                    let clickAttr = "";
+                    if (s) {
+                        if (s.status === "completed") { cls += " rm-done"; label = `✓ ${LEVEL_SHORT[i]}`; }
+                        else { cls += " rm-teaching"; label = `▶ ${LEVEL_SHORT[i]}`; }
+                        clickAttr = `data-goto-lesson="${s.id}"`;
+                    } else if (i === nextIndex && highestCompletedIndex >= 0) {
+                        cls += " rm-next"; label = `＋ ${LEVEL_SHORT[i]}`;
+                        clickAttr = `data-start-levelup="${slots[highestCompletedIndex].id}"`;
+                    } else {
+                        cls += " rm-locked"; label = `未実施 ${LEVEL_SHORT[i]}`;
+                    }
+                    return `<div class="${cls}" ${clickAttr}>${label}</div>`;
+                }).join(`<span class="roadmap-arrow">→</span>`);
+
+                return `
+                    <div class="squircle-tile roadmap-tile">
+                        <div class="roadmap-topic-title">${key.replace(/</g, "&lt;")}</div>
+                        <div class="roadmap-steps">${stepsHtml}</div>
+                    </div>
+                `;
+            }).join("");
+
+            listEl.querySelectorAll("[data-goto-lesson]").forEach(elm => {
+                elm.addEventListener("click", () => {
+                    window.location.href = `lesson.html?id=${elm.getAttribute("data-goto-lesson")}`;
+                });
+            });
+            listEl.querySelectorAll("[data-start-levelup]").forEach(elm => {
+                elm.addEventListener("click", () => {
+                    const lesson = (lastLessonsSnapshot || {})[elm.getAttribute("data-start-levelup")];
+                    if (lesson) startLevelUp(lesson);
                 });
             });
         }
@@ -1313,6 +1477,19 @@ ${photoHandlingBlock}
             el("next-part-btn").classList.toggle("hidden", isCompleted);
             const isLastPart = currentLesson.currentPartIndex >= currentLesson.parts.length - 1;
             el("next-part-btn").textContent = isLastPart ? "🏁 この授業を完了する" : "▶ 次のパートへ進む";
+
+            // 🪜 レベルアップCTA：単元名モードで、まだ次のレベルに進んでいなければ大きめに提案する
+            const ctaWrap = el("level-up-cta-wrap");
+            const ctaBtn = el("level-up-cta-btn");
+            const nxt = isCompleted && currentLesson.level ? nextLevelOf(currentLesson.level) : null;
+            if (isCompleted && nxt && !currentLesson.levelUpToLessonId) {
+                ctaWrap.style.display = "block";
+                ctaBtn.textContent = `🎓 次は「${nxt}」に進む`;
+                ctaBtn.onclick = () => startLevelUp(currentLesson);
+            } else {
+                ctaWrap.style.display = "none";
+            }
+
             renderPartsTOC();
         }
 
@@ -1489,17 +1666,17 @@ ${photoHandlingBlock}
                     lastLessonsSnapshot = snapshot.val() || {};
                     renderLessonList(lastLessonsSnapshot);
                     renderContinuationOptions(lastLessonsSnapshot);
+                    renderTopicRoadmap(lastLessonsSnapshot);
                 });
-                if (FROM_PROBLEM) {
-                    await handleLessonHandoffFromProblem();
-                }
+                // fromProblem引き継ぎ・レベルアップ引き継ぎのどちらもsessionStorageの有無で判定するため常に呼ぶ
+                await handleLessonHandoff();
             }
         });
 
         // ==========================================================================
-        // 🎓【新設】問題タブから「前提から授業でやり直す」で渡された内容を受け取る
+        // 🎓【新設】問題タブからの引き継ぎ、および🪜レベルアップの引き継ぎを共通で受け取る
         // ==========================================================================
-        async function handleLessonHandoffFromProblem() {
+        async function handleLessonHandoff() {
             // URLをきれいにして、再読み込み・再遷移時に誤って再実行されないようにする
             if (window.location.search.includes("fromProblem")) {
                 const cleanUrl = new URL(window.location.href);
@@ -1519,13 +1696,49 @@ ${photoHandlingBlock}
                 ? { id: handoff.sourceProblemId, title: handoff.sourceProblemTitle || "無題の問題" }
                 : null;
 
+            // 🪜【新設】レベルアップ経由の場合、前レベルの授業ノート・キーワードをプラン生成に使う
+            pendingLevelUp = handoff.levelUp
+                ? {
+                    fromLessonId: handoff.levelUpFromLessonId,
+                    fromLevel: handoff.levelUpFromLevel,
+                    fromNote: handoff.levelUpFromNote || "",
+                    fromKeyTerms: handoff.levelUpFromKeyTerms || []
+                  }
+                : null;
+
             setCreationMode("topic");
             el("topic-input").value = handoff.topic;
             if (handoff.level) el("topic-level-select").value = handoff.level;
             el("topic-note-input").value = handoff.note || "";
 
-            showToast(`🎓 「${handoff.sourceProblemTitle || "元の問題"}」からの引き継ぎで、単元「${handoff.topic}」の授業プランを作成します`, "info", 4000);
+            if (pendingLevelUp) {
+                showToast(`🎓 「${pendingLevelUp.fromLevel}」お疲れさまでした！続けて単元「${handoff.topic}」を「${handoff.level}」で学び直します`, "info", 4500);
+            } else {
+                showToast(`🎓 「${handoff.sourceProblemTitle || "元の問題"}」からの引き継ぎで、単元「${handoff.topic}」の授業プランを作成します`, "info", 4000);
+            }
             await generatePlan();
+        }
+
+        // 🪜【新設】完了済みの授業から、次のレベルの授業へワンタップで引き継ぐ
+        function startLevelUp(lesson) {
+            const nxt = nextLevelOf(lesson.level);
+            if (!nxt) return;
+            sessionStorage.setItem("LOLZ_LESSON_HANDOFF", JSON.stringify({
+                topic: lesson.topicKey || lesson.title,
+                level: nxt,
+                note: "",
+                levelUp: true,
+                levelUpFromLessonId: lesson.id,
+                levelUpFromLevel: lesson.level,
+                levelUpFromNote: lesson.extractedText || "",
+                levelUpFromKeyTerms: (lesson.accumulatedKeyTerms || lesson.keyTerms || []).map(t => t && t.name).filter(Boolean)
+            }));
+            if (REQUESTED_ID) {
+                // 授業詳細画面から呼ばれた場合は、まず一覧画面（授業作成フォームがある画面）へ遷移する
+                window.location.href = "lesson.html";
+            } else {
+                handleLessonHandoff();
+            }
         }
    </script>
 </body>
