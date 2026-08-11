@@ -1377,10 +1377,38 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
         // フルレンダリングし、体感10秒近い読み込み待ちの主因になっていた。
         // プレビューは短い抜粋の生テキストで十分（詳細はクリック後のproblem.htmlで綺麗に数式表示される）なので、
         // ①文字数を絞り ②MathJax処理対象から外す（tex2jax_processを付けない）ことで両方を解消する。
+        // 🩹【新設】一覧プレビューはMathJaxを通さない（パフォーマンス優先）ため、
+        // 「綺麗にレンダリング」ではなく、正規表現でLaTeX記法の「記号」だけを機械的に
+        // 取り除いて読める文字を残す簡易処理。数式として整形するわけではなく、
+        // あくまで見た目のノイズ（$ や \text{} や \frac{}{} など）を減らすだけ。
+        function stripLatexNoiseForPreview(text) {
+            if (!text) return text;
+            let s = String(text);
+
+            // \frac{a}{b} → a/b への変換と、\text{ア}や\fbox{ア}等の
+            // 「コマンド名＋{中身}」からコマンド名だけ削る処理を、
+            // \frac{\fbox{ア}}{\fbox{イ}} のようなネストにも対応できるよう交互に繰り返す
+            for (let i = 0; i < 6; i++) {
+                const before = s;
+                s = s.replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, "$1/$2");
+                s = s.replace(/\\[a-zA-Z]+\{([^{}]*)\}/g, "$1");
+                if (s === before) break;
+            }
+
+            // $...$ や \(...\) 、\[...\] の区切り記号だけを外す（中の文字は残す）
+            s = s.replace(/\$\$/g, "")
+                 .replace(/\$/g, "")
+                 .replace(/\\\(/g, "").replace(/\\\)/g, "")
+                 .replace(/\\\[/g, "").replace(/\\\]/g, "");
+
+            return s;
+        }
+
         function buildRowPreviewText(rawTitle, maxLen = 60) {
             if (!rawTitle) return "";
             const oneLine = String(rawTitle).replace(/\\n/g, " ").replace(/\r?\n/g, " ").trim();
-            const escaped = oneLine
+            const stripped = stripLatexNoiseForPreview(oneLine);
+            const escaped = stripped
                 .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
             return escaped.length > maxLen ? escaped.slice(0, maxLen) + "…" : escaped;
         }
