@@ -21,7 +21,7 @@
                 inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']],
                 // 🩹【修正】\fbox{...} は数式モードの標準TeXマクロではなく未定義コマンドとして
                 // そのまま表示されてしまうため、ams標準の \boxed{...} の別名として登録する
-                macros: { fbox: ["\\boxed{#1}", 1] }
+                macros: { fbox: ["\\bbox[2px,border:1px solid]{#1}", 1] }
             },
             chtml: { displayAlign: 'left' }
         };
