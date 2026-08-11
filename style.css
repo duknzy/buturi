@@ -88,9 +88,16 @@ body::before {
    【新設】PC大画面表示における、問題写真のサイズ肥大化防止設定
    ========================================================================== */
 @media screen and (min-width: 768px) {
-    /* 画像を囲むグレーの枠自体が縦に伸びすぎるのを防ぐ */
-    html body .physics-figure-box {
+    /* 💡【修正】以前は .physics-figure-box 自体に常に max-height:450px を強制していたが、
+       中身が「長い問題文テキスト」の場合、テキストは見た目上450pxを超えてはみ出す一方、
+       箱自体のレイアウト上の高さは450pxのまま扱われてしまい、直後の写真サムネイル一覧
+       (.photo-gallery-strip) が問題文の途中に重なって表示される不具合があった。
+       → 箱の中に実際の<img>がある時（＝画像を直接表示しているケース）だけ高さ制限をかけ、
+         テキストだけの場合は制限しないよう :has() で条件分岐する。 */
+    html body .physics-figure-box:has(img) {
         max-height: 450px !important;
+    }
+    html body .physics-figure-box {
         margin-top: 1rem !important;
     }
 
