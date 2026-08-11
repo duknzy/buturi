@@ -20,7 +20,10 @@
             tex: {
                 inlineMath: [['$', '$'], ['\\(', '\\)']],
                 displayMath: [['$$', '$$'], ['\\[', '\\]']],
-                processEscapes: true
+                processEscapes: true,
+                // 🩹【修正】\fbox{...} は数式モードの標準TeXマクロではなく未定義コマンドとして
+                // そのまま表示されてしまうため、ams標準の \boxed{...} の別名として登録する
+                macros: { fbox: ["\\boxed{#1}", 1] }
             },
             options: {
                 ignoreHtmlClass: 'tex2jax_ignore',

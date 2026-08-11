@@ -19,7 +19,11 @@
         window.MathJax = {
             tex: {
                 inlineMath: [['$', '$'], ['\\(', '\\)']],
-                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                // 🩹【修正】AIが生成する穴埋め問題で \fbox{...} が使われることがあるが、
+                // \fbox は数式モードの標準TeXマクロではないため、そのままだと未定義コマンドとして
+                // 文字通り表示されてしまう。amsパッケージ標準の \boxed{...} の別名として登録し、正しく枠囲みで描画させる。
+                macros: { fbox: ["\\boxed{#1}", 1] }
             },
             options: {
                 skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
