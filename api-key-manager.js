@@ -322,6 +322,35 @@ export async function normalizeImageFile(file) {
 }
 
 // --------------------------------------------------------------------------
+// 🖼️【新設・パフォーマンス改善】一覧表示専用の極小サムネイル生成。
+// 誤答ノートのダッシュボード一覧は、以前は問題ごとのフルサイズ画像(800px/品質0.6)を
+// 丸ごとRealtime Databaseの同じノードに保存しており、一覧を開くたびに登録問題数ぶんの
+// フル画像を毎回ダウンロードしていた（数十〜数MB規模になり得る）。
+// フルサイズ画像は別ノード(problemImages/{id})に分離し、一覧表示にはこの関数で作る
+// 極小サムネイル(既定90px・品質0.35、数KB程度)だけを使うことで、一覧読み込みを大幅に軽くする。
+// dataUrl: 元となる画像のdata URL（フルサイズ画像やアップロード直後の画像でよい）
+export function generateTinyThumbnail(dataUrl, maxSize = 90, quality = 0.35) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            let width = img.naturalWidth, height = img.naturalHeight;
+            if (width > height) {
+                if (width > maxSize) { height = Math.round(height * maxSize / width); width = maxSize; }
+            } else {
+                if (height > maxSize) { width = Math.round(width * maxSize / height); height = maxSize; }
+            }
+            const canvas = document.createElement("canvas");
+            canvas.width = width || 1;
+            canvas.height = height || 1;
+            canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.onerror = () => reject(new Error("サムネイル生成用の画像読み込みに失敗しました"));
+        img.src = dataUrl;
+    });
+}
+
+// --------------------------------------------------------------------------
 // 🖥 管理モーダルUI（右下の🔑ボタンから開く / 未登録時は自動で開く）
 // --------------------------------------------------------------------------
 let uiInjected = false;

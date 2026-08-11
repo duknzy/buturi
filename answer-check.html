@@ -303,7 +303,7 @@
     <script type="module">
         import {
             getGeminiKeys, initApiKeyManager,
-            showToast, callGeminiJSON
+            showToast, callGeminiJSON, generateTinyThumbnail
         } from "./api-key-manager.js";
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -605,6 +605,15 @@ ${MULTI_QUESTION_INSTRUCTION}
             try {
                 const newId = "CUSTOM_" + Date.now() + "_" + idx;
                 const nowIso = new Date().toISOString();
+
+                // 🖼️【新設・パフォーマンス改善】フル画像は別ノードへ、problems側は軽量サムネイルのみ
+                // （複数問・複数ページが写った同じ写真セットを使い回している可能性があるため、フル画像自体は全項目に添付する）
+                const fullImages = selectedImages.map(img => img.dataUrl);
+                let thumb = null;
+                if (fullImages.length > 0) {
+                    try { thumb = await generateTinyThumbnail(fullImages[0]); } catch (e) { console.error("サムネイル生成失敗:", e); thumb = fullImages[0]; }
+                }
+
                 const newProblem = {
                     id: newId,
                     title: item.extracted_text,
@@ -616,14 +625,16 @@ ${MULTI_QUESTION_INSTRUCTION}
                     errorCount: 1,
                     lastAttemptAt: nowIso,
                     lastResult: false,
-                    // 🖼️ 複数問・複数ページが写った同じ写真セットを使い回している可能性があるため、画像はそのまま全項目に添付する
-                    images: selectedImages.map(img => img.dataUrl),
-                    imageData: selectedImages.length > 0 ? selectedImages[0].dataUrl : null, // 互換用（1枚目）
+                    thumb: thumb,
+                    imageCount: fullImages.length,
                     answerFormula: item.model_answer,
                     createdAt: nowIso
                 };
 
                 await set(ref(database, 'users/' + currentUser.uid + '/problems/' + newId), newProblem);
+                if (fullImages.length > 0) {
+                    await set(ref(database, 'users/' + currentUser.uid + '/problemImages/' + newId), { images: fullImages });
+                }
 
                 item.status = "wrong";
                 item.registeredId = newId;

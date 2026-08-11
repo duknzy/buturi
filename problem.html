@@ -1013,9 +1013,26 @@ extracted_textには、写真やテキストに含まれる問題文を一字一
             return t.replace(/\n/g, "<br>");
         }
 
-        // 🖼️【複数枚写真対応】新形式の images配列があればそれを優先、無ければ旧形式のimageData単体をラップして返す（後方互換）
+        // 🖼️【新設・パフォーマンス改善】フルサイズ画像は users/{uid}/problemImages/{id} という
+        // 別ノードに分離保存されている（ダッシュボード一覧の読み込みを軽くするため）。
+        // problem.html はこの1問ぶんだけ取得すればよいので、ページ読み込み時に一度だけ取得してキャッシュする。
+        let currentProblemFullImages = [];
+        async function loadProblemFullImages(uid, problemId) {
+            try {
+                const snap = await get(ref(database, 'users/' + uid + '/problemImages/' + problemId));
+                const val = snap.val();
+                currentProblemFullImages = (val && Array.isArray(val.images)) ? val.images : [];
+            } catch (e) {
+                console.error("フル画像の取得に失敗しました:", e);
+                currentProblemFullImages = [];
+            }
+        }
+
+        // 🖼️【複数枚写真対応】新設のproblemImagesノード（currentProblemFullImages）を最優先。
+        // まだ移行していない古いデータは、後方互換としてproblems直下のimages/imageDataを使う。
         function getProblemImages(p) {
             if (!p) return [];
+            if (currentProblemFullImages.length > 0) return currentProblemFullImages;
             if (Array.isArray(p.images) && p.images.length > 0) return p.images;
             if (p.imageData) return [p.imageData];
             return [];
@@ -1178,7 +1195,7 @@ ${glossaryBlock}`;
         let currentProblemData = {};
         let loginUid = null;
 
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
                 loginUid = user.uid;
                 if (!PROBLEM_ID) {
@@ -1186,6 +1203,8 @@ ${glossaryBlock}`;
                     setTimeout(() => { location.href = "index.html"; }, 1200);
                     return;
                 }
+                // 🖼️【新設】フル画像を先に取得してから問題本体を描画する（初回描画時に画像が揃っている状態にするため）
+                await loadProblemFullImages(user.uid, PROBLEM_ID);
                 loadCloudProblemSession(user.uid);
                 listenToQnaLogsForProblem(user.uid, PROBLEM_ID); // 💬【新設】この問題の過去の質問ログを監視
                 listenToLinkedLessonForProblem(user.uid, PROBLEM_ID); // 🎓【新設】この問題から作られた授業を監視

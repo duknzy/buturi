@@ -650,6 +650,17 @@
             </div>
         </header>
 
+        <!-- 🖼️【新設】画像データ軽量化（1回だけ実行）バナー。未移行の問題が1件でもあれば表示される -->
+        <div id="image-migration-banner" class="glass-card" style="display:none; margin-bottom: 1.2rem; padding: 1rem 1.4rem; border: 1px solid var(--accent-yellow); background: rgba(255,245,0,0.05); align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+            <div style="font-size:0.85rem; color: var(--text-bright-muted); line-height:1.6;">
+                🖼️ <strong style="color:var(--accent-yellow);">画像データの軽量化がまだ完了していません。</strong><br>
+                古い形式のまま登録されている問題が <strong id="image-migration-count-text">?</strong> 件あります。実行すると、ダッシュボードの読み込みが大幅に速くなります（見た目やデータの中身は変わりません）。
+            </div>
+            <button type="button" class="tactile-btn" id="run-image-migration-btn" style="background: var(--accent-yellow); color:#000; box-shadow: 3px 3px 0px #a89e00; white-space:nowrap;">
+                ⚡ 今すぐ軽量化する
+            </button>
+        </div>
+
         <div id="login-required-notice" class="login-overlay-box" style="display: none;">
             <h2 style="font-size: 1.5rem; font-weight: 900; color: var(--accent-cyan); margin-bottom: 1rem;">CLOUD SYNC // クラウド同期未接続</h2>
             <p style="color: var(--text-muted); margin-bottom: 2rem;">どの端末からでも誤答ノートを自動同期して復習するために、Googleアカウントでログインしてください。</p>
@@ -905,11 +916,11 @@
    <script type="module">
         import {
             getGeminiKeys, getDeepseekKeys, initApiKeyManager, clearAllKeys, notifyModelFallback,
-            showToast, callGeminiJSON
+            showToast, callGeminiJSON, generateTinyThumbnail
         } from "./api-key-manager.js";
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-        import { getDatabase, ref, set, get, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+        import { getDatabase, ref, set, get, update, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY", 
@@ -1180,6 +1191,115 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
             onValue(userProblemsRef, (snapshot) => {
                 lastCloudProblemsSnapshot = snapshot.val() || {};
                 rebuildFilterBarAndCards();
+                updateImageMigrationBanner(uid); // 🖼️【新設】未移行の画像データがあればバナーで案内
+            });
+        }
+
+        // 🖼️【新設・パフォーマンス改善】旧形式（problems直下にフル画像を持つ）のまま残っている問題数を数え、
+        // 1件でもあればバナーを表示する。移行が済んでいる（thumbが付いている）問題や、
+        // そもそも画像を持たない問題はカウントしない。
+        function countUnmigratedImageProblems() {
+            return Object.values(lastCloudProblemsSnapshot).filter(p => {
+                if (!p || p.thumb) return false;
+                const hasLegacyImages = (Array.isArray(p.images) && p.images.length > 0) || !!p.imageData;
+                return hasLegacyImages;
+            }).length;
+        }
+
+        function updateImageMigrationBanner(uid) {
+            const banner = document.getElementById("image-migration-banner");
+            const countText = document.getElementById("image-migration-count-text");
+            if (!banner || !countText) return;
+            const count = countUnmigratedImageProblems();
+            if (count > 0) {
+                countText.textContent = String(count);
+                banner.style.display = "flex";
+            } else {
+                banner.style.display = "none";
+            }
+        }
+
+        // 🖼️【新設】画像データ軽量化の一括移行処理（1回だけ実行想定・何度実行しても安全＝冪等）
+        async function runImageMigration(uid) {
+            const btn = document.getElementById("run-image-migration-btn");
+            const targets = Object.entries(lastCloudProblemsSnapshot).filter(([, p]) => {
+                if (!p || p.thumb) return false;
+                return (Array.isArray(p.images) && p.images.length > 0) || !!p.imageData;
+            });
+
+            if (targets.length === 0) {
+                updateImageMigrationBanner(uid);
+                return;
+            }
+
+            const originalBtnText = btn.textContent;
+            btn.disabled = true;
+            let doneCount = 0;
+            const total = targets.length;
+            btn.textContent = `⏳ 変換中... (0/${total})`;
+
+            const CONCURRENCY = 5; // 同時実行数（Realtime Databaseへの負荷とスピードのバランス）
+            let cursor = 0;
+            let hadError = false;
+
+            async function migrateOne([id, p]) {
+                try {
+                    const fullImages = (Array.isArray(p.images) && p.images.length > 0)
+                        ? p.images
+                        : (p.imageData ? [p.imageData] : []);
+                    if (fullImages.length === 0) return;
+
+                    let thumb;
+                    try {
+                        thumb = await generateTinyThumbnail(fullImages[0]);
+                    } catch (e) {
+                        console.error(`サムネイル生成に失敗（問題ID: ${id}）、フル画像を暫定使用:`, e);
+                        thumb = fullImages[0];
+                    }
+
+                    // ① フルサイズ画像を新しい専用ノードへコピー
+                    await set(ref(database, 'users/' + uid + '/problemImages/' + id), { images: fullImages });
+                    // ② problems側は軽量サムネイルだけを残し、フル画像フィールドは削除（updateにnullを渡すと削除される）
+                    await update(ref(database, 'users/' + uid + '/problems/' + id), {
+                        thumb: thumb,
+                        imageCount: fullImages.length,
+                        images: null,
+                        imageData: null
+                    });
+                } catch (e) {
+                    hadError = true;
+                    console.error(`問題ID ${id} の移行に失敗しました:`, e);
+                } finally {
+                    doneCount++;
+                    btn.textContent = `⏳ 変換中... (${doneCount}/${total})`;
+                }
+            }
+
+            async function worker() {
+                while (cursor < targets.length) {
+                    const item = targets[cursor];
+                    cursor++;
+                    await migrateOne(item);
+                }
+            }
+
+            await Promise.all(Array.from({ length: Math.min(CONCURRENCY, targets.length) }, () => worker()));
+
+            btn.disabled = false;
+            btn.textContent = originalBtnText;
+
+            if (hadError) {
+                showToast(`一部の問題で変換に失敗しました。もう一度「今すぐ軽量化する」を押すと、未変換分だけ再試行されます。`, "error", 6000);
+            } else {
+                showToast(`🎉 ${total}件の画像データを軽量化しました！次回からダッシュボードの読み込みが速くなります。`, "success", 5000);
+            }
+            // lastCloudProblemsSnapshotはonValueにより自動更新されるので、バナーも追従して自動的に消える
+        }
+
+        const runImageMigrationBtn = document.getElementById("run-image-migration-btn");
+        if (runImageMigrationBtn) {
+            runImageMigrationBtn.addEventListener("click", () => {
+                if (currentUser) runImageMigration(currentUser.uid);
             });
         }
 
@@ -1249,6 +1369,20 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
         function formatShortDate(d) {
             if (!d) return null;
             return d.toLocaleDateString('ja-JP', { year: '2-digit', month: 'numeric', day: 'numeric' });
+        }
+
+        // ⚡【新設・パフォーマンス改善】一覧行のプレビュー用に問題文を短く切り詰める。
+        // 以前はここで問題文の全文を tex2jax_process 付きでそのまま挿入していたため、
+        // 登録問題数が多いとダッシュボードを開くたびにMathJaxが「全問題の全文」を毎回
+        // フルレンダリングし、体感10秒近い読み込み待ちの主因になっていた。
+        // プレビューは短い抜粋の生テキストで十分（詳細はクリック後のproblem.htmlで綺麗に数式表示される）なので、
+        // ①文字数を絞り ②MathJax処理対象から外す（tex2jax_processを付けない）ことで両方を解消する。
+        function buildRowPreviewText(rawTitle, maxLen = 60) {
+            if (!rawTitle) return "";
+            const oneLine = String(rawTitle).replace(/\\n/g, " ").replace(/\r?\n/g, " ").trim();
+            const escaped = oneLine
+                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            return escaped.length > maxLen ? escaped.slice(0, maxLen) + "…" : escaped;
         }
 
         function rebuildFilterBarAndCards() {
@@ -1413,23 +1547,30 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
                     criticalDueCount++;
                 }
 
-                // 🖼️ サムネイル（リスト行用の小型版）
-                // 互換性: 新形式の images配列があればそれを優先、無ければ旧形式のimageData単体を使う
-                const pImages = Array.isArray(p.images) && p.images.length > 0
-                    ? p.images
-                    : (p.imageData ? [p.imageData] : []);
+                // 🖼️【新設・パフォーマンス改善】サムネイル（リスト行用の小型版）
+                // 優先順位: ①新形式の軽量thumb → ②未移行データの旧images配列 → ③さらに古いimageData単体
                 let thumbHtml = "";
-                if (pImages.length > 0) {
-                    const countBadge = pImages.length > 1
-                        ? `<span class="row-thumb-count-badge">+${pImages.length - 1}</span>`
-                        : "";
-                    thumbHtml = `<div class="row-thumb"><img src="${pImages[0]}">${countBadge}</div>`;
+                if (p.thumb) {
+                    const imgCount = typeof p.imageCount === "number" ? p.imageCount : 1;
+                    const countBadge = imgCount > 1 ? `<span class="row-thumb-count-badge">+${imgCount - 1}</span>` : "";
+                    thumbHtml = `<div class="row-thumb"><img src="${p.thumb}">${countBadge}</div>`;
                 } else {
-                    let symbol = "？";
-                    let glowClass = "glow-purple";
-                    if (subjectText.includes("数学")) { symbol = "$f(x)$"; glowClass = "glow-math"; }
-                    else if (subjectText.includes("物理")) { symbol = "$\\vec{F}$"; glowClass = "glow-physics"; }
-                    thumbHtml = `<div class="row-thumb row-thumb-icon ${glowClass} tex2jax_process"><span>${symbol}</span></div>`;
+                    // ⚠️ 未移行（旧形式のまま）の問題。ダッシュボード上部の「画像データを軽量化する」を実行すると解消される
+                    const pImages = Array.isArray(p.images) && p.images.length > 0
+                        ? p.images
+                        : (p.imageData ? [p.imageData] : []);
+                    if (pImages.length > 0) {
+                        const countBadge = pImages.length > 1
+                            ? `<span class="row-thumb-count-badge">+${pImages.length - 1}</span>`
+                            : "";
+                        thumbHtml = `<div class="row-thumb"><img src="${pImages[0]}">${countBadge}</div>`;
+                    } else {
+                        let symbol = "？";
+                        let glowClass = "glow-purple";
+                        if (subjectText.includes("数学")) { symbol = "$f(x)$"; glowClass = "glow-math"; }
+                        else if (subjectText.includes("物理")) { symbol = "$\\vec{F}$"; glowClass = "glow-physics"; }
+                        thumbHtml = `<div class="row-thumb row-thumb-icon ${glowClass} tex2jax_process"><span>${symbol}</span></div>`;
+                    }
                 }
 
                 let insightBadgeHtml = "";
@@ -1469,7 +1610,7 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
                                 ${insightBadgeHtml}
                             </div>
                             <div class="row-title tex2jax_process">${p.short_title}</div>
-                            <div class="row-preview tex2jax_process">${p.title}</div>
+                            <div class="row-preview">${buildRowPreviewText(p.title)}</div>
                             ${dateMetaHtml}
                         </div>
                         <div class="row-stat" style="color: ${rowColor};">
@@ -1621,6 +1762,21 @@ ${glossaryBlock}`;
 
                 const newId = "CUSTOM_" + Date.now();
                 const nowIso = new Date().toISOString();
+
+                // 🖼️【新設・パフォーマンス改善】フルサイズ画像は一覧取得の対象外である
+                // users/{uid}/problemImages/{id} に分離保存し、problems側には
+                // 一覧表示専用の極小サムネイル(thumb)だけを持たせる。
+                const fullImageDataUrls = selectedImages.map(img => img.dataUrl);
+                let thumbDataUrl = null;
+                if (fullImageDataUrls.length > 0) {
+                    try {
+                        thumbDataUrl = await generateTinyThumbnail(fullImageDataUrls[0]);
+                    } catch (e) {
+                        console.error("サムネイル生成に失敗、フル画像を暫定的に使用します:", e);
+                        thumbDataUrl = fullImageDataUrls[0]; // 失敗時のフォールバック（次回保存時に解消される想定）
+                    }
+                }
+
                 const newProblem = {
                     id: newId,
                     title: aiResult.extracted_text || userRawText, 
@@ -1632,8 +1788,8 @@ ${glossaryBlock}`;
                     errorCount: 1,
                     lastAttemptAt: nowIso,
                     lastResult: false,
-                    images: selectedImages.map(img => img.dataUrl),
-                    imageData: selectedImages.length > 0 ? selectedImages[0].dataUrl : null, // 互換用（1枚目）
+                    thumb: thumbDataUrl,
+                    imageCount: fullImageDataUrls.length,
                     answerFormula: aiResult.model_answer || "解説データなし",
                     createdAt: nowIso,
                     ...(linkedLessonId ? {
@@ -1645,6 +1801,9 @@ ${glossaryBlock}`;
                 };
 
                 await set(ref(database, 'users/' + currentUser.uid + '/problems/' + newId), newProblem);
+                if (fullImageDataUrls.length > 0) {
+                    await set(ref(database, 'users/' + currentUser.uid + '/problemImages/' + newId), { images: fullImageDataUrls });
+                }
                 closeModalAndReset();
 
             } catch (error) {

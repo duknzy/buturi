@@ -388,7 +388,7 @@
     <script type="module">
         import {
             getGeminiKeys, initApiKeyManager,
-            showToast, callGeminiJSON
+            showToast, callGeminiJSON, generateTinyThumbnail
         } from "./api-key-manager.js";
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -909,6 +909,11 @@ ${targetNote ? `【対象指定】以下で指定された問題番号だけを�
                 const field = (r.field || "").trim() || (info && info.field) || examFieldOf() || "マーク模試";
                 const explanationText = `あなたの解答: ${r.my} ／ 正解: ${r.correct}` + (info && info.explanation ? `\n\n【AIの解説】\n${info.explanation}` : "");
                 const images = (info && info.imageDataUrl) ? [info.imageDataUrl] : [];
+                // 🖼️【新設・パフォーマンス改善】フル画像は別ノードへ、problems側は軽量サムネイルのみ
+                let thumb = null;
+                if (images.length > 0) {
+                    try { thumb = await generateTinyThumbnail(images[0]); } catch (e) { console.error("サムネイル生成失敗:", e); thumb = images[0]; }
+                }
                 const newProblem = {
                     id: newId,
                     title: `【マーク模試】${examNameOf()} 第${r.no}問（あなたの解答: ${r.my} / 正解: ${r.correct}）`,
@@ -920,8 +925,8 @@ ${targetNote ? `【対象指定】以下で指定された問題番号だけを�
                     errorCount: 1,
                     lastAttemptAt: nowIso,
                     lastResult: false,
-                    images: images,
-                    imageData: images.length > 0 ? images[0] : null,
+                    thumb: thumb,
+                    imageCount: images.length,
                     answerFormula: explanationText,
                     createdAt: nowIso,
                     source: "mark_test",
@@ -933,6 +938,9 @@ ${targetNote ? `【対象指定】以下で指定された問題番号だけを�
                     detailLogged: false
                 };
                 await set(ref(database, 'users/' + currentUser.uid + '/problems/' + newId), newProblem);
+                if (images.length > 0) {
+                    await set(ref(database, 'users/' + currentUser.uid + '/problemImages/' + newId), { images: images });
+                }
                 wrongRegistry[key] = { problemId: newId, detailed: false };
             }
         }
@@ -1028,13 +1036,26 @@ ${targetNote ? `【対象指定】以下で指定された問題番号だけを�
             try {
                 const trap = document.getElementById("detail-trap-input").value.trim();
                 const strategy = document.getElementById("detail-strategy-input").value.trim();
+
+                // 🖼️【新設・パフォーマンス改善】フル画像は別ノードへ、problems側は軽量サムネイルのみ
+                const fullImages = detailSelectedImages.map(img => img.dataUrl);
+                let thumb = null;
+                if (fullImages.length > 0) {
+                    try { thumb = await generateTinyThumbnail(fullImages[0]); } catch (e) { console.error("サムネイル生成失敗:", e); thumb = fullImages[0]; }
+                }
+
                 await update(ref(database, 'users/' + currentUser.uid + '/problems/' + reg.problemId), {
-                    images: detailSelectedImages.map(img => img.dataUrl),
-                    imageData: detailSelectedImages.length > 0 ? detailSelectedImages[0].dataUrl : null,
+                    thumb: thumb,
+                    imageCount: fullImages.length,
+                    images: null,
+                    imageData: null,
                     trap_description: trap,
                     strategyPattern: strategy,
                     detailLogged: true
                 });
+                if (fullImages.length > 0) {
+                    await set(ref(database, 'users/' + currentUser.uid + '/problemImages/' + reg.problemId), { images: fullImages });
+                }
                 reg.detailed = true;
                 document.getElementById("detail-modal").style.display = "none";
                 renderWrongList();
