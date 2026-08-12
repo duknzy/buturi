@@ -291,7 +291,11 @@
             transition: max-height 0.3s ease;
         }
         .question-collapsible-area.is-expanded {
-            max-height: 2000px;
+            /* 💡【修正】以前は max-height:2000px の固定値だったため、
+               それを超える長さの問題文だと途中で切れてしまう不具合があった。
+               実際の高さは JS 側で scrollHeight を測って inline style に設定するので、
+               ここは JS が万一効かなかった場合の保険として十分大きな値にしておく。 */
+            max-height: 20000px;
         }
         .question-collapsible-area.has-overflow:not(.is-expanded)::after {
             content: "";
@@ -1109,30 +1113,43 @@ extracted_textには、写真やテキストに含まれる問題文を一字一
             toggleBtn.onclick = null;
 
             // レイアウト確定後（画像読み込み等）に高さを判定したいので次フレームで計測
-            requestAnimationFrame(() => {
-                if (area.scrollHeight > area.clientHeight + 16) {
+            // 💡【修正】「全文を表示」時に、内容の実際の高さ(scrollHeight)を測って
+            //   inline style の max-height に設定するよう変更。
+            //   以前は CSS の .is-expanded { max-height: 2000px } という固定値に
+            //   依存していたため、それより長い問題文は展開しても途中で切れてしまっていた。
+            //   これで問題文がどんなに長くても最後まで表示できる。
+            const applyToggleHandler = () => {
+                toggleBtn.onclick = () => {
+                    const expanding = !area.classList.contains("is-expanded");
+                    if (expanding) {
+                        area.style.maxHeight = area.scrollHeight + "px";
+                        area.classList.add("is-expanded");
+                    } else {
+                        area.classList.remove("is-expanded");
+                        area.style.maxHeight = ""; // CSSのデフォルト（折りたたみ高さ）に戻す
+                    }
+                    toggleBtn.textContent = expanding ? "▲ 折りたたむ" : "▼ 全文を表示";
+                };
+            };
+
+            const checkOverflow = () => {
+                if (!area.classList.contains("is-expanded") && area.scrollHeight > area.clientHeight + 16) {
                     area.classList.add("has-overflow");
                     toggleBtn.style.display = "flex";
-                    toggleBtn.onclick = () => {
-                        const expanded = area.classList.toggle("is-expanded");
-                        toggleBtn.textContent = expanded ? "▲ 折りたたむ" : "▼ 全文を表示";
-                    };
+                    applyToggleHandler();
                 }
-            });
+                // 展開中に画像などが後から読み込まれてさらに高さが伸びた場合も追従させる
+                if (area.classList.contains("is-expanded")) {
+                    area.style.maxHeight = area.scrollHeight + "px";
+                }
+            };
+
+            requestAnimationFrame(checkOverflow);
 
             // 🖼️ 画像はサイズが後から確定するため、読み込み完了時にも再判定する
             area.querySelectorAll("img").forEach(img => {
                 if (img.complete) return;
-                img.addEventListener("load", () => {
-                    if (!area.classList.contains("is-expanded") && area.scrollHeight > area.clientHeight + 16) {
-                        area.classList.add("has-overflow");
-                        toggleBtn.style.display = "flex";
-                        toggleBtn.onclick = () => {
-                            const expanded = area.classList.toggle("is-expanded");
-                            toggleBtn.textContent = expanded ? "▲ 折りたたむ" : "▼ 全文を表示";
-                        };
-                    }
-                }, { once: true });
+                img.addEventListener("load", checkOverflow, { once: true });
             });
         }
 
