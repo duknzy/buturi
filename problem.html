@@ -128,6 +128,40 @@
             .chat-history::-webkit-scrollbar-thumb:hover {
                 background: var(--accent-cyan);
             }
+
+            /* 🔗【新設】質問・解説を別タブで広く開くモード。
+               同じページを ?wideChat=1 付きで新しいタブで開いた時、
+               AIサイドバー（質問チャット）をページ幅いっぱいの1カラムに広げ、
+               続けてAIに質問できる状態のまま、文字も読みやすい広さで表示する。 */
+            body.wide-chat-mode .bento-grid {
+                grid-template-columns: 1fr;
+            }
+            body.wide-chat-mode .main-question-tile,
+            body.wide-chat-mode .answer-formula-tile {
+                grid-column: 1;
+                grid-row: auto;
+                max-width: 900px;
+                width: 100%;
+                margin: 0 auto;
+            }
+            body.wide-chat-mode .ai-sidebar-tile {
+                grid-column: 1;
+                grid-row: auto;
+                position: static;
+                max-height: none;
+                max-width: 900px;
+                width: 100%;
+                margin: 0 auto;
+                order: -1; /* チャットを一番上に持ってきて、すぐ会話を続けられるようにする */
+            }
+            body.wide-chat-mode .chat-history {
+                max-height: 70vh;
+            }
+            body.wide-chat-mode .chat-bubble {
+                font-size: 1.18rem;
+                line-height: 1.8;
+                max-width: 96%;
+            }
         }
 
         /* 📱 スマホ・タブレット用のレスポンシブ（従来通り縦並び） */
@@ -153,8 +187,8 @@
         .chat-bubble { 
             padding: 0.9rem 1.2rem; 
             border-radius: 16px; 
-            font-size: 0.92rem; 
-            line-height: 1.6; 
+            font-size: 1.08rem; 
+            line-height: 1.7; 
             max-width: 92%; 
             min-width: 0;
             margin-bottom: 0.4rem; 
@@ -256,7 +290,7 @@
             border: 1px dashed #222; margin-top: 0.5rem;
         }
         
-        .model-answer-text { font-size: 1.05rem; color: var(--text-bright-muted); font-weight: 500; margin-bottom: 0.5rem; white-space: pre-wrap; line-height: 1.8; letter-spacing: 0.5px; overflow-wrap: anywhere; word-break: break-word; max-width: 100%; }
+        .model-answer-text { font-size: 1.18rem; color: var(--text-bright-muted); font-weight: 500; margin-bottom: 0.5rem; white-space: pre-wrap; line-height: 1.85; letter-spacing: 0.5px; overflow-wrap: anywhere; word-break: break-word; max-width: 100%; }
         .model-answer-text mjx-container {
             max-width: 100% !important;
             overflow-x: auto !important;
@@ -579,6 +613,7 @@
                         <button type="button" class="engine-btn" id="engine-btn-gemini" data-engine="gemini">✨ Gemini</button>
                         <button type="button" class="engine-btn" id="engine-btn-deepseek" data-engine="deepseek">🐋 DeepSeek</button>
                     </div>
+                    <button type="button" class="tactile-btn" id="open-wide-chat-btn" style="margin-top:0.5rem; font-size:0.75rem; padding:0.4rem 0.8rem; background:#111; color:var(--accent-cyan); border:1px solid var(--accent-cyan); box-shadow:none; align-self:flex-start;">🔗 別タブで広く開く</button>
                 </div>
 
                 <!-- 💬【新設】この問題に保存済みの質問ログがあれば表示（自分で開くまでは中身は出さない） -->
@@ -753,6 +788,33 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const PROBLEM_ID = urlParams.get('id');
+
+        // 🔗【新設】質問・解説を別タブで広く開くモード。
+        //   ?wideChat=1 付きでこのページが開かれた場合、AIサイドバーを画面幅いっぱいに広げて表示する。
+        //   同じページ・同じロジックを使い回すので、そのまま続けてAIに質問できる。
+        const WIDE_CHAT_MODE = urlParams.get('wideChat') === '1';
+        if (WIDE_CHAT_MODE) {
+            document.body.classList.add('wide-chat-mode');
+        }
+        function setupWideChatButton() {
+            const btn = document.getElementById('open-wide-chat-btn');
+            if (!btn) return;
+            if (WIDE_CHAT_MODE) {
+                btn.textContent = '↙ 通常表示に戻る';
+                btn.onclick = () => {
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('wideChat');
+                    window.location.href = url.toString();
+                };
+            } else {
+                btn.onclick = () => {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('wideChat', '1');
+                    window.open(url.toString(), '_blank');
+                };
+            }
+        }
+        setupWideChatButton();
 
         // 🔑【複数キー対応】右下の🔑ボタンから追加/削除できる管理UIを注入。未登録なら自動で開く。
         initApiKeyManager({ needGemini: true, needDeepseek: true });
