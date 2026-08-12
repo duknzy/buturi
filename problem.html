@@ -1462,6 +1462,16 @@ ${glossaryBlock}`;
                 }
 
                 if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise();
+
+                // 💬【新設】「質問チャットだけを別タブで開く」モードでは、
+                //   「AIに質問する」ボタンを押す手間を省略し、最初から質問入力欄を開いた状態にする
+                if (CHAT_ONLY_MODE && currentProblemData.subject !== "未分類") {
+                    const activateBtn = document.getElementById("activate-ai-question-btn");
+                    const inputWrap = document.getElementById("ai-chat-input-wrap");
+                    if (activateBtn && inputWrap && inputWrap.style.display === "none") {
+                        activateBtn.click();
+                    }
+                }
             }, { onlyOnce: true });
         }
 
