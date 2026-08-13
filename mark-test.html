@@ -638,6 +638,25 @@
         // ==========================================================================
         // AIによる正解表の読み取り（任意）
         // ==========================================================================
+        // 🔒【新設】正解表読み取りの「answers配列」JSON構造をAPI側で強制するためのスキーマ
+        const ANSWER_KEY_RESPONSE_SCHEMA = {
+            type: "OBJECT",
+            properties: {
+                answers: {
+                    type: "ARRAY",
+                    items: {
+                        type: "OBJECT",
+                        properties: {
+                            no: { type: "STRING" },
+                            correct: { type: "STRING" }
+                        },
+                        required: ["no", "correct"]
+                    }
+                }
+            },
+            required: ["answers"]
+        };
+
         async function readAnswerKeyImage(file) {
             const statusEl = document.getElementById("answer-key-status");
             statusEl.style.display = "block";
@@ -667,7 +686,7 @@
                     parsedResult = await callGeminiJSON(
                         [{ text: prompt }, { inlineData: { mimeType: img.mimeType, data: img.base64 } }],
                         "画像に写っている正解表を、指定のJSONフォーマットで正確に読み取ってください。",
-                        { temperature: 0.2 }
+                        { temperature: 0.2, responseSchema: ANSWER_KEY_RESPONSE_SCHEMA }
                     );
                 } catch (err) {
                     throw new Error(`読み取りに失敗しました。${err?.message || ""}`);
@@ -736,6 +755,29 @@
             "その他": "高校の教科（マーク式試験）"
         };
 
+        // 🔒【新設】AI自動解答（buildAiSolvePrompt）の「answers配列」JSON構造をAPI側で強制するためのスキーマ
+        const AI_SOLVE_RESPONSE_SCHEMA = {
+            type: "OBJECT",
+            properties: {
+                answers: {
+                    type: "ARRAY",
+                    items: {
+                        type: "OBJECT",
+                        properties: {
+                            no: { type: "STRING" },
+                            correct: { type: "STRING" },
+                            field: { type: "STRING" },
+                            short_title: { type: "STRING" },
+                            explanation: { type: "STRING" },
+                            imageIndex: { type: "INTEGER" }
+                        },
+                        required: ["no", "correct", "field", "short_title", "explanation", "imageIndex"]
+                    }
+                }
+            },
+            required: ["answers"]
+        };
+
         function buildAiSolvePrompt(targetNote) {
             const role = SOLVE_SUBJECT_ROLE[selectedSubject] || SOLVE_SUBJECT_ROLE["その他"];
             return `
@@ -794,7 +836,7 @@ ${targetNote ? `【対象指定】以下で指定された問題番号だけを�
                 // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
                 let parsedResult;
                 try {
-                    parsedResult = await callGeminiJSON(parts, "問題ページの画像を解析し、指定のJSONフォーマットで正確に解答してください。", { temperature: 0.3 });
+                    parsedResult = await callGeminiJSON(parts, "問題ページの画像を解析し、指定のJSONフォーマットで正確に解答してください。", { temperature: 0.3, responseSchema: AI_SOLVE_RESPONSE_SCHEMA });
                 } catch (err) {
                     throw new Error(`解答の生成に失敗しました。${err?.message || ""}`);
                 }

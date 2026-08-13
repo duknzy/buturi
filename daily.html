@@ -297,6 +297,23 @@
         }
 
         // ✨ 誤答自動スキャン＆Gemini問題作成処理
+        // 🔒【新設】デイリースプリント生成の「JSON配列」構造をAPI側で強制するためのスキーマ
+        const DAILY_SPRINT_RESPONSE_SCHEMA = {
+            type: "ARRAY",
+            items: {
+                type: "OBJECT",
+                properties: {
+                    id: { type: "STRING" },
+                    subject: { type: "STRING" },
+                    field: { type: "STRING" },
+                    title: { type: "STRING" },
+                    answer: { type: "STRING" },
+                    steps: { type: "STRING" }
+                },
+                required: ["id", "subject", "field", "title", "answer", "steps"]
+            }
+        };
+
         async function generateSprintWithAI(uid, todayStr, sprintCacheRef) {
             // 🔁【新設】直近数日分の出題履歴を取得し、「最近扱った分野」を集計する
             //    → 弱点分野の自動抽出はやめて、代わりに「直近と被らないようにする」ための重複回避に使う
@@ -366,7 +383,7 @@
                     const aiQuestions = await callGeminiJSON(
                         [{ text: systemPrompt }],
                         "あなたは優秀なAI数学教師です。指定されたJSONフォーマットの配列のみを厳密に返してください。",
-                        { temperature: 0.4, arrayMode: true }
+                        { temperature: 0.4, arrayMode: true, responseSchema: DAILY_SPRINT_RESPONSE_SCHEMA }
                     );
 
                     if (!Array.isArray(aiQuestions) || aiQuestions.length === 0) {

@@ -385,6 +385,28 @@
             }
         };
 
+        // 🔒【新設】buildQuickAnswerPrompt() の「answers配列」JSON構造をAPI側で強制するためのスキーマ
+        const QUICK_ANSWER_RESPONSE_SCHEMA = {
+            type: "OBJECT",
+            properties: {
+                answers: {
+                    type: "ARRAY",
+                    items: {
+                        type: "OBJECT",
+                        properties: {
+                            label: { type: "STRING" },
+                            field: { type: "STRING" },
+                            short_title: { type: "STRING" },
+                            extracted_text: { type: "STRING" },
+                            model_answer: { type: "STRING" }
+                        },
+                        required: ["label", "field", "short_title", "extracted_text", "model_answer"]
+                    }
+                }
+            },
+            required: ["answers"]
+        };
+
         function buildQuickAnswerPrompt(subject) {
             const c = QUICK_SUBJECT_CONFIG[subject] || QUICK_SUBJECT_CONFIG["数学"];
             return `
@@ -519,7 +541,7 @@ ${MULTI_QUESTION_INSTRUCTION}
 
             try {
                 // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
-                const parsedResult = await callGeminiJSON(parts, buildQuickAnswerPrompt(selectedSubject), { temperature: 0.2 });
+                const parsedResult = await callGeminiJSON(parts, buildQuickAnswerPrompt(selectedSubject), { temperature: 0.2, responseSchema: QUICK_ANSWER_RESPONSE_SCHEMA });
 
                 const rawAnswers = Array.isArray(parsedResult.answers) ? parsedResult.answers : [];
                 if (rawAnswers.length === 0) {

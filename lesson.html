@@ -837,6 +837,38 @@
             el("view-list").classList.remove("hidden");
         });
 
+        // 🔒【新設】PLAN_SYSTEM_INSTRUCTION（写真モード／単元名モード共通）のJSON構造をAPI側で強制するためのスキーマ
+        const LESSON_PLAN_RESPONSE_SCHEMA = {
+            type: "OBJECT",
+            properties: {
+                extracted_text: { type: "STRING" },
+                lesson_title: { type: "STRING" },
+                parts: {
+                    type: "ARRAY",
+                    items: {
+                        type: "OBJECT",
+                        properties: {
+                            title: { type: "STRING" },
+                            summary: { type: "STRING" }
+                        },
+                        required: ["title", "summary"]
+                    }
+                },
+                key_terms: {
+                    type: "ARRAY",
+                    items: {
+                        type: "OBJECT",
+                        properties: {
+                            name: { type: "STRING" },
+                            definition: { type: "STRING" }
+                        },
+                        required: ["name", "definition"]
+                    }
+                }
+            },
+            required: ["extracted_text", "lesson_title", "parts", "key_terms"]
+        };
+
         async function generatePlan() {
             if (creationMode === "photo" && selectedImages.length === 0) {
                 showToast("まずは参考書のページ写真をアップロードしてください。", "error");
@@ -931,7 +963,7 @@
             }
 
             try {
-                const result = await callGeminiJSON(parts, PLAN_SYSTEM_INSTRUCTION);
+                const result = await callGeminiJSON(parts, PLAN_SYSTEM_INSTRUCTION, { responseSchema: LESSON_PLAN_RESPONSE_SCHEMA });
                 if (!Array.isArray(result.parts) || result.parts.length === 0) throw new Error("プランの形式が不正です。");
                 draftPlan = result;
                 draftPlan.sourceMode = creationMode;

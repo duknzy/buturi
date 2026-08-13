@@ -1277,6 +1277,16 @@ ${glossaryBlock}`;
         function getCreatePrompt(subject) {
             return EXTRACTED_TEXT_COMPLETENESS_RULE + "\n\n" + (SUBJECT_CREATE_PROMPTS[subject] || SUBJECT_CREATE_PROMPTS["数学"]) + buildLessonContextBlock();
         }
+        // 🔒【新設】SUBJECT_CHAT_PROMPTS 各科目共通のJSON構造をAPI側で強制するためのスキーマ
+        const CHAT_TURN_RESPONSE_SCHEMA = {
+            type: "OBJECT",
+            properties: {
+                ai_response: { type: "STRING" },
+                current_step_label: { type: "STRING" }
+            },
+            required: ["ai_response", "current_step_label"]
+        };
+
         function getChatPrompt(subject) {
             return (SUBJECT_CHAT_PROMPTS[subject] || SUBJECT_CHAT_PROMPTS["数学"]) + buildLessonContextBlock();
         }
@@ -1482,7 +1492,32 @@ ${glossaryBlock}`;
          * ACTIVE_ENGINE（"gemini" or "deepseek"）に応じて呼び出し先を切り替える。
          * ※ DeepSeekは画像を直接読めないため、画像のみでまだ問題文（title）が未確定の場合はエラーにする。
          */
-        async function callAnalysisEngine(instructionText, systemInstruction) {
+        // 🔒【新設】SUBJECT_CREATE_PROMPTS（getCreatePrompt/getRegenPrompt共通）のJSON構造をAPI側で強制するためのスキーマ
+        const SUBJECT_ANALYSIS_RESPONSE_SCHEMA = {
+            type: "OBJECT",
+            properties: {
+                subject: { type: "STRING" },
+                field: { type: "STRING" },
+                short_title: { type: "STRING" },
+                extracted_text: { type: "STRING" },
+                trap_description: { type: "STRING" },
+                strategy_pattern: { type: "STRING" },
+                model_answer: { type: "STRING" }
+            },
+            required: ["subject", "field", "short_title", "extracted_text", "trap_description", "strategy_pattern", "model_answer"]
+        };
+
+        // 🔒【新設】getStrategyOnlyPrompt() のJSON構造をAPI側で強制するためのスキーマ
+        const STRATEGY_ONLY_RESPONSE_SCHEMA = {
+            type: "OBJECT",
+            properties: {
+                trap_description: { type: "STRING" },
+                strategy_pattern: { type: "STRING" }
+            },
+            required: ["trap_description", "strategy_pattern"]
+        };
+
+        async function callAnalysisEngine(instructionText, systemInstruction, responseSchema) {
             if (ACTIVE_ENGINE === "deepseek") {
                 if (getProblemImages(currentProblemData).length > 0 && !currentProblemData.title) {
                     throw new Error("DeepSeekは画像を直接読み取れません。先に✨Geminiで一度解析して問題文を文字起こしするか、問題文を手動で入力してから再度お試しください。");
@@ -1563,7 +1598,7 @@ ${glossaryBlock}`;
                 }
 
                 // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
-                return await callGeminiJSON(parts, systemInstruction, { temperature: 0.3 });
+                return await callGeminiJSON(parts, systemInstruction, { temperature: 0.3, responseSchema: responseSchema || undefined });
             }
         }
 
@@ -1592,7 +1627,7 @@ ${glossaryBlock}`;
             const chosenSubject = (subjectSelectEl && subjectSelectEl.value) || "数学";
 
             try {
-                const aiResult = await callAnalysisEngine(instructionText, getCreatePrompt(chosenSubject));
+                const aiResult = await callAnalysisEngine(instructionText, getCreatePrompt(chosenSubject), SUBJECT_ANALYSIS_RESPONSE_SCHEMA);
 
                 currentProblemData.title = aiResult.extracted_text || currentProblemData.title;
                 currentProblemData.short_title = aiResult.short_title || "解析問題";
@@ -1640,7 +1675,7 @@ ${glossaryBlock}`;
             const instructionText = `【問題文】\n${currentProblemData.title}\n\n【模範解答】\n${currentProblemData.answerFormula}`;
 
             try {
-                const aiResult = await callAnalysisEngine(instructionText, getStrategyOnlyPrompt(currentProblemData.subject || "数学"));
+                const aiResult = await callAnalysisEngine(instructionText, getStrategyOnlyPrompt(currentProblemData.subject || "数学"), STRATEGY_ONLY_RESPONSE_SCHEMA);
 
                 currentProblemData.trap_description = aiResult.trap_description || "";
                 currentProblemData.strategyPattern = aiResult.strategy_pattern || "";
@@ -1798,7 +1833,7 @@ ${glossaryBlock}`;
                         role: m.role === "assistant" ? "model" : "user",
                         parts: [{ text: m.content }]
                     }));
-                    aiJson = await callGeminiChat(geminiContents, getChatPrompt(currentProblemData.subject), { temperature: 0.5 });
+                    aiJson = await callGeminiChat(geminiContents, getChatPrompt(currentProblemData.subject), { temperature: 0.5, responseSchema: CHAT_TURN_RESPONSE_SCHEMA });
                 }
 
                 chatHistory.push({ "role": "assistant", "content": JSON.stringify(aiJson) });
@@ -2056,7 +2091,7 @@ ${glossaryBlock}`;
             }
 
             try {
-                const aiResult = await callAnalysisEngine(instructionText, getRegenPrompt(currentProblemData.subject || "数学", userNote));
+                const aiResult = await callAnalysisEngine(instructionText, getRegenPrompt(currentProblemData.subject || "数学", userNote), SUBJECT_ANALYSIS_RESPONSE_SCHEMA);
 
                 currentProblemData.title = aiResult.extracted_text || currentProblemData.title;
                 currentProblemData.short_title = aiResult.short_title || currentProblemData.short_title;
@@ -2325,8 +2360,19 @@ ${glossaryBlock}`;
 
             const promptText = `【元の問題文】\n${currentProblemData.title || "（問題文なし）"}\n\n【AIチューターとの質問チャット全文】\n${conversationText}`;
 
+            // 🔒 levelは列挙値なので、enumで選択肢自体をAPI側で強制する
+            const stuckTopicResponseSchema = {
+                type: "OBJECT",
+                properties: {
+                    topic: { type: "STRING" },
+                    level: { type: "STRING", enum: LEVEL_OPTIONS },
+                    note: { type: "STRING" }
+                },
+                required: ["topic", "level", "note"]
+            };
+
             // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
-            const parsed = await callGeminiJSON([{ text: promptText }], systemInstruction, { temperature: 0.3 });
+            const parsed = await callGeminiJSON([{ text: promptText }], systemInstruction, { temperature: 0.3, responseSchema: stuckTopicResponseSchema });
             if (!LEVEL_OPTIONS.includes(parsed.level)) parsed.level = "入試基礎レベル";
             return parsed;
         }
