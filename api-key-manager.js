@@ -214,16 +214,23 @@ export function extractJsonArray(text) {
 async function runGeminiFallbackLoop(contents, systemInstruction, options = {}) {
     const { temperature = 0.4, arrayMode = false, silentFallback = false } = options;
     const keys = getGeminiKeys();
-    const requestBody = JSON.stringify({
-        "contents": contents,
-        "systemInstruction": { "parts": [{ "text": systemInstruction }] },
-        "generationConfig": { "responseMimeType": "application/json", "temperature": temperature }
-    });
+
+    // ❗JSON厳守の追加指示（responseMimeType:application/jsonを付けていても、
+    //   モデルによっては挨拶などの自然文で応答してしまうことがあるための保険）
+    const strictJsonReminder = "\n\n❗最重要ルール: 出力は指定されたJSON形式のみとすること。挨拶・前置き・説明文・Markdownのコードブロック(```)など、JSON以外の文字列は一切含めないこと。";
 
     let lastError = null;
     const fallbackAttempts = [];
 
-    for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
+    // 1回分のリクエスト実行＋JSON抽出を行う内部ヘルパー
+    // 戻り値: { ok: true, parsed } または { ok: false, isFormatError, reason, error }
+    async function attemptOnce(modelName, systemInstructionText) {
+        const requestBody = JSON.stringify({
+            "contents": contents,
+            "systemInstruction": { "parts": [{ "text": systemInstructionText }] },
+            "generationConfig": { "responseMimeType": "application/json", "temperature": temperature }
+        });
+
         let response;
         try {
             response = await fetchWithKeyRotation(keys, (key) => ({
@@ -231,33 +238,43 @@ async function runGeminiFallbackLoop(contents, systemInstruction, options = {}) 
                 options: { method: "POST", headers: { "Content-Type": "application/json" }, body: requestBody }
             }));
         } catch (err) {
-            console.warn(`⚠️ ${modelName} は登録済みの全キーで失敗しました → 次のモデルへフォールバック`, err);
-            lastError = err;
-            fallbackAttempts.push({ model: modelName, reason: err?.message || "不明な通信エラー" });
-            continue;
+            return { ok: false, isFormatError: false, reason: err?.message || "不明な通信エラー", error: err };
         }
 
         const candidateJson = await response.json();
         const candidateText = candidateJson?.candidates?.[0]?.content?.parts?.[0]?.text;
 
         if (!candidateText) {
-            console.warn(`⚠️ ${modelName} が空の応答を返却しました → 次のモデルへフォールバック`);
-            lastError = new Error(`Empty response: ${modelName}`);
-            fallbackAttempts.push({ model: modelName, reason: "空応答（finishReason等が原因の可能性）" });
-            continue;
+            return { ok: false, isFormatError: false, reason: "空応答（finishReason等が原因の可能性）", error: new Error(`Empty response: ${modelName}`) };
         }
 
         try {
             const extractor = arrayMode ? extractJsonArray : extractJsonObject;
             const parsed = JSON.parse(fixJsonEscapes(extractor(stripCodeFence(candidateText.trim()))));
-            if (!silentFallback) notifyModelFallback(fallbackAttempts, modelName);
-            return parsed;
+            return { ok: true, parsed };
         } catch (parseErr) {
-            console.warn(`⚠️ ${modelName} の応答が不正なJSONでした → 次のモデルへフォールバック`, parseErr);
-            lastError = parseErr;
-            fallbackAttempts.push({ model: modelName, reason: "JSON解析エラー（応答の形式が崩れていた）" });
-            continue;
+            return { ok: false, isFormatError: true, reason: "JSON解析エラー（応答の形式が崩れていた）", error: parseErr, rawText: candidateText };
         }
+    }
+
+    for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
+        let result = await attemptOnce(modelName, systemInstruction);
+
+        // 🔁 JSON形式が崩れていた場合のみ、同じモデル・同じキー群に「JSON厳守」の
+        //   指示を強めて1回だけ再挑戦する（レート制限や通信エラーでは再挑戦しない＝即次のモデルへ）
+        if (!result.ok && result.isFormatError) {
+            console.warn(`⚠️ ${modelName} の応答が不正なJSONでした → フォーマット厳守の指示を追加して同じモデルに再挑戦`, result.error, result.rawText);
+            result = await attemptOnce(modelName, systemInstruction + strictJsonReminder);
+        }
+
+        if (result.ok) {
+            if (!silentFallback) notifyModelFallback(fallbackAttempts, modelName);
+            return result.parsed;
+        }
+
+        console.warn(`⚠️ ${modelName} が失敗しました（${result.reason}） → 次のモデルへフォールバック`, result.error);
+        lastError = result.error;
+        fallbackAttempts.push({ model: modelName, reason: result.isFormatError ? "JSON解析エラー（再指示後も形式が崩れていた）" : result.reason });
     }
 
     if (!silentFallback) notifyModelFallback(fallbackAttempts, null);
