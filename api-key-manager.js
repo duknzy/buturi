@@ -212,11 +212,11 @@ export function extractJsonArray(text) {
 //   silentFallback: true にすると notifyModelFallback（画面右下トースト）を出さない
 // --------------------------------------------------------------------------
 async function runGeminiFallbackLoop(contents, systemInstruction, options = {}) {
-    const { temperature = 0.4, arrayMode = false, silentFallback = false } = options;
+    const { temperature = 0.4, arrayMode = false, silentFallback = false, responseSchema = null } = options;
     const keys = getGeminiKeys();
 
-    // ❗JSON厳守の追加指示（responseMimeType:application/jsonを付けていても、
-    //   モデルによっては挨拶などの自然文で応答してしまうことがあるための保険）
+    // ❗JSON厳守の追加指示（responseSchemaを指定できない呼び出し元向けの保険。
+    //   responseSchemaがある場合はAPI側で構造そのものが強制されるため、これは主にschema未指定時の保険として働く）
     const strictJsonReminder = "\n\n❗最重要ルール: 出力は指定されたJSON形式のみとすること。挨拶・前置き・説明文・Markdownのコードブロック(```)など、JSON以外の文字列は一切含めないこと。";
 
     let lastError = null;
@@ -225,10 +225,15 @@ async function runGeminiFallbackLoop(contents, systemInstruction, options = {}) 
     // 1回分のリクエスト実行＋JSON抽出を行う内部ヘルパー
     // 戻り値: { ok: true, parsed } または { ok: false, isFormatError, reason, error }
     async function attemptOnce(modelName, systemInstructionText) {
+        const generationConfig = { "responseMimeType": "application/json", "temperature": temperature };
+        // 🔒【最重要】responseSchemaを渡すと、Gemini側でJSON構造そのものを強制するデコードになり、
+        //   「JSONで返して」という自然文のお願いより遥かに確実にフォーマット崩れを防げる。
+        if (responseSchema) generationConfig.responseSchema = responseSchema;
+
         const requestBody = JSON.stringify({
             "contents": contents,
             "systemInstruction": { "parts": [{ "text": systemInstructionText }] },
-            "generationConfig": { "responseMimeType": "application/json", "temperature": temperature }
+            "generationConfig": generationConfig
         });
 
         let response;
@@ -282,11 +287,13 @@ async function runGeminiFallbackLoop(contents, systemInstruction, options = {}) 
 }
 
 // ✨ 単発質問用（parts配列＝テキスト＋画像を1ターンとして送る）
+// options.responseSchema にGeminiのSchemaオブジェクトを渡すと、そのJSON構造をAPI側で強制できる
 export async function callGeminiJSON(parts, systemInstruction, options = {}) {
     return runGeminiFallbackLoop([{ "role": "user", "parts": parts }], systemInstruction, options);
 }
 
 // ✨ 複数ターンの会話履歴用（contentsは [{role:"user"|"model", parts:[...]}...] の配列そのもの）
+// options.responseSchema にGeminiのSchemaオブジェクトを渡すと、そのJSON構造をAPI側で強制できる
 export async function callGeminiChat(contents, systemInstruction, options = {}) {
     return runGeminiFallbackLoop(contents, systemInstruction, options);
 }
