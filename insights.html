@@ -64,11 +64,7 @@
         }
 
         /* 🎛 モード切り替え大タブ */
-        .main-tab-bar {
-            display: flex;
-            gap: 0.8rem;
-            flex-wrap: wrap;
-        }
+        .main-tab-bar { display: flex; gap: 0.8rem; flex-wrap: wrap; }
         .main-tab-btn {
             background: rgba(255, 255, 255, 0.03);
             color: var(--text-bright-muted);
@@ -83,70 +79,52 @@
             align-items: center;
             gap: 0.5rem;
         }
-        .main-tab-btn:hover {
-            background: rgba(0, 243, 255, 0.08);
-            border-color: var(--accent-cyan);
-            color: #fff;
-        }
+        .main-tab-btn:hover { background: rgba(0, 243, 255, 0.08); border-color: var(--accent-cyan); color: #fff; }
         .main-tab-btn.active {
-            background: var(--accent-cyan) !important;
-            color: #000 !important;
-            font-weight: 900;
-            border-color: var(--accent-cyan) !important;
+            background: var(--accent-cyan) !important; color: #000 !important;
+            font-weight: 900; border-color: var(--accent-cyan) !important;
             box-shadow: 0 0 20px rgba(0, 243, 255, 0.35);
         }
         .main-tab-btn.tab-yellow.active {
-            background: var(--accent-yellow) !important;
-            border-color: var(--accent-yellow) !important;
+            background: var(--accent-yellow) !important; border-color: var(--accent-yellow) !important;
             box-shadow: 0 0 20px rgba(255, 245, 0, 0.35);
         }
 
-        /* 検索・絞り込みツールバー */
+        /* ツールバー */
         .toolbar-card {
             padding: 1.2rem 1.6rem;
             display: flex;
             flex-direction: column;
             gap: 0.8rem;
         }
-        .filter-row {
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-            flex-wrap: wrap;
-        }
-        .filter-label {
-            font-size: 0.75rem;
-            font-weight: 900;
-            color: var(--text-muted);
-            letter-spacing: 1px;
-            min-width: 70px;
-        }
+        .filter-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+        .filter-label { font-size: 0.75rem; font-weight: 900; color: var(--text-muted); letter-spacing: 1px; min-width: 70px; }
         .search-input {
-            flex-grow: 1;
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            color: #fff;
-            padding: 0.6rem 1rem;
-            border-radius: 10px;
-            font-size: 0.9rem;
+            flex-grow: 1; min-width: 200px; background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.12); color: #fff;
+            padding: 0.6rem 1rem; border-radius: 10px; font-size: 0.9rem;
         }
         .search-input:focus { outline: none; border-color: var(--accent-cyan); }
         .field-select {
-            background: #000;
-            color: var(--accent-cyan);
-            border: 1px solid var(--accent-cyan);
-            padding: 0.45rem 0.8rem;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            font-weight: 800;
-            cursor: pointer;
-            outline: none;
+            background: #000; color: var(--accent-cyan); border: 1px solid var(--accent-cyan);
+            padding: 0.45rem 0.8rem; border-radius: 8px; font-size: 0.8rem; font-weight: 800; cursor: pointer; outline: none;
+        }
+        .toggle-btn {
+            background: rgba(255, 255, 255, 0.04); color: var(--text-bright-muted);
+            border: 1px solid var(--border-color); padding: 0.45rem 0.85rem; border-radius: 8px;
+            font-size: 0.78rem; font-weight: 800; cursor: pointer; transition: all 0.15s ease;
+            display: inline-flex; align-items: center; gap: 0.35rem;
+        }
+        .toggle-btn:hover { border-color: var(--accent-cyan); color: #fff; }
+        .toggle-btn.active {
+            background: rgba(0, 243, 255, 0.15); border-color: var(--accent-cyan); color: var(--accent-cyan);
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
         }
 
-        /* 🧠 気づきメモグリッド */
+        /* 🎴 リッチ対比カード表示 */
         .insight-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
             gap: 1.2rem;
         }
         .insight-card {
@@ -154,152 +132,161 @@
             border: 1px solid var(--border-color);
             border-left: 4px solid var(--accent-cyan);
             border-radius: 16px;
-            padding: 1.3rem;
+            padding: 1.2rem 1.4rem;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             gap: 0.8rem;
             transition: all 0.15s ease;
         }
+        .insight-card.pinned {
+            border-left-color: var(--accent-yellow);
+            background: rgba(255, 245, 0, 0.03);
+        }
         .insight-card:hover {
             border-color: var(--accent-cyan);
             transform: translateY(-2px);
             background: rgba(255, 255, 255, 0.04);
         }
-        .insight-text {
-            font-size: 1rem;
-            line-height: 1.7;
-            color: var(--text-main);
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-weight: 600;
-        }
+        .insight-card.pinned:hover { border-color: var(--accent-yellow); }
 
-        /* 💬 質問ログ 2カラムビュー（PC大画面対応） */
-        .qna-layout {
-            display: grid;
-            grid-template-columns: 380px 1fr;
-            gap: 1.5rem;
-            align-items: start;
-            min-height: 600px;
-        }
-        @media (max-width: 1000px) {
-            .qna-layout { grid-template-columns: 1fr; }
-        }
-
-        .qna-list-pane {
-            max-height: calc(100vh - 280px);
-            overflow-y: auto;
+        /* 上半分：問題の型プレビュー */
+        .insight-problem-preview {
+            background: rgba(0, 243, 255, 0.03);
+            border: 1px dashed rgba(0, 243, 255, 0.2);
+            border-radius: 10px;
+            padding: 0.6rem 0.8rem;
             display: flex;
             flex-direction: column;
-            gap: 0.6rem;
-            padding-right: 0.4rem;
+            gap: 0.2rem;
         }
-        .qna-list-item {
+        .insight-problem-title { font-size: 0.85rem; font-weight: 800; color: #ffffff; }
+        .insight-problem-snippet {
+            font-size: 0.76rem; color: var(--text-muted);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        /* 下半分：極意・気づき（ネオン強調） */
+        .insight-body-box {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+        .insight-body-label {
+            font-size: 0.7rem; font-weight: 900; color: var(--accent-cyan);
+            letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .insight-text {
+            font-size: 1rem; line-height: 1.65; color: var(--text-main);
+            white-space: pre-wrap; word-break: break-word; font-weight: 600;
+        }
+
+        /* 📋 爆速コンパクトリスト表示 */
+        .insight-compact-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .insight-compact-row {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
             background: var(--card-bg-glass);
             border: 1px solid var(--border-color);
             border-radius: 12px;
-            padding: 0.9rem 1.1rem;
-            cursor: pointer;
+            padding: 0.7rem 1rem;
             transition: all 0.15s ease;
+        }
+        .insight-compact-row.pinned { border-left: 3px solid var(--accent-yellow); }
+        .insight-compact-row:hover {
+            border-color: var(--accent-cyan);
+            transform: translateX(3px);
+            background: rgba(255, 255, 255, 0.04);
+        }
+        .compact-main { flex-grow: 1; min-width: 0; }
+        .compact-text {
+            font-size: 0.95rem; font-weight: 700; color: #fff;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .compact-sub {
+            font-size: 0.74rem; color: var(--text-muted); margin-top: 0.2rem;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        /* 📁 単元グループ見出し（アコーディオン） */
+        .group-header {
+            font-size: 0.95rem; font-weight: 900; color: var(--accent-yellow);
+            padding: 0.6rem 0.8rem; margin: 1.2rem 0 0.6rem 0;
+            background: rgba(255, 245, 0, 0.06); border-left: 3px solid var(--accent-yellow);
+            border-radius: 0 8px 8px 0; cursor: pointer; display: flex;
+            align-items: center; justify-content: space-between; user-select: none;
+        }
+        .group-header:hover { background: rgba(255, 245, 0, 0.12); }
+        .group-header.collapsed .group-chevron { transform: rotate(-90deg); }
+        .group-chevron { transition: transform 0.15s ease; font-size: 0.75rem; }
+        .group-content.collapsed { display: none; }
+
+        /* ⭐ スターボタン */
+        .star-btn {
+            background: none; border: none; font-size: 1.1rem; cursor: pointer;
+            color: #555; transition: transform 0.15s ease, color 0.15s ease; padding: 0.1rem;
+        }
+        .star-btn:hover { transform: scale(1.25); }
+        .star-btn.active { color: var(--accent-yellow); text-shadow: 0 0 10px rgba(255, 245, 0, 0.6); }
+
+        /* ✏️ インライン編集エリア */
+        .inline-edit-textarea {
+            width: 100%; min-height: 80px; background: #000; border: 1px solid var(--accent-cyan);
+            color: #fff; padding: 0.6rem; border-radius: 8px; font-size: 0.95rem; font-family: inherit; resize: vertical;
+        }
+
+        /* 💬 質問ログ用スタイル */
+        .qna-layout {
+            display: grid; grid-template-columns: 380px 1fr; gap: 1.5rem; align-items: start; min-height: 600px;
+        }
+        @media (max-width: 1000px) { .qna-layout { grid-template-columns: 1fr; } }
+        .qna-list-pane {
+            max-height: calc(100vh - 280px); overflow-y: auto; display: flex; flex-direction: column; gap: 0.6rem; padding-right: 0.4rem;
+        }
+        .qna-list-item {
+            background: var(--card-bg-glass); border: 1px solid var(--border-color); border-radius: 12px;
+            padding: 0.9rem 1.1rem; cursor: pointer; transition: all 0.15s ease;
         }
         .qna-list-item:hover { border-color: var(--accent-yellow); transform: translateX(3px); }
         .qna-list-item.active {
-            background: rgba(255, 245, 0, 0.08);
-            border-color: var(--accent-yellow);
-            box-shadow: 0 0 15px rgba(255, 245, 0, 0.15);
+            background: rgba(255, 245, 0, 0.08); border-color: var(--accent-yellow); box-shadow: 0 0 15px rgba(255, 245, 0, 0.15);
         }
         .qna-item-preview {
-            font-size: 0.85rem;
-            color: var(--text-bright-muted);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            margin-top: 0.3rem;
+            font-size: 0.85rem; color: var(--text-bright-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.3rem;
         }
-
         .qna-detail-pane {
-            background: var(--card-bg-glass);
-            border: 1px solid var(--border-color);
-            border-radius: 20px;
-            padding: 1.6rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            min-height: 600px;
-            max-height: calc(100vh - 280px);
+            background: var(--card-bg-glass); border: 1px solid var(--border-color); border-radius: 20px;
+            padding: 1.4rem; display: flex; flex-direction: column; gap: 0.8rem; min-height: 600px; max-height: calc(100vh - 280px);
         }
-        .qna-messages-stream {
-            flex-grow: 1;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 0.8rem;
-            padding-right: 0.5rem;
+        .qna-detail-problem-card {
+            background: rgba(0, 243, 255, 0.04); border: 1px dashed rgba(0, 243, 255, 0.25); border-radius: 12px;
+            padding: 0.8rem 1rem; display: flex; flex-direction: column; gap: 0.3rem; flex-shrink: 0;
         }
-        .chat-bubble {
-            padding: 1rem 1.3rem;
-            border-radius: 16px;
-            font-size: 0.95rem;
-            line-height: 1.7;
-            max-width: 90%;
-            word-break: break-word;
-            white-space: pre-wrap;
-        }
-        .bubble-user {
-            background: rgba(255, 0, 127, 0.15);
-            border-right: 3px solid var(--accent-magenta);
-            color: #fff;
-            align-self: flex-end;
-        }
-        .bubble-ai {
-            background: rgba(18, 22, 34, 0.85);
-            border-left: 3px solid var(--accent-cyan);
-            color: #e0f2fe;
-            align-self: flex-start;
-        }
+        .qna-problem-header { font-size: 0.72rem; font-weight: 900; color: var(--accent-cyan); letter-spacing: 0.5px; }
+        .qna-problem-body { font-size: 0.88rem; color: var(--text-bright-muted); line-height: 1.6; max-height: 120px; overflow-y: auto; word-break: break-word; }
+        .qna-messages-stream { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.6rem; padding-right: 0.4rem; }
+        .chat-bubble { padding: 0.75rem 1.1rem; border-radius: 14px; font-size: 0.92rem; line-height: 1.65; max-width: 88%; word-break: break-word; box-sizing: border-box; }
+        .bubble-user { background: rgba(255, 0, 127, 0.15); border-right: 3px solid var(--accent-magenta); color: #fff; align-self: flex-end; }
+        .bubble-ai { background: rgba(18, 22, 34, 0.85); border-left: 3px solid var(--accent-cyan); color: #e0f2fe; align-self: flex-start; }
 
         /* 🎴 語呂合わせカード */
-        .mnemonic-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 1rem;
-        }
+        .mnemonic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
         .mnemonic-card {
-            background: var(--card-bg-glass);
-            border: 1px solid var(--border-color);
-            border-left: 4px solid var(--accent-yellow);
-            border-radius: 14px;
-            padding: 1.2rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.6rem;
-            transition: all 0.15s ease;
+            background: var(--card-bg-glass); border: 1px solid var(--border-color); border-left: 4px solid var(--accent-yellow);
+            border-radius: 14px; padding: 1.2rem; display: flex; flex-direction: column; gap: 0.6rem; transition: all 0.15s ease;
         }
-        .mnemonic-card:hover {
-            border-color: var(--accent-yellow);
-            transform: translateY(-2px);
-        }
-        .mnemonic-body {
-            font-size: 1.05rem;
-            font-weight: 800;
-            color: #ffffff;
-            line-height: 1.6;
-        }
+        .mnemonic-card:hover { border-color: var(--accent-yellow); transform: translateY(-2px); }
+        .mnemonic-body { font-size: 1.05rem; font-weight: 800; color: #ffffff; line-height: 1.6; }
 
         .goto-btn {
-            font-size: 0.78rem;
-            font-weight: 800;
-            padding: 0.35rem 0.75rem;
-            border-radius: 8px;
-            background: rgba(0, 243, 255, 0.08);
-            color: var(--accent-cyan);
-            border: 1px solid var(--accent-cyan);
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.3rem;
-            transition: all 0.15s ease;
+            font-size: 0.78rem; font-weight: 800; padding: 0.3rem 0.7rem; border-radius: 8px;
+            background: rgba(0, 243, 255, 0.08); color: var(--accent-cyan); border: 1px solid var(--accent-cyan);
+            text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem; transition: all 0.15s ease;
         }
         .goto-btn:hover { background: rgba(0, 243, 255, 0.2); }
     </style>
@@ -351,44 +338,64 @@
             </button>
         </div>
 
-        <!-- ツールバー（検索・ソート・教科） -->
+        <!-- ツールバー -->
         <div class="squircle-card glass-card toolbar-card">
             <div class="filter-row">
                 <span class="filter-label">🔎 検索：</span>
                 <input type="text" class="search-input" id="search-input" placeholder="キーワード・単元名・問題タイトルで検索...">
-                <span class="filter-label" style="min-width:auto; margin-left:0.5rem;">🔀 並べ替え：</span>
-                <select class="field-select" id="sort-select">
-                    <option value="newest">記録・更新が新しい順</option>
-                    <option value="oldest">記録・更新が古い順</option>
-                    <option value="subject">教科・単元順</option>
-                </select>
-                <span class="filter-label" style="min-width:auto; margin-left:0.5rem;">📚 教科：</span>
+                
+                <span class="filter-label" style="min-width:auto; margin-left:0.4rem;">📚 教科：</span>
                 <select class="field-select" id="subject-select">
                     <option value="ALL">すべての教科</option>
                 </select>
+
+                <span class="filter-label" style="min-width:auto; margin-left:0.4rem;">🔀 並べ替え：</span>
+                <select class="field-select" id="sort-select">
+                    <option value="newest">更新が新しい順</option>
+                    <option value="oldest">更新が古い順</option>
+                    <option value="subject">教科・単元順</option>
+                </select>
+            </div>
+
+            <!-- 気づきメモタブ専用のサブツールバー -->
+            <div class="filter-row" id="insight-subtoolbar" style="border-top: 1px dashed rgba(255,255,255,0.08); padding-top:0.6rem;">
+                <span class="filter-label">🎛 表示：</span>
+                <button type="button" class="toggle-btn active" id="btn-view-card">🎴 対比カード</button>
+                <button type="button" class="toggle-btn" id="btn-view-compact">📋 爆速リスト</button>
+                <span style="color: #334455; margin: 0 0.3rem;">|</span>
+                <button type="button" class="toggle-btn active" id="btn-toggle-group">📁 単元ごとにまとめる</button>
+                <button type="button" class="toggle-btn" id="btn-toggle-pinned">⭐ スター付きのみ</button>
             </div>
         </div>
 
         <!-- メイン表示領域 -->
         <main>
             <!-- 1. 気づきメモビュー -->
-            <div id="view-insights" class="insight-grid"></div>
+            <div id="view-insights"></div>
 
             <!-- 2. AI質問ログビュー（2カラム） -->
             <div id="view-qna" class="qna-layout" style="display: none;">
                 <div class="qna-list-pane" id="qna-list-pane"></div>
                 <div class="qna-detail-pane" id="qna-detail-pane">
-                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #22222a; padding-bottom:0.8rem; flex-wrap:wrap; gap:0.5rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #22222a; padding-bottom:0.6rem; flex-wrap:wrap; gap:0.5rem;">
                         <div>
                             <span class="badge badge-physics" id="qna-detail-subject">--</span>
-                            <span style="font-weight:800; font-size:1rem; margin-left:0.4rem;" id="qna-detail-title">質問を選択してください</span>
-                            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem;" id="qna-detail-date"></div>
+                            <span style="font-weight:800; font-size:0.95rem; margin-left:0.4rem;" id="qna-detail-title">質問を選択してください</span>
+                            <div style="font-size:0.72rem; color:var(--text-muted); margin-top:0.2rem;" id="qna-detail-date"></div>
                         </div>
                         <div style="display:flex; gap:0.6rem;">
                             <a href="#" id="qna-detail-goto" class="goto-btn" style="display:none;">📌 問題を開く</a>
                             <button type="button" id="qna-detail-delete" class="tactile-btn" style="display:none; font-size:0.75rem; padding:0.35rem 0.75rem; background:rgba(255,0,127,0.1); color:var(--accent-magenta); border:1px solid var(--accent-magenta); box-shadow:none;">🗑 削除</button>
                         </div>
                     </div>
+
+                    <div class="qna-detail-problem-card" id="qna-detail-problem-box" style="display: none;">
+                        <div class="qna-problem-header">
+                            <span>📖 対象の問題文</span>
+                        </div>
+                        <div class="qna-problem-body tex2jax_process" id="qna-detail-problem-text"></div>
+                    </div>
+
                     <div class="qna-messages-stream" id="qna-messages-stream">
                         <div style="text-align:center; padding:5rem 1rem; color:var(--text-muted); font-size:0.9rem;">
                             左のリストから質問ログを選択すると、ここに会話全文が表示されます。
@@ -408,7 +415,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-        import { getDatabase, ref, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+        import { getDatabase, ref, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
         import { showToast } from "./api-key-manager.js";
 
         const firebaseConfig = {
@@ -427,14 +434,21 @@
 
         let currentUser = null;
         let activeTab = "insights"; // "insights" | "qna" | "mnemonics"
+        let insightViewMode = "card"; // "card" | "compact"
+        let isGrouped = true; // 単元グループ化 ON/OFF
+        let filterPinnedOnly = false; // スター付きのみ ON/OFF
+        let collapsedGroups = new Set(); // 折りたたまれたグループキー
+
         let rawProblems = {};
         let rawQnaLogs = {};
         let selectedQnaLogId = null;
+        let editingProblemId = null; // その場編集中の問題ID
 
         // 🎛 タブ切り替え
         const tabBtnInsights = document.getElementById("tab-btn-insights");
         const tabBtnQna = document.getElementById("tab-btn-qna");
         const tabBtnMnemonics = document.getElementById("tab-btn-mnemonics");
+        const insightSubToolbar = document.getElementById("insight-subtoolbar");
 
         function switchTab(tab) {
             activeTab = tab;
@@ -442,9 +456,10 @@
             tabBtnQna.classList.toggle("active", tab === "qna");
             tabBtnMnemonics.classList.toggle("active", tab === "mnemonics");
 
-            document.getElementById("view-insights").style.display = tab === "insights" ? "grid" : "none";
+            document.getElementById("view-insights").style.display = tab === "insights" ? "block" : "none";
             document.getElementById("view-qna").style.display = tab === "qna" ? "grid" : "none";
             document.getElementById("view-mnemonics").style.display = tab === "mnemonics" ? "grid" : "none";
+            insightSubToolbar.style.display = tab === "insights" ? "flex" : "none";
 
             populateSubjectFilter();
             renderActiveView();
@@ -453,6 +468,35 @@
         tabBtnInsights.addEventListener("click", () => switchTab("insights"));
         tabBtnQna.addEventListener("click", () => switchTab("qna"));
         tabBtnMnemonics.addEventListener("click", () => switchTab("mnemonics"));
+
+        // 気づきサブツールバーのトグル
+        const btnViewCard = document.getElementById("btn-view-card");
+        const btnViewCompact = document.getElementById("btn-view-compact");
+        const btnToggleGroup = document.getElementById("btn-toggle-group");
+        const btnTogglePinned = document.getElementById("btn-toggle-pinned");
+
+        btnViewCard.addEventListener("click", () => {
+            insightViewMode = "card";
+            btnViewCard.classList.add("active");
+            btnViewCompact.classList.remove("active");
+            renderInsights();
+        });
+        btnViewCompact.addEventListener("click", () => {
+            insightViewMode = "compact";
+            btnViewCompact.classList.add("active");
+            btnViewCard.classList.remove("active");
+            renderInsights();
+        });
+        btnToggleGroup.addEventListener("click", () => {
+            isGrouped = !isGrouped;
+            btnToggleGroup.classList.toggle("active", isGrouped);
+            renderInsights();
+        });
+        btnTogglePinned.addEventListener("click", () => {
+            filterPinnedOnly = !filterPinnedOnly;
+            btnTogglePinned.classList.toggle("active", filterPinnedOnly);
+            renderInsights();
+        });
 
         // フィルター＆検索
         const searchInput = document.getElementById("search-input");
@@ -483,11 +527,63 @@
         }
 
         function formatDate(iso) {
-            if (!iso) return "日付不明";
-            return new Date(iso).toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            if (!iso) return "";
+            return new Date(iso).toLocaleDateString('ja-JP', { year: '2-digit', month: 'numeric', day: 'numeric' });
         }
 
-        // 🧠 1. 気づきメモ描画
+        function formatQuestionSnippet(raw) {
+            if (!raw) return "（問題文なし）";
+            return String(raw).replace(/\\n/g, " ").replace(/\r?\n/g, " ").slice(0, 70) + "…";
+        }
+
+        // ⭐ ピン留め（スター）切り替え
+        window.togglePin = async function(problemId, e) {
+            if (e) e.stopPropagation();
+            if (!currentUser) return;
+            const p = rawProblems[problemId];
+            if (!p) return;
+            const newPinned = !p.isPinned;
+            try {
+                await update(ref(database, 'users/' + currentUser.uid + '/problems/' + problemId), {
+                    isPinned: newPinned
+                });
+            } catch (err) {
+                showToast("スターの更新に失敗しました。", "error");
+            }
+        };
+
+        // ✏️ その場で編集（インライン編集）
+        window.startEditInsight = function(problemId, e) {
+            if (e) e.stopPropagation();
+            editingProblemId = problemId;
+            renderInsights();
+        };
+
+        window.cancelEditInsight = function(e) {
+            if (e) e.stopPropagation();
+            editingProblemId = null;
+            renderInsights();
+        };
+
+        window.saveInlineInsight = async function(problemId, e) {
+            if (e) e.stopPropagation();
+            const textarea = document.getElementById(`inline-textarea-${problemId}`);
+            if (!textarea || !currentUser) return;
+            const newText = textarea.value.trim();
+            try {
+                const nowIso = new Date().toISOString();
+                await update(ref(database, 'users/' + currentUser.uid + '/problems/' + problemId), {
+                    insight: newText,
+                    insightUpdatedAt: nowIso
+                });
+                editingProblemId = null;
+                showToast("極意メモを更新しました！", "success", 2000);
+            } catch (err) {
+                showToast("保存に失敗しました。", "error");
+            }
+        };
+
+        // 🧠 1. 気づきメモ描画（対比カード ＆ 爆速リスト ＆ 単元グループ化対応）
         function renderInsights() {
             const container = document.getElementById("view-insights");
             const query = searchInput.value.trim().toLowerCase();
@@ -497,46 +593,179 @@
             let items = Object.values(rawProblems).filter(p => p && p.insight && p.insight.trim() !== "");
 
             if (subject !== "ALL") items = items.filter(p => (p.subject || "未分類") === subject);
+            if (filterPinnedOnly) items = items.filter(p => !!p.isPinned);
             if (query) {
                 items = items.filter(p =>
                     (p.insight || "").toLowerCase().includes(query) ||
                     (p.short_title || "").toLowerCase().includes(query) ||
-                    (p.field || "").toLowerCase().includes(query)
+                    (p.field || "").toLowerCase().includes(query) ||
+                    (p.title || "").toLowerCase().includes(query)
                 );
             }
 
+            // ソート（スター付きは常に最優先）
             items.sort((a, b) => {
+                if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
                 if (sort === "oldest") return new Date(a.insightUpdatedAt || a.createdAt || 0) - new Date(b.insightUpdatedAt || b.createdAt || 0);
-                if (sort === "subject") return (a.subject || "").localeCompare(b.subject || "", "ja");
+                if (sort === "subject") {
+                    const subA = (a.subject || "") + (a.field || "");
+                    const subB = (b.subject || "") + (b.field || "");
+                    return subA.localeCompare(subB, "ja");
+                }
                 return new Date(b.insightUpdatedAt || b.createdAt || 0) - new Date(a.insightUpdatedAt || a.createdAt || 0);
             });
 
             if (items.length === 0) {
                 container.innerHTML = "";
-                showEmptyNotice("該当する「気づきメモ」が見つかりませんでした。");
+                showEmptyNotice("該当する「気づき・極意メモ」が見つかりませんでした。");
                 return;
             }
             hideEmptyNotice();
 
-            container.innerHTML = items.map(p => `
-                <div class="insight-card">
-                    <div>
-                        <div style="display:flex; justify-content:space-between; align-items:center; gap:0.4rem; margin-bottom:0.6rem; flex-wrap:wrap;">
-                            <span class="badge badge-physics">${p.subject || "未分類"} // ${p.field || "未分類"}</span>
-                            <span style="font-size:0.72rem; color:var(--text-muted);">🗓️ ${formatDate(p.insightUpdatedAt || p.createdAt)}</span>
+            // 単元グループ化の処理
+            if (isGrouped) {
+                const groups = {};
+                items.forEach(p => {
+                    const key = `${p.subject || "未分類"} ＞ ${p.field || "全般"}`;
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(p);
+                });
+
+                container.innerHTML = Object.entries(groups).map(([groupKey, groupItems]) => {
+                    const isCollapsed = collapsedGroups.has(groupKey);
+                    const rowsHtml = insightViewMode === "card"
+                        ? `<div class="insight-grid">${groupItems.map(p => renderCardHtml(p)).join("")}</div>`
+                        : `<div class="insight-compact-list">${groupItems.map(p => renderCompactRowHtml(p)).join("")}</div>`;
+
+                    return `
+                        <div class="group-section">
+                            <div class="group-header ${isCollapsed ? 'collapsed' : ''}" data-group="${groupKey}">
+                                <span>📁 ${groupKey} (${groupItems.length}件)</span>
+                                <span class="group-chevron">▼</span>
+                            </div>
+                            <div class="group-content ${isCollapsed ? 'collapsed' : ''}" data-content="${groupKey}">
+                                ${rowsHtml}
+                            </div>
                         </div>
-                        <div class="insight-text tex2jax_process">${p.insight}</div>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed rgba(255,255,255,0.08); padding-top:0.6rem; margin-top:0.4rem;">
-                        <span style="font-size:0.8rem; font-weight:800; color:var(--text-bright-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px;">
-                            📌 ${p.short_title || "問題"}
-                        </span>
-                        <a href="problem.html?id=${encodeURIComponent(p.id)}" class="goto-btn">問題を開く ➔</a>
-                    </div>
-                </div>
-            `).join("");
+                    `;
+                }).join("");
+
+                // アコーディオン開閉
+                container.querySelectorAll(".group-header").forEach(header => {
+                    header.addEventListener("click", () => {
+                        const key = header.getAttribute("data-group");
+                        if (collapsedGroups.has(key)) collapsedGroups.delete(key);
+                        else collapsedGroups.add(key);
+                        renderInsights();
+                    });
+                });
+
+            } else {
+                // フラット表示
+                container.innerHTML = insightViewMode === "card"
+                    ? `<div class="insight-grid">${items.map(p => renderCardHtml(p)).join("")}</div>`
+                    : `<div class="insight-compact-list">${items.map(p => renderCompactRowHtml(p)).join("")}</div>`;
+            }
 
             if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([container]);
+        }
+
+        // リッチ対比カードのHTML
+        function renderCardHtml(p) {
+            const isEditing = editingProblemId === p.id;
+            const starClass = p.isPinned ? "active" : "";
+            const pinnedClass = p.isPinned ? "pinned" : "";
+
+            const bodyContent = isEditing
+                ? `
+                    <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                        <textarea class="inline-edit-textarea" id="inline-textarea-${p.id}">${p.insight || ""}</textarea>
+                        <div style="display:flex; justify-content:flex-end; gap:0.4rem;">
+                            <button type="button" class="tactile-btn tactile-btn-secondary" style="font-size:0.75rem; padding:0.25rem 0.6rem;" onclick="cancelEditInsight(event)">キャンセル</button>
+                            <button type="button" class="tactile-btn" style="font-size:0.75rem; padding:0.25rem 0.6rem; background:var(--accent-cyan); color:#000;" onclick="saveInlineInsight('${p.id}', event)">💾 保存</button>
+                        </div>
+                    </div>
+                `
+                : `<div class="insight-text tex2jax_process" onclick="startEditInsight('${p.id}', event)" title="クリックしてその場で編集">${p.insight}</div>`;
+
+            return `
+                <div class="insight-card ${pinnedClass}">
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:0.4rem; margin-bottom:0.6rem;">
+                            <span class="badge badge-physics">${p.subject || "未分類"} // ${p.field || "未分類"}</span>
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <span style="font-size:0.72rem; color:var(--text-muted);">🗓️ ${formatDate(p.insightUpdatedAt || p.createdAt)}</span>
+                                <button type="button" class="star-btn ${starClass}" onclick="togglePin('${p.id}', event)" title="スター（最上部に固定）">★</button>
+                            </div>
+                        </div>
+
+                        <!-- 上半分：問題の型プレビュー -->
+                        <div class="insight-problem-preview">
+                            <div class="insight-problem-title">📌 ${p.short_title || "問題"}</div>
+                            <div class="insight-problem-snippet tex2jax_process">${formatQuestionSnippet(p.title)}</div>
+                        </div>
+                    </div>
+
+                    <!-- 下半分：あなたが掴んだ極意 -->
+                    <div class="insight-body-box">
+                        <div class="insight-body-label">
+                            <span>🧠 掴んだ極意・解法の地図</span>
+                            ${!isEditing ? `<button type="button" style="background:none; border:none; color:var(--accent-cyan); font-size:0.72rem; font-weight:800; cursor:pointer;" onclick="startEditInsight('${p.id}', event)">✏️ 編集</button>` : ''}
+                        </div>
+                        ${bodyContent}
+                    </div>
+
+                    <div style="display:flex; justify-content:flex-end; border-top:1px dashed rgba(255,255,255,0.08); padding-top:0.6rem;">
+                        <a href="problem.html?id=${encodeURIComponent(p.id)}" class="goto-btn">問題ページを開く ➔</a>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 爆速リストのHTML
+        function renderCompactRowHtml(p) {
+            const starClass = p.isPinned ? "active" : "";
+            const pinnedClass = p.isPinned ? "pinned" : "";
+
+            return `
+                <div class="insight-compact-row ${pinnedClass}">
+                    <button type="button" class="star-btn ${starClass}" onclick="togglePin('${p.id}', event)" title="スター">★</button>
+                    <span class="badge badge-physics" style="font-size:0.68rem; flex-shrink:0;">${p.subject || "未分類"} // ${p.field || "未分類"}</span>
+                    <div class="compact-main">
+                        <div class="compact-text tex2jax_process">${p.insight}</div>
+                        <div class="compact-sub">📌 ${p.short_title || "問題"} ｜ ${formatDate(p.insightUpdatedAt || p.createdAt)}</div>
+                    </div>
+                    <a href="problem.html?id=${encodeURIComponent(p.id)}" class="goto-btn" style="flex-shrink:0;">➔</a>
+                </div>
+            `;
+        }
+
+        // Markdown＆数式フォーマット関数
+        function renderFormattedMarkdown(text) {
+            if (!text) return "";
+            let trimmed = text.trim();
+            const mathBlocks = [];
+            let placeholderText = trimmed.replace(/(\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g, (match) => {
+                mathBlocks.push(match);
+                return `%%%MATH_${mathBlocks.length - 1}%%%`;
+            });
+            let formatted = placeholderText
+                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            formatted = formatted.replace(/^###\s*(.+)$/gm, '<h4 style="font-size:0.92rem; font-weight:800; color:var(--accent-cyan); margin:0.5rem 0 0.2rem 0; border-bottom:1px solid rgba(0,243,255,0.2); padding-bottom:0.2rem;">$1</h4>');
+            formatted = formatted.replace(/^---\s*$/gm, '<hr style="border:none; border-top:1px dashed rgba(255,255,255,0.15); margin:0.5rem 0;">');
+            formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff; font-weight:700;">$1</strong>');
+            formatted = formatted.replace(/^(\d+\.)\s*/gm, '<span style="color:var(--accent-yellow); font-weight:800; margin-right:0.3rem;">$1</span>');
+            formatted = formatted.replace(/%%%MATH_(\d+)%%%/g, (_, idx) => mathBlocks[idx]);
+            return formatted.replace(/\n/g, '<br>');
+        }
+
+        function formatQuestionText(raw) {
+            if (!raw) return "";
+            let t = String(raw).replace(/\\n/g, '\n').replace(/\r\n?/g, '\n').trim();
+            const noWordBefore = "(?<![0-9A-Za-zぁ-んァ-ヶー一-龠々'’])";
+            t = t.replace(new RegExp(noWordBefore + "\\(\\s*([1-9]|10)\\s*\\)(?!\\d)", "g"), "\n\n($1)");
+            t = t.replace(new RegExp(noWordBefore + "\\(\\s*(i{1,3}|iv)\\s*\\)", "gi"), "\n($1)");
+            return t.replace(/\n{3,}/g, "\n\n").replace(/^\n+/, "").trim().replace(/\n/g, "<br>");
         }
 
         // 💬 2. AI質問ログ描画
@@ -623,18 +852,34 @@
                 }
             };
 
+            const problemBox = document.getElementById("qna-detail-problem-box");
+            const problemTextEl = document.getElementById("qna-detail-problem-text");
+            const sourceProb = rawProblems[log.problemId];
+            if (sourceProb && sourceProb.title) {
+                problemTextEl.innerHTML = formatQuestionText(sourceProb.title);
+                problemBox.style.display = "flex";
+            } else {
+                problemBox.style.display = "none";
+            }
+
             const stream = document.getElementById("qna-messages-stream");
             stream.innerHTML = (log.messages || []).map(m => {
                 const isUser = m.role === "user";
+                const contentHtml = isUser
+                    ? (m.content || "").trim().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, '<br>')
+                    : renderFormattedMarkdown(m.content || "");
+
                 return `
                     <div class="chat-bubble ${isUser ? 'bubble-user' : 'bubble-ai'} tex2jax_process">
-                        <div style="font-size:0.72rem; font-weight:800; margin-bottom:0.3rem; opacity:0.8;">${isUser ? 'あなた' : 'AIチューター'}</div>
-                        <div>${m.content}</div>
+                        <div style="font-size:0.68rem; font-weight:800; margin-bottom:0.25rem; opacity:0.75;">${isUser ? '👤 あなた' : '🤖 AIチューター'}</div>
+                        <div>${contentHtml}</div>
                     </div>
                 `;
             }).join("");
 
-            if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([stream]);
+            if (window.MathJax && MathJax.typesetPromise) {
+                MathJax.typesetPromise([problemBox, stream]).catch(err => console.log(err));
+            }
         }
 
         // 🎴 3. 語呂合わせ描画
