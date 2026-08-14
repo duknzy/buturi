@@ -7,6 +7,19 @@
     padding: 0;
 }
 
+/* ==========================================================================
+   スクロールバー完全非表示（スクロール操作・機能は維持）
+   ========================================================================== */
+html, body, * {
+    scrollbar-width: none !important;        /* Firefox */
+    -ms-overflow-style: none !important;     /* IE / Edge */
+}
+*::-webkit-scrollbar {
+    display: none !important;                /* Chrome / Safari / Opera */
+    width: 0 !important;
+    height: 0 !important;
+}
+
 :root {
     --bg-color: #000000;
     --bg-image: url('bg.avif'); 
@@ -64,7 +77,6 @@ body::before {
 
 .squircle-card, .squircle-tile {
     background-color: var(--card-bg);
-    /* 💡 ボケすぎると写真が見えなくなるため、blurを 16px → 8px に弱めて写真を見えやすく */
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     border: 1px solid var(--border-color);
