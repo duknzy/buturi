@@ -1,0 +1,23 @@
+{
+  "name": "Flora // 誤答克服ダッシュボード",
+  "short_name": "Flora",
+  "description": "AIと連携する受験生向け誤答克服・学習ダッシュボード",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#050508",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
