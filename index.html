@@ -329,6 +329,45 @@
             background: radial-gradient(circle at center, rgba(255, 245, 0, 0.15) 0%, #0a0802 100%) !important;
             border: 1px solid rgba(255, 245, 0, 0.3) !important;
         }
+        /* ─────────────────────────────────────────────
+   【追加】化学・英語・国語・地歴公民のネオン定義
+   ───────────────────────────────────────────── */
+/* 化学（バイオレット/パープルのネオン） */
+.glow-chemistry {
+    background: radial-gradient(circle at center, rgba(177, 110, 255, 0.15) 0%, #06020a 100%) !important;
+    border: 1px solid rgba(177, 110, 255, 0.3) !important;
+}
+.glow-chemistry span {
+    color: #b16eff;
+    text-shadow: 0 0 8px rgba(177, 110, 255, 0.8);
+}
+/* 英語（オレンジのネオン） */
+.glow-english {
+    background: radial-gradient(circle at center, rgba(255, 140, 0, 0.15) 0%, #0a0502 100%) !important;
+    border: 1px solid rgba(255, 140, 0, 0.3) !important;
+}
+.glow-english span {
+    color: #ff8c00;
+    text-shadow: 0 0 8px rgba(255, 140, 0, 0.8);
+}
+/* 国語（桜色/ソフトピンクのネオン） */
+.glow-japanese {
+    background: radial-gradient(circle at center, rgba(255, 105, 180, 0.15) 0%, #0a0206 100%) !important;
+    border: 1px solid rgba(255, 105, 180, 0.3) !important;
+}
+.glow-japanese span {
+    color: #ff69b4;
+    text-shadow: 0 0 8px rgba(255, 105, 180, 0.8);
+}
+/* 地歴公民（エメラルドグリーンのネオン） */
+.glow-civics {
+    background: radial-gradient(circle at center, rgba(0, 255, 200, 0.15) 0%, #020a08 100%) !important;
+    border: 1px solid rgba(0, 255, 200, 0.3) !important;
+}
+.glow-civics span {
+    color: #00ffc8;
+    text-shadow: 0 0 8px rgba(0, 255, 200, 0.8);
+}
         .glow-history span {
             color: var(--accent-yellow);
             text-shadow: 0 0 8px rgba(255, 245, 0, 0.8);
@@ -1143,36 +1182,50 @@
         let linkedLessonText = null;
         let linkedLessonKeyTerms = null; // 🔗 その授業までに蓄積された用語集（前の講の内容も含む）
 
-        async function checkAndLoadLinkedLesson(uid) {
-            const params = new URLSearchParams(window.location.search);
-            const fromLesson = params.get("fromLesson");
-            if (!fromLesson) return;
+        function guessSubjectFromLesson(lesson) {
+    if (lesson.subject) return lesson.subject;
+    const text = ((lesson.title || "") + " " + (lesson.topicKey || "") + " " + (lesson.extractedText || "")).slice(0, 400);
+    if (/数学|微分|積分|ベクトル|数列|三角関数|確率|二次関数|対数|指数|方程式|整数/i.test(text)) return "数学";
+    if (/化学|mol|酸化|還元|酸|塩基|元素|物質量|気体|結晶/i.test(text)) return "化学";
+    if (/世界史|世紀|王朝|帝国|革命|条約|戦争|冷戦|中国史|ヨーロッパ史/i.test(text)) return "世界史";
+    if (/英語|文法|構文|長文|訳|grammar|vocabulary/i.test(text)) return "英語";
+    if (/国語|現代文|古文|漢文|助動詞|句法/i.test(text)) return "国語";
+    if (/公民|公共|政治|経済|地理|気候/i.test(text)) return "地歴公民";
+    return "物理"; // デフォルト（力学・電磁気・波動等の物理基礎）
+}
 
-            try {
-                const snap = await get(ref(database, 'users/' + uid + '/lessons/' + fromLesson));
-                const lessonData = snap.val();
-                if (!lessonData) {
-                    console.warn("⚠️ 指定された授業データが見つかりませんでした:", fromLesson);
-                    return;
-                }
-                linkedLessonId = fromLesson;
-                linkedLessonTitle = lessonData.title || lessonData.short_title || "無題の授業";
-                linkedLessonText = lessonData.extractedText || "";
-                linkedLessonKeyTerms = lessonData.accumulatedKeyTerms || lessonData.keyTerms || [];
+async function checkAndLoadLinkedLesson(uid) {
+    const params = new URLSearchParams(window.location.search);
+    const fromLesson = params.get("fromLesson");
+    if (!fromLesson) return;
 
-                const badge = document.getElementById("linked-lesson-badge");
-                const badgeText = document.getElementById("linked-lesson-title-text");
-                if (badge && badgeText) {
-                    badgeText.textContent = linkedLessonTitle;
-                    badge.style.display = "block";
-                }
-                // 授業からの続きは物理教材が中心のため、初期選択を物理にしておく（手動で変更可）
-                window.setSelectedSubject("物理");
-                document.getElementById("add-problem-modal").style.display = "flex";
-            } catch (e) {
-                console.error("授業データの読み込みに失敗しました:", e);
-            }
+    try {
+        const snap = await get(ref(database, 'users/' + uid + '/lessons/' + fromLesson));
+        const lessonData = snap.val();
+        if (!lessonData) {
+            console.warn("⚠️ 指定された授業データが見つかりませんでした:", fromLesson);
+            return;
         }
+        linkedLessonId = fromLesson;
+        linkedLessonTitle = lessonData.title || lessonData.short_title || "無題の授業";
+        linkedLessonText = lessonData.extractedText || "";
+        linkedLessonKeyTerms = lessonData.accumulatedKeyTerms || lessonData.keyTerms || [];
+
+        const badge = document.getElementById("linked-lesson-badge");
+        const badgeText = document.getElementById("linked-lesson-title-text");
+        if (badge && badgeText) {
+            badgeText.textContent = linkedLessonTitle;
+            badge.style.display = "block";
+        }
+        
+        // 授業内容に応じた教科を自動選択
+        const matchedSubject = guessSubjectFromLesson(lessonData);
+        window.setSelectedSubject(matchedSubject);
+        document.getElementById("add-problem-modal").style.display = "flex";
+    } catch (e) {
+        console.error("授業データの読み込みに失敗しました:", e);
+    }
+}
         let previewTimeout = null; 
 
         let lastCloudProblemsSnapshot = {};
@@ -1446,20 +1499,21 @@ document.getElementById("open-mnemonic-list-btn").style.display = "block"; // �
         //    3. それも無理なら、記録が残っている中で一番古い日付（lastAttemptAt）で代用する
         //    4. それすらなければ「不明」として扱う
         const MIN_PLAUSIBLE_TS = Date.UTC(2020, 0, 1); // これより古いIDの数字は「タイムスタンプではない」と判断する
-        function resolveCreatedAt(p) {
-            if (p.createdAt) return { date: new Date(p.createdAt), estimated: false };
-            if (p.id) {
-                const parts = p.id.split("_");
-                const ts = Number(parts[parts.length - 1]);
-                if (!isNaN(ts) && ts >= MIN_PLAUSIBLE_TS) {
-                    return { date: new Date(ts), estimated: false };
-                }
-            }
-            if (p.lastAttemptAt) {
-                return { date: new Date(p.lastAttemptAt), estimated: true };
-            }
-            return null;
+function resolveCreatedAt(p) {
+    if (p.createdAt) return { date: new Date(p.createdAt), estimated: false };
+    if (p.id) {
+        const parts = p.id.split("_");
+        // 配列の要素の中から 2020年以降の妥当なタイムスタンプ数値を検索する
+        const ts = parts.map(Number).find(n => !isNaN(n) && n >= MIN_PLAUSIBLE_TS);
+        if (ts) {
+            return { date: new Date(ts), estimated: false };
         }
+    }
+    if (p.lastAttemptAt) {
+        return { date: new Date(p.lastAttemptAt), estimated: true };
+    }
+    return null;
+}
         function formatShortDate(d) {
             if (!d) return null;
             return d.toLocaleDateString('ja-JP', { year: '2-digit', month: 'numeric', day: 'numeric' });
@@ -1476,23 +1530,29 @@ document.getElementById("open-mnemonic-list-btn").style.display = "block"; // �
         // MathJaxがそれ以降を丸ごと数式として誤解して表示が崩れることがあるため、
         // 奇数個で終わっていたら直前の $ の手前まで切り戻してから省略記号を付ける。
         function buildRowPreviewText(rawTitle, maxLen = 60) {
-            if (!rawTitle) return "";
-            const oneLine = String(rawTitle).replace(/\\n/g, " ").replace(/\r?\n/g, " ").trim();
-            let body = oneLine;
-            let suffix = "";
-            if (oneLine.length > maxLen) {
-                body = oneLine.slice(0, maxLen);
-                suffix = "…";
-                const dollarCount = (body.match(/\$/g) || []).length;
-                if (dollarCount % 2 !== 0) {
-                    const lastDollar = body.lastIndexOf("$");
-                    body = body.slice(0, lastDollar).trimEnd();
-                }
-            }
-            const escaped = body
-                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            return escaped + suffix;
+    if (!rawTitle) return "";
+    const oneLine = String(rawTitle).replace(/\\n/g, " ").replace(/\r?\n/g, " ").trim();
+    let body = oneLine;
+    let suffix = "";
+    if (oneLine.length > maxLen) {
+        body = oneLine.slice(0, maxLen);
+        suffix = "…";
+        const dollarCount = (body.match(/\$/g) || []).length;
+        if (dollarCount % 2 !== 0) {
+            const lastDollar = body.lastIndexOf("$");
+            body = body.slice(0, lastDollar).trimEnd();
         }
+    }
+
+    // 数式 ($...$) で分割し、数式以外の文字列部分だけをエスケープ
+    const parts = body.split(/(\$[^$]+\$)/g);
+    const safeHtml = parts.map((part) => {
+        if (part.startsWith("$") && part.endsWith("$")) return part;
+        return part.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }).join("");
+
+    return safeHtml + suffix;
+}
 
         function rebuildFilterBarAndCards() {
             const dynamicArea = document.getElementById("dynamic-cards-area");
@@ -1674,12 +1734,16 @@ document.getElementById("open-mnemonic-list-btn").style.display = "block"; // �
                             : "";
                         thumbHtml = `<div class="row-thumb"><img src="${pImages[0]}">${countBadge}</div>`;
                     } else {
-                        let symbol = "？";
-                        let glowClass = "glow-purple";
-                        if (subjectText.includes("数学")) { symbol = "$f(x)$"; glowClass = "glow-math"; }
-                        else if (subjectText.includes("物理")) { symbol = "$\\vec{F}$"; glowClass = "glow-physics"; }
-                        else if (subjectText.includes("世界史")) { symbol = "🌍"; glowClass = "glow-history"; }
-                        thumbHtml = `<div class="row-thumb row-thumb-icon ${glowClass} tex2jax_process"><span>${symbol}</span></div>`;
+                       let symbol = "📝";
+let glowClass = "glow-purple";
+if (subjectText.includes("数学")) { symbol = "$f(x)$"; glowClass = "glow-math"; }
+else if (subjectText.includes("物理")) { symbol = "$\\vec{F}$"; glowClass = "glow-physics"; }
+else if (subjectText.includes("化学")) { symbol = "$mol$"; glowClass = "glow-chemistry"; }
+else if (subjectText.includes("世界史")) { symbol = "🌍"; glowClass = "glow-history"; }
+else if (subjectText.includes("英語")) { symbol = "🔤"; glowClass = "glow-english"; }
+else if (subjectText.includes("国語")) { symbol = "📖"; glowClass = "glow-japanese"; }
+else if (subjectText.includes("地歴") || subjectText.includes("公民")) { symbol = "🏛️"; glowClass = "glow-civics"; }
+thumbHtml = `<div class="row-thumb row-thumb-icon ${glowClass} tex2jax_process"><span>${symbol}</span></div>`;
                     }
                 }
 

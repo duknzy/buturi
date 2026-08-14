@@ -87,15 +87,16 @@
 
     <div class="sprint-container">
         <!-- GLOBAL CYBER HUD NAV -->
-        <nav class="global-cyber-nav">
+         <nav class="global-cyber-nav">
             <div class="nav-brand">//Lolz</div>
             <div class="nav-links">
                 <a href="index.html" class="nav-btn">🧠 誤答ノート</a>
-                <a href="daily.html" class="nav-btn">🏁 計算スプリント</a>
-                <a href="custom-sprint.html" class="nav-btn active">🎯 カスタムスプリント</a>
+                <a href="daily.html" class="nav-btn active">🏁 計算スプリント</a>
+                <a href="custom-sprint.html" class="nav-btn">🎯 カスタムスプリント</a>
                 <a href="lesson.html" class="nav-btn">📖 授業・解説</a>
                 <a href="answer-check.html" class="nav-btn">⚡ 答え合わせ</a>
                 <a href="mark-test.html" class="nav-btn">🎯 マーク模試</a>
+                <a href="timeline.html" class="nav-btn">🌍 世界史年表</a>
                 <a href="tokei/index.html" class="nav-btn global-timer-link">⏱️ 集中タイマー</a>
                 <a href="#" onclick="openTimerPopout(event)" class="nav-btn" title="別ウィンドウでタイマーを開く">🗔 小窓</a>
                 <a href="#" onclick="openLogPopout(event)" class="nav-btn" title="24hログを小窓で開く">📊 24hログ</a>
@@ -462,8 +463,11 @@ ${levelText}
                     throw new Error("AIの応答が期待した配列形式ではありませんでした。");
                 }
 
-                selectedQuestions = aiQuestions;
-                startSprintTimer();
+                selectedQuestions = aiQuestions.map((q, idx) => ({
+    ...q,
+    id: `AI_CUSTOM_${Date.now()}_${idx + 1}`
+}));
+startSprintTimer();
 
             } catch (error) {
                 console.error("AI問題生成エラー:", error);
@@ -478,7 +482,10 @@ ${levelText}
                 showToast("Geminiによる問題生成に失敗しました。\n\n【エラー内容】" + error.message + "\n\n※予備問題データベースから条件に近いものをランダムに選出して特訓を開始します！", "error", 8000);
 
                 const shuffled = [...pool].sort(() => 0.5 - Math.random());
-                selectedQuestions = shuffled.slice(0, count);
+selectedQuestions = shuffled.slice(0, count).map((q, idx) => ({
+    ...q,
+    id: `FALLBACK_CUSTOM_${Date.now()}_${idx + 1}`
+}));
 
                 if (selectedQuestions.length === 0) {
                     showToast("条件に合う予備問題が見つかりませんでした。分野の指定を変えるか、再試行してください。", "error");
@@ -537,35 +544,39 @@ ${levelText}
             forceTriggerMathJax();
         }
 
-        async function sendToMainRemindList() {
-            if (!loginUid) return;
-            const q = selectedQuestions[currentQuestionIndex];
+       async function sendToMainRemindList() {
+    if (!loginUid) return;
+    const q = selectedQuestions[currentQuestionIndex];
 
-            const targetRef = ref(database, 'users/' + loginUid + '/problems/' + q.id);
+    const targetRef = ref(database, 'users/' + loginUid + '/problems/' + q.id);
+    const nowIso = new Date().toISOString();
 
-            const remindProblem = {
-                id: q.id,
-                title: q.title,
-                short_title: `【CS】${q.field}計算`,
-                subject: q.subject,
-                field: q.field,
-                trap_description: "カスタムスプリントでミスした問題。数式の展開や符号ミス、計算ルートの選定を見直してください。",
-                errorCount: 1,
-                lastAttemptAt: new Date().toISOString(),
-                lastResult: false,
-                imageData: null,
-                answerFormula: `${q.answer}\n\n【解説】\n${q.steps}`
-            };
+    const remindProblem = {
+        id: q.id,
+        title: q.title,
+        short_title: `【CS】${q.field || "計算"}`,
+        subject: q.subject || "数学",
+        field: q.field || "計算特訓",
+        trap_description: "カスタムスプリントでミスした問題。数式の展開や符号ミス、計算ルートの選定を見直してください。",
+        strategyPattern: "",
+        errorCount: 1,
+        lastAttemptAt: nowIso,
+        createdAt: nowIso,
+        lastResult: false,
+        thumb: null,
+        imageCount: 0,
+        answerFormula: `${q.answer}\n\n【解説】\n${q.steps}`
+    };
 
-            try {
-                await set(targetRef, remindProblem);
-                showToast("弱点としてロックオン！ダッシュボード（LOLZ）の復習リストに自動転送・同期しました！", "success", 3000);
-                nextQuestion();
-            } catch (e) {
-                console.error(e);
-                showToast("クラウドへの転送に失敗しました。", "error");
-            }
-        }
+    try {
+        await set(targetRef, remindProblem);
+        showToast("弱点としてロックオン！ダッシュボード（LOLZ）の復習リストに自動転送・同期しました！", "success", 3000);
+        nextQuestion();
+    } catch (e) {
+        console.error(e);
+        showToast("クラウドへの転送に失敗しました。", "error");
+    }
+}
 
         function nextQuestion() {
             currentQuestionIndex++;

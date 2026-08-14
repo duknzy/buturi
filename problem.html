@@ -18,24 +18,23 @@
     <script>
         window.MathJax = {
             tex: {
-                inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']],
-                // 🩹【修正】\fbox{...} は数式モードの標準TeXマクロではなく未定義コマンドとして
-                // そのまま表示されてしまうため、ams標準の \boxed{...} の別名として登録する
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true,
                 macros: { fbox: ["\\bbox[2px,border:1px solid]{#1}", 1] }
             },
-            chtml: { displayAlign: 'left' }
+            options: {
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process',
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+            },
+            chtml: {
+                displayAlign: 'left'
+            }
         };
     </script>
-    <script id="MathJax-script" async></script>
-    <script>
-        // コピペ破壊防御：ドットも完全に分離して自動リンク化の隙を与えない
-        (function() {
-            var script = document.getElementById("MathJax-script");
-            var proto = "https" + "://";
-            var d = ".";
-            script.src = proto + "cdn" + d + "jsdelivr" + d + "net/npm/mathjax@3/es5/tex-chtml.js";
-        })();
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+
 
     <style>
         /* 🌌 スマホ用：縦スクロール前提のダッシュボードCSS */
@@ -561,11 +560,11 @@
                 <a href="lesson.html" class="nav-btn">📖 授業・解説</a>
                 <a href="answer-check.html" class="nav-btn">⚡ 答え合わせ</a>
                 <a href="mark-test.html" class="nav-btn">🎯 マーク模試</a>
-                <a href="timeline.html" class="nav-btn">🌍 世界史年表</a>
+              <a href="timeline.html" class="nav-btn">🌍 世界史年表</a>
                 <a href="tokei/index.html" class="nav-btn global-timer-link">⏱️ 集中タイマー</a>
-                <a href="study/index.html" class="nav-btn" title="24hログを開く">📊 24hログ</a>
-                <a href="https://photos.google.com" target="_blank" rel="noopener" class="nav-btn" title="Google Photosを開く">📷 Photos</a>
-            </div>
+                <a href="#" onclick="openTimerPopout(event)" class="nav-btn" title="別ウィンドウでタイマーを開く">🗔 小窓</a>
+                <a href="#" onclick="openLogPopout(event)" class="nav-btn" title="24hログを小窓で開く">📊 24hログ</a>
+                <a href="#" onclick="openGooglePhotosPopout(event)" class="nav-btn" title="Google Photosを小窓で開く">📷 Photos</a>
         </nav>
         <div class="nav-drawer-overlay"></div>
         <script src="global-timer-sync.js"></script>
@@ -1622,14 +1621,13 @@ ${glossaryBlock}`;
                         continue;
                     }
 
-                    if (rawText.includes("</think>")) rawText = rawText.split("</think>")[1].trim();
                     try {
-                        return JSON.parse(fixJsonEscapes(extractJsonObject(stripCodeFence(rawText))));
-                    } catch (parseErr) {
-                        console.warn(`⚠️ DeepSeekの応答が不正なJSONでした（${attempt}/${MAX_DEEPSEEK_ATTEMPTS}回目）→ リトライ`, parseErr);
-                        deepseekLastError = parseErr;
-                        continue;
-                    }
+    return cleanDeepSeekResponse(rawText);
+} catch (parseErr) {
+    console.warn(`⚠️ DeepSeekの応答が不正なJSONでした（${attempt}/${MAX_DEEPSEEK_ATTEMPTS}回目）→ リトライ`, parseErr);
+    deepseekLastError = parseErr;
+    continue;
+}
                 }
 
                 throw new Error(`DeepSeekブレインが${MAX_DEEPSEEK_ATTEMPTS}回連続で空/不正な応答を返しました（DeepSeek側の既知の仕様上の問題です）。もう一度実行するか、✨Geminiに切り替えてみてください。\n最終エラー: ${deepseekLastError?.message || "不明"}`);
@@ -1777,34 +1775,13 @@ ${glossaryBlock}`;
         }
 
         function cleanDeepSeekResponse(rawText) {
-            let text = rawText.trim();
-            if (text.includes("</think>")) {
-                text = text.split("</think>")[1].trim();
-            }
-            if (text.startsWith("```json")) text = text.substring(7);
-            else if (text.startsWith("```")) text = text.substring(3);
-            if (text.endsWith("```")) text = text.substring(0, text.length - 3);
-            text = extractJsonObject(text.trim());
-
-            let inString = false; let result = "";
-            for (let i = 0; i < text.length; i++) {
-                let c = text[i];
-                if (c === '"' && (i === 0 || text[i-1] !== '\\')) { inString = !inString; result += c; }
-                else if (c === '\\' && inString) {
-                    let next = text[i+1];
-                    if (next === '"') { result += '\\"'; i++; }
-                    else if (next === '\\') { result += '\\\\'; i++; }
-                    else if (next === 'n' && (text[i+2] === ' ' || text[i+2] === '"' || text[i+2] === '\\' || !/[a-zA-Z]/.test(text[i+2]))) { result += '\\n'; i++; }
-                    else { result += '\\\\'; }
-                } else if (inString && c.charCodeAt(0) < 0x20) {
-                    if (c === '\n') result += '\\n';
-                    else if (c === '\r') result += '\\r';
-                    else if (c === '\t') result += '\\t';
-                    else result += '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0');
-                } else { result += c; }
-            }
-            return JSON.parse(result);
-        }
+    let text = (rawText || "").trim();
+    if (text.includes("</think>")) {
+        text = text.split("</think>")[1].trim();
+    }
+    const cleanJsonStr = fixJsonEscapes(extractJsonObject(stripCodeFence(text)));
+    return JSON.parse(cleanJsonStr);
+}
 
         async function sendMessageToTutor(studentMessage) {
             if (currentProblemData.subject === "未分類") {
@@ -1906,23 +1883,28 @@ ${glossaryBlock}`;
         }
 
         function renderFormattedMarkdown(text) {
-            if (!text) return "";
-            let formatted = text
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
+    if (!text) return "";
 
-            // ### 見出し
-            formatted = formatted.replace(/^###\s*(.+)$/gm, '<h4 style="font-size:0.95rem; font-weight:800; color:var(--accent-cyan); margin:0.6rem 0 0.3rem 0; border-bottom:1px solid rgba(0,243,255,0.2); padding-bottom:0.2rem;">$1</h4>');
-            // --- 区切り線
-            formatted = formatted.replace(/^---\s*$/gm, '<hr style="border:none; border-top:1px dashed rgba(255,255,255,0.15); margin:0.6rem 0;">');
-            // **太字**
-            formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff; font-weight:700;">$1</strong>');
-            // リスト番号 1. 2.
-            formatted = formatted.replace(/^(\d+\.)\s*/gm, '<span style="color:var(--accent-yellow); font-weight:800; margin-right:0.3rem;">$1</span>');
+    const mathBlocks = [];
+    let placeholderText = text.replace(/(\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g, (match) => {
+        mathBlocks.push(match);
+        return `%%%MATH_${mathBlocks.length - 1}%%%`;
+    });
 
-            return formatted;
-        }
+    let formatted = placeholderText
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+    formatted = formatted.replace(/^###\s*(.+)$/gm, '<h4 style="font-size:0.95rem; font-weight:800; color:var(--accent-cyan); margin:0.6rem 0 0.3rem 0; border-bottom:1px solid rgba(0,243,255,0.2); padding-bottom:0.2rem;">$1</h4>');
+    formatted = formatted.replace(/^---\s*$/gm, '<hr style="border:none; border-top:1px dashed rgba(255,255,255,0.15); margin:0.6rem 0;">');
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff; font-weight:700;">$1</strong>');
+    formatted = formatted.replace(/^(\d+\.)\s*/gm, '<span style="color:var(--accent-yellow); font-weight:800; margin-right:0.3rem;">$1</span>');
+
+    // 数式ブロックを元に戻す
+    formatted = formatted.replace(/%%%MATH_(\d+)%%%/g, (_, idx) => mathBlocks[idx]);
+    return formatted;
+}
 
         function updateChatUI(userText, aiJson) {
             const chatHistoryArea = document.querySelector(".chat-history");
@@ -2028,30 +2010,39 @@ ${glossaryBlock}`;
             });
         }
 
-        // 🗑️【新設】「問題を削除」ボタンをクリックしたときのクラウド完全消去処理
         if (deleteProbBtn) {
-            deleteProbBtn.addEventListener("click", async () => {
-                if (!loginUid || !PROBLEM_ID) return;
-                
-                // 誤爆防止のダブルチェック
-                const confirmDelete = confirm("⚠️ 本当にこの問題を削除しますか？\n\nこの操作を実行すると、登録されたテキスト、写真、およびAIの解析履歴がクラウド(Firebase)から完全に抹消され、二度と復元できません。");
-                if (!confirmDelete) return;
+    deleteProbBtn.addEventListener("click", async () => {
+        if (!loginUid || !PROBLEM_ID) return;
+        
+        const confirmDelete = confirm("⚠️ 本当にこの問題を削除しますか？\n\nこの操作を実行すると、登録されたテキスト、写真、およびAIの解析履歴がクラウド(Firebase)から完全に抹消され、二度と復元できません。");
+        if (!confirmDelete) return;
 
-                try {
-                    // Firebase上の該当ノードのパスを指定
-                    const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
-                    // 値に null をセットすることで、Firebase databaseからノードを完全削除（消去）
-                    await set(probRef, null);
-                    
-                    showToast("問題を完全に削除しました。ダッシュボードに戻ります。", "success", 1500);
-                    // 削除完了後は自動的にダッシュボードトップへ安全にリダイレクト
-                    setTimeout(() => { location.href = "index.html"; }, 900);
-                } catch (error) {
-                    console.error("削除処理中に致命的なエラーが発生しました:", error);
-                    showToast("クラウドからの削除処理に失敗しました。ネットワークの接続状態を確認してください。", "error", 8000);
-                }
-            });
+        try {
+            // 1. 問題本体を削除
+            const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
+            await set(probRef, null);
+
+            // 2. 分離保存されている高画質フル画像を削除
+            const imgRef = ref(database, 'users/' + loginUid + '/problemImages/' + PROBLEM_ID);
+            await set(imgRef, null);
+
+            // 3. この問題に紐づく質問ログ（qna_logs）を一括削除
+            const qnaRootRef = ref(database, 'users/' + loginUid + '/qna_logs');
+            const qnaSnap = await get(qnaRootRef);
+            const qnaData = qnaSnap.val() || {};
+            const deleteLogPromises = Object.keys(qnaData)
+                .filter(logId => qnaData[logId] && qnaData[logId].problemId === PROBLEM_ID)
+                .map(logId => remove(ref(database, 'users/' + loginUid + '/qna_logs/' + logId)));
+            await Promise.all(deleteLogPromises);
+            
+            showToast("問題を完全に削除しました。ダッシュボードに戻ります。", "success", 1500);
+            setTimeout(() => { location.href = "index.html"; }, 900);
+        } catch (error) {
+            console.error("削除処理中に致命的なエラーが発生しました:", error);
+            showToast("クラウドからの削除処理に失敗しました。ネットワークの接続状態を確認してください。", "error", 8000);
         }
+    });
+}
 
 
         // 💡 【追加】AI質問機能を納得いかない時だけ解放するリスナー

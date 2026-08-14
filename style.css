@@ -19,10 +19,10 @@
     --accent-magenta: #ff007f;
     --accent-yellow: #fff500;
     
-    /* Text */
+    /* Text - 💡 コントラスト改善 */
     --text-main: #ffffff;
-    --text-muted: #708590;
-    --text-bright-muted: #a0b5c0;
+    --text-muted: #8ea4b0; /* 視認性を向上 */
+    --text-bright-muted: #b0c5d0;
     
     /* Fonts */
     --fs-xl: clamp(2.5rem, 6vw + 1rem, 4.5rem);
@@ -41,7 +41,6 @@ body {
     position: relative;
 }
 
-/* 物理的なノイズテクスチャ */
 body::before {
     content: "";
     position: fixed;
@@ -52,7 +51,6 @@ body::before {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
 }
 
-/* スクワークル構造 */
 .squircle-card, .squircle-tile {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
@@ -66,7 +64,6 @@ body::before {
     box-shadow: 4px 4px 0px rgba(0, 243, 255, 0.05);
 }
 
-/* ボタンの150ms高速アクション */
 .tactile-btn {
     display: inline-flex;
     align-items: center;
@@ -83,31 +80,21 @@ body::before {
 }
 .tactile-btn:active { transform: scale(0.94) translate(1px, 1px); }
 
-
 /* ==========================================================================
-   【新設】PC大画面表示における、問題写真のサイズ肥大化防止設定
+   MathJax 数式オーバーフロー完全防止（全画面共通）
    ========================================================================== */
-@media screen and (min-width: 768px) {
-    /* 💡【修正】以前は .physics-figure-box 自体に常に max-height:450px を強制していたが、
-       中身が「長い問題文テキスト」の場合、テキストは見た目上450pxを超えてはみ出す一方、
-       箱自体のレイアウト上の高さは450pxのまま扱われてしまい、直後の写真サムネイル一覧
-       (.photo-gallery-strip) が問題文の途中に重なって表示される不具合があった。
-       → 箱の中に実際の<img>がある時（＝画像を直接表示しているケース）だけ高さ制限をかけ、
-         テキストだけの場合は制限しないよう :has() で条件分岐する。 */
-    html body .physics-figure-box:has(img) {
-        max-height: 450px !important;
-    }
-    html body .physics-figure-box {
-        margin-top: 1rem !important;
-    }
-
-    /* 画像に直書きされている width:100%; height:100% を強制上書きして縮める */
-    html body .physics-figure-box img {
-        max-width: 500px !important;  /* 横幅の上限（お好みで400pxなどに縮めてもOK） */
-        max-height: 420px !important; /* 縦幅の上限 */
-        width: auto !important;       /* 縦横比を固定 */
-        height: auto !important;      /* 縦横比を固定 */
-    }
+mjx-container {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    vertical-align: middle;
+}
+mjx-container[jax="CHTML"][display="true"] {
+    display: block !important;
+    margin: 0.5em 0 !important;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.6rem;
+    border-radius: 8px;
 }
 
 /* ==========================================================================
@@ -125,9 +112,9 @@ body::before {
     padding: 0.6rem 1.2rem;
     margin-bottom: 1.5rem;
     gap: 1rem;
-    flex-wrap: wrap;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     z-index: 1000;
+    position: relative;
 }
 
 .nav-brand {
@@ -200,4 +187,48 @@ body::before {
 @keyframes pulse-timer-btn {
     0% { box-shadow: 0 0 8px rgba(255, 0, 127, 0.4); }
     100% { box-shadow: 0 0 18px rgba(0, 243, 255, 0.7); }
+}
+
+/* 📱 モバイルハンバーガーメニュー対応 */
+.nav-hamburger-btn {
+    display: none;
+    background: transparent;
+    border: 1px solid rgba(0, 243, 255, 0.3);
+    border-radius: 8px;
+    width: 38px;
+    height: 38px;
+    cursor: pointer;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 0;
+}
+.nav-hamburger-btn span {
+    display: block;
+    width: 20px;
+    height: 2px;
+    background-color: var(--accent-cyan);
+    transition: all 0.2s ease;
+}
+
+@media (max-width: 900px) {
+    body { padding: 1rem; }
+    .nav-hamburger-btn { display: flex; }
+    .nav-links {
+        display: none;
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        right: 0;
+        background: rgba(10, 10, 18, 0.98);
+        border: 1px solid var(--accent-cyan);
+        border-radius: 16px;
+        padding: 1rem;
+        flex-direction: column;
+        gap: 0.6rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    }
+    .nav-links.open { display: flex; }
+    .nav-btn { width: 100%; justify-content: flex-start; padding: 0.6rem 1rem; }
 }

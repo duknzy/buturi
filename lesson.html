@@ -1351,24 +1351,29 @@ ${photoHandlingBlock}
         }
 
         function renderFormattedMarkdown(text) {
-            if (!text) return "";
-            let formatted = text
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
+    if (!text) return "";
 
-            // #### または ### 見出し
-            formatted = formatted.replace(/^#{3,4}\s*(.+)$/gm, '<h4 style="font-size:0.98rem; font-weight:800; color:var(--accent-yellow); margin:0.7rem 0 0.4rem 0; border-bottom:1px solid rgba(255,245,0,0.2); padding-bottom:0.2rem;">$1</h4>');
-            // --- 区切り線
-            formatted = formatted.replace(/^---\s*$/gm, '<hr style="border:none; border-top:1px dashed rgba(255,255,255,0.15); margin:0.7rem 0;">');
-            // **太字**
-            formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff; font-weight:700;">$1</strong>');
-            // 箇条書き・リスト
-            formatted = formatted.replace(/^(\d+\.)\s*/gm, '<span style="color:var(--accent-cyan); font-weight:800; margin-right:0.3rem;">$1</span>');
-            formatted = formatted.replace(/^-\s+(.+)$/gm, '<div style="margin-left:0.6rem; text-indent:-0.6rem;">• $1</div>');
+    const mathBlocks = [];
+    let placeholderText = text.replace(/(\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g, (match) => {
+        mathBlocks.push(match);
+        return `%%%MATH_${mathBlocks.length - 1}%%%`;
+    });
 
-            return formatted;
-        }
+    let formatted = placeholderText
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+    formatted = formatted.replace(/^#{3,4}\s*(.+)$/gm, '<h4 style="font-size:0.98rem; font-weight:800; color:var(--accent-yellow); margin:0.7rem 0 0.4rem 0; border-bottom:1px solid rgba(255,245,0,0.2); padding-bottom:0.2rem;">$1</h4>');
+    formatted = formatted.replace(/^---\s*$/gm, '<hr style="border:none; border-top:1px dashed rgba(255,255,255,0.15); margin:0.7rem 0;">');
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff; font-weight:700;">$1</strong>');
+    formatted = formatted.replace(/^(\d+\.)\s*/gm, '<span style="color:var(--accent-cyan); font-weight:800; margin-right:0.3rem;">$1</span>');
+    formatted = formatted.replace(/^-\s+(.+)$/gm, '<div style="margin-left:0.6rem; text-indent:-0.6rem;">• $1</div>');
+
+    // 数式ブロックを元に戻す
+    formatted = formatted.replace(/%%%MATH_(\d+)%%%/g, (_, idx) => mathBlocks[idx]);
+    return formatted;
+}
 
         function renderChatTranscript() {
             const wrap = el("chat-transcript");

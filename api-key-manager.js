@@ -120,6 +120,7 @@ export async function fetchWithKeyRotation(keys, buildRequest) {
 
 // ✨ 無料枠のRPD制限（1日20回など）に達したモデルから順に切り替えるフォールバック順
 export const GEMINI_MODEL_FALLBACK_LIST = [
+    'gemini-3.7-flash',
     'gemini-3.6-flash',
     'gemini-3.5-flash',
     'gemini-3-flash-preview',

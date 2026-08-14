@@ -79,6 +79,7 @@
                 <a href="lesson.html" class="nav-btn">📖 授業・解説</a>
                 <a href="answer-check.html" class="nav-btn">⚡ 答え合わせ</a>
                 <a href="mark-test.html" class="nav-btn">🎯 マーク模試</a>
+                <a href="timeline.html" class="nav-btn">🌍 世界史年表</a>
                 <a href="tokei/index.html" class="nav-btn global-timer-link">⏱️ 集中タイマー</a>
                 <a href="#" onclick="openTimerPopout(event)" class="nav-btn" title="別ウィンドウでタイマーを開く">🗔 小窓</a>
                 <a href="#" onclick="openLogPopout(event)" class="nav-btn" title="24hログを小窓で開く">📊 24hログ</a>
@@ -390,9 +391,13 @@
                         throw new Error("AIの応答が期待した配列形式ではありませんでした。");
                     }
 
-                    await set(sprintCacheRef, { questions: aiQuestions, generatedAt: new Date().toISOString() });
-                    selectedQuestions = aiQuestions;
-                    startSprintTimer();
+                    const uniqueAiQuestions = aiQuestions.map((q, idx) => ({
+    ...q,
+    id: `AI_SPRINT_${Date.now()}_${idx + 1}`
+}));
+await set(sprintCacheRef, { questions: uniqueAiQuestions, generatedAt: new Date().toISOString() });
+selectedQuestions = uniqueAiQuestions;
+startSprintTimer()
 
                 // ──────────────────────────────────────────────────────────
 // 【差し替え】予備問題バンクからランダムに10問選出するロジックに更新
@@ -403,9 +408,11 @@
                     
                     // 200問の予備問題バンクからランダムにシャッフルして10問を抽出
                     const shuffled = [...dailyProblemBank].sort(() => 0.5 - Math.random());
-                    selectedQuestions = shuffled.slice(0, 10);
-
-                    startSprintTimer();
+selectedQuestions = shuffled.slice(0, 10).map((q, idx) => ({
+    ...q,
+    id: `FALLBACK_SPRINT_${Date.now()}_${idx + 1}`
+}));
+startSprintTimer();
                 }
         }
 
@@ -455,35 +462,38 @@
         }
 
         async function sendToMainRemindList() {
-            if (!loginUid) return;
-            const q = selectedQuestions[currentQuestionIndex];
-            
-            const targetRef = ref(database, 'users/' + loginUid + '/problems/' + q.id);
-            
-            const remindProblem = {
-                id: q.id,
-                title: q.title,
-                short_title: `【DS】${q.field}計算`,
-                subject: q.subject,
-                field: q.field,
-                trap_description: "デイリースプリントノックでミスした問題。数式の展開や符号ミス、計算ルートの選定を見直してください。",
-                errorCount: 1,
-                lastAttemptAt: new Date().toISOString(),
-                lastResult: false,
-                imageData: null,
-                answerFormula: `${q.answer}\n\n【解説】\n${q.steps}`
-            };
+    if (!loginUid) return;
+    const q = selectedQuestions[currentQuestionIndex];
 
-            try {
-                await set(targetRef, remindProblem);
-                showToast("弱点としてロックオン！ダッシュボード（LOLZ）の復習リストに自動転送・同期しました！", "success", 3000);
-                nextQuestion();
-            } catch (e) {
-                console.error(e);
-                showToast("クラウドへの転送に失敗しました。", "error");
-            }
-        }
+    const targetRef = ref(database, 'users/' + loginUid + '/problems/' + q.id);
+    const nowIso = new Date().toISOString();
 
+    const remindProblem = {
+        id: q.id,
+        title: q.title,
+        short_title: `【DS】${q.field || "計算"}`,
+        subject: q.subject || "数学",
+        field: q.field || "計算特訓",
+        trap_description: "デイリースプリントノックでミスした問題。数式の展開や符号ミス、計算ルートの選定を見直してください。",
+        strategyPattern: "",
+        errorCount: 1,
+        lastAttemptAt: nowIso,
+        createdAt: nowIso,
+        lastResult: false,
+        thumb: null,
+        imageCount: 0,
+        answerFormula: `${q.answer}\n\n【解説】\n${q.steps}`
+    };
+
+    try {
+        await set(targetRef, remindProblem);
+        showToast("弱点としてロックオン！ダッシュボード（LOLZ）の復習リストに自動転送・同期しました！", "success", 3000);
+        nextQuestion();
+    } catch (e) {
+        console.error(e);
+        showToast("クラウドへの転送に失敗しました。", "error");
+    }
+}
         function nextQuestion() {
             currentQuestionIndex++;
             if (currentQuestionIndex < selectedQuestions.length) {
