@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#050508">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="LOLZ">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icons/icon.png">
+    <link rel="apple-touch-icon" href="icons/icon.png">
+    <title>LOLZ // 世界史 統合年表</title>
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        .timeline-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 1px solid #22222a;
+            padding-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo {
+            font-size: var(--fs-xl);
+            font-weight: 900;
+            letter-spacing: -2px;
+            line-height: 0.9;
+            background: linear-gradient(90deg, var(--text-main) 70%, var(--accent-yellow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* フィルター領域 */
+        .filter-card {
+            padding: 1.2rem 1.6rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+        .filter-row {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+        .filter-label {
+            font-size: 0.75rem;
+            font-weight: 900;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            min-width: 70px;
+        }
+        .region-tab-btn {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-bright-muted);
+            border: 1px solid #22222a;
+            padding: 0.45rem 0.85rem;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .region-tab-btn:hover {
+            background: rgba(255, 245, 0, 0.08);
+            border-color: var(--accent-yellow);
+            color: #fff;
+        }
+        .region-tab-btn.active {
+            background: var(--accent-yellow) !important;
+            color: #000 !important;
+            font-weight: 900;
+            border-color: var(--accent-yellow) !important;
+            box-shadow: 0 0 12px rgba(255, 245, 0, 0.3);
+        }
+
+        .search-input {
+            flex-grow: 1;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            padding: 0.55rem 0.9rem;
+            border-radius: 10px;
+            font-size: 0.85rem;
+        }
+        .search-input:focus { outline: none; border-color: var(--accent-yellow); }
+
+        /* タイムライン本体 */
+        .timeline-stream {
+            position: relative;
+            margin-top: 1rem;
+            padding-left: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+        }
+
+        /* 縦のタイムライン軸 */
+        .timeline-stream::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 11px;
+            width: 2px;
+            background: linear-gradient(180deg, var(--accent-yellow) 0%, rgba(255, 245, 0, 0.1) 100%);
+        }
+
+        .timeline-node {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        /* タイムライン上のドット */
+        .timeline-node::before {
+            content: "";
+            position: absolute;
+            left: -2rem;
+            top: 1.2rem;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--bg-color);
+            border: 2px solid var(--accent-yellow);
+            box-shadow: 0 0 8px rgba(255, 245, 0, 0.6);
+            z-index: 2;
+        }
+
+        /* 時代・世紀見出しセパレーター */
+        .century-header {
+            position: relative;
+            font-size: 1.1rem;
+            font-weight: 900;
+            color: var(--accent-yellow);
+            margin: 1.5rem 0 0.5rem -1.2rem;
+            padding: 0.3rem 0.8rem;
+            background: rgba(255, 245, 0, 0.08);
+            border-left: 3px solid var(--accent-yellow);
+            border-radius: 0 8px 8px 0;
+            display: inline-block;
+            align-self: flex-start;
+        }
+
+        /* 出来事カード */
+        .event-card {
+            background: var(--card-bg-glass);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1rem 1.3rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            transition: all 0.15s ease;
+        }
+        .event-card:hover {
+            border-color: rgba(255, 245, 0, 0.4);
+            transform: translateX(4px);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .event-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .event-year {
+            font-family: monospace;
+            font-size: 1.2rem;
+            font-weight: 900;
+            color: var(--accent-yellow);
+            letter-spacing: 0.5px;
+        }
+
+        .event-name {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--text-main);
+        }
+
+        .event-links {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 0.3rem;
+            padding-top: 0.5rem;
+            border-top: 1px dashed rgba(255, 255, 255, 0.08);
+        }
+
+        .source-link-btn {
+            font-size: 0.75rem;
+            font-weight: 800;
+            padding: 0.25rem 0.6rem;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: all 0.15s ease;
+        }
+        .link-problem {
+            background: rgba(0, 243, 255, 0.08);
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            color: var(--accent-cyan);
+        }
+        .link-problem:hover { background: rgba(0, 243, 255, 0.18); border-color: var(--accent-cyan); }
+        .link-lesson {
+            background: rgba(255, 0, 127, 0.08);
+            border: 1px solid rgba(255, 0, 127, 0.3);
+            color: var(--accent-magenta);
+        }
+        .link-lesson:hover { background: rgba(255, 0, 127, 0.18); border-color: var(--accent-magenta); }
+
+        .mnemonic-badge {
+            background: rgba(255, 245, 0, 0.06);
+            border: 1px dashed rgba(255, 245, 0, 0.3);
+            border-radius: 8px;
+            padding: 0.4rem 0.7rem;
+            font-size: 0.8rem;
+            color: var(--text-bright-muted);
+            margin-top: 0.2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="timeline-container">
+        <!-- GLOBAL CYBER HUD NAV -->
+        <nav class="global-cyber-nav">
+            <div class="nav-brand">//Lolz</div>
+            <div class="nav-links">
+                <a href="index.html" class="nav-btn">🧠 誤答ノート</a>
+                <a href="daily.html" class="nav-btn">🏁 計算スプリント</a>
+                <a href="custom-sprint.html" class="nav-btn">🎯 カスタムスプリント</a>
+                <a href="lesson.html" class="nav-btn">📖 授業・解説</a>
+                <a href="answer-check.html" class="nav-btn">⚡ 答え合わせ</a>
+                <a href="timeline.html" class="nav-btn active">🌍 世界史年表</a>
+                <a href="tokei/index.html" class="nav-btn global-timer-link">⏱️ 集中タイマー</a>
+                <a href="#" onclick="openTimerPopout(event)" class="nav-btn" title="別ウィンドウでタイマーを開く">🗔 小窓</a>
+                <a href="#" onclick="openLogPopout(event)" class="nav-btn" title="24hログを小窓で開く">📊 24hログ</a>
+                <a href="#" onclick="openGooglePhotosPopout(event)" class="nav-btn" title="Google Photosを小窓で開く">📷 Photos</a>
+            </div>
+        </nav>
+        <script src="global-timer-sync.js"></script>
+
+        <header>
+            <div>
+                <h1 class="logo">TIMELINE</h1>
+                <p style="color: var(--text-muted); margin-top: 0.4rem; font-size: 0.85rem;">
+                    誤答問題や参考書授業から抽出された出来事が、自動で年代順に整理される統合年表です。
+                </p>
+            </div>
+            <div style="font-size: 0.85rem; color: var(--accent-yellow); font-weight: 800;" id="event-total-count">
+                読み込み中...
+            </div>
+        </header>
+
+        <!-- フィルターバー -->
+        <div class="squircle-card glass-card filter-card">
+            <div class="filter-row">
+                <span class="filter-label">🔎 検索：</span>
+                <input type="text" class="search-input" id="search-input" placeholder="出来事名・年号・キーワードで検索...">
+            </div>
+            <div class="filter-row">
+                <span class="filter-label">🌍 地域：</span>
+                <div id="region-filter-container" style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                    <!-- JSで動的生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- タイムライン表示領域 -->
+        <main id="timeline-main">
+            <div class="timeline-stream" id="timeline-stream">
+                <!-- JSで動的に出来事ノードを挿入 -->
+            </div>
+            <div id="empty-notice" style="display:none; text-align:center; padding: 4rem 1rem; color: var(--text-muted); font-size: 0.9rem;">
+                まだ世界史の出来事データがありません。<br>世界史の問題を誤答ノートに登録するか、授業モードで学習すると自動でここに年表が作られます！
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY",
+            authDomain: "buturi-2449e.firebaseapp.com",
+            databaseURL: "https://buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app/",
+            projectId: "buturi-2449e",
+            storageBucket: "buturi-2449e.appspot.com",
+            messagingSenderId: "976306696124",
+            appId: "1:976306696124:web:e455c1953544bff5c345b9"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const database = getDatabase(app);
+
+        const REGIONS = [
+            "ALL",
+            "東アジア",
+            "東南アジア",
+            "南アジア",
+            "西アジア・中央アジア",
+            "ヨーロッパ",
+            "アメリカ大陸",
+            "アフリカ",
+            "地域をまたぐ／世界全体"
+        ];
+
+        let currentRegionFilter = "ALL";
+        let currentSearchQuery = "";
+        let rawProblems = {};
+        let rawLessons = {};
+
+        // 地域フィルターボタンの生成
+        const regionContainer = document.getElementById("region-filter-container");
+        regionContainer.innerHTML = REGIONS.map(r => `
+            <button type="button" class="region-tab-btn ${r === 'ALL' ? 'active' : ''}" data-region="${r}">
+                ${r === 'ALL' ? '✨ すべて' : r}
+            </button>
+        `).join("");
+
+        regionContainer.querySelectorAll(".region-tab-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                regionContainer.querySelectorAll(".region-tab-btn").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                currentRegionFilter = btn.getAttribute("data-region");
+                renderTimeline();
+            });
+        });
+
+        // 検索入力リスナー
+        const searchInput = document.getElementById("search-input");
+        searchInput.addEventListener("input", (e) => {
+            currentSearchQuery = e.target.value.trim().toLowerCase();
+            renderTimeline();
+        });
+
+        // Firebaseデータ収集＆マージ
+        function collectAllEvents() {
+            const eventsMap = new Map(); // key: "出来事名_年" -> 統合オブジェクト
+
+            // 1. 誤答問題 (problems) から抽出
+            Object.values(rawProblems).forEach(p => {
+                if (!p || (!Array.isArray(p.events) && p.subject !== "世界史")) return;
+                const problemEvents = Array.isArray(p.events) ? p.events : [];
+                problemEvents.forEach(ev => {
+                    if (!ev || !ev.name) return;
+                    const key = `${ev.name}_${ev.year || ""}`;
+                    if (!eventsMap.has(key)) {
+                        eventsMap.set(key, {
+                            name: ev.name,
+                            year: ev.year || "年代未詳",
+                            year_sort: typeof ev.year_sort === "number" ? ev.year_sort : 9999,
+                            region: ev.region || "地域をまたぐ／世界全体",
+                            mnemonics: p.mnemonic ? [p.mnemonic] : [],
+                            sources: []
+                        });
+                    }
+                    const item = eventsMap.get(key);
+                    item.sources.push({
+                        type: "problem",
+                        id: p.id,
+                        title: p.short_title || "誤答問題"
+                    });
+                });
+            });
+
+            // 2. 参考書授業 (lessons) から抽出
+            Object.values(rawLessons).forEach(l => {
+                if (!l || !Array.isArray(l.historicalEvents)) return;
+                l.historicalEvents.forEach(ev => {
+                    if (!ev || !ev.name) return;
+                    const key = `${ev.name}_${ev.year || ""}`;
+                    if (!eventsMap.has(key)) {
+                        eventsMap.set(key, {
+                            name: ev.name,
+                            year: ev.year || "年代未詳",
+                            year_sort: typeof ev.year_sort === "number" ? ev.year_sort : 9999,
+                            region: ev.region || "地域をまたぐ／世界全体",
+                            mnemonics: [],
+                            sources: []
+                        });
+                    }
+                    const item = eventsMap.get(key);
+                    item.sources.push({
+                        type: "lesson",
+                        id: l.id,
+                        title: l.title || "授業"
+                    });
+                });
+            });
+
+            // 配列化して年代順（year_sort 昇順）にソート
+            return Array.from(eventsMap.values()).sort((a, b) => a.year_sort - b.year_sort);
+        }
+
+        // 世紀のラベル生成ヘルパー（例: -221 -> 前3世紀, 1789 -> 18世紀）
+        function formatCentury(yearSort) {
+            if (yearSort === 9999) return "年代未詳・その他";
+            if (yearSort < 0) {
+                const c = Math.ceil(Math.abs(yearSort) / 100);
+                return `紀元前 ${c} 世紀`;
+            } else if (yearSort === 0) {
+                return "1 世紀（紀元前後）";
+            } else {
+                const c = Math.ceil(yearSort / 100);
+                return `${c} 世紀`;
+            }
+        }
+
+        function renderTimeline() {
+            const streamEl = document.getElementById("timeline-stream");
+            const emptyEl = document.getElementById("empty-notice");
+            const totalCountEl = document.getElementById("event-total-count");
+
+            const allEvents = collectAllEvents();
+
+            // 絞り込み
+            const filtered = allEvents.filter(ev => {
+                if (currentRegionFilter !== "ALL" && ev.region !== currentRegionFilter) return false;
+                if (currentSearchQuery) {
+                    const haystack = `${ev.name} ${ev.year} ${ev.region} ${ev.mnemonics.join(" ")}`.toLowerCase();
+                    if (!haystack.includes(currentSearchQuery)) return false;
+                }
+                return true;
+            });
+
+            totalCountEl.textContent = `収録出来事: ${filtered.length} 件`;
+
+            if (filtered.length === 0) {
+                streamEl.innerHTML = "";
+                emptyEl.style.display = "block";
+                return;
+            }
+
+            emptyEl.style.display = "none";
+
+            let currentCenturyLabel = null;
+            let html = "";
+
+            filtered.forEach(ev => {
+                const centuryLabel = formatCentury(ev.year_sort);
+                if (centuryLabel !== currentCenturyLabel) {
+                    currentCenturyLabel = centuryLabel;
+                    html += `<div class="century-header">⏳ ${centuryLabel}</div>`;
+                }
+
+                const sourcesHtml = ev.sources.map(s => {
+                    if (s.type === "problem") {
+                        return `<a href="problem.html?id=${encodeURIComponent(s.id)}" class="source-link-btn link-problem">📌 問題: ${s.title}</a>`;
+                    } else {
+                        return `<a href="lesson.html?id=${encodeURIComponent(s.id)}" class="source-link-btn link-lesson">📖 授業: ${s.title}</a>`;
+                    }
+                }).join("");
+
+                const mnemonicHtml = ev.mnemonics.length > 0
+                    ? `<div class="mnemonic-badge">🎴 語呂合わせ: ${ev.mnemonics[0]}</div>`
+                    : "";
+
+                html += `
+                    <div class="timeline-node">
+                        <div class="event-card">
+                            <div class="event-top">
+                                <span class="event-year">${ev.year}</span>
+                                <span class="badge badge-history" style="font-size:0.7rem;">${ev.region}</span>
+                            </div>
+                            <div class="event-name">${ev.name}</div>
+                            ${mnemonicHtml}
+                            <div class="event-links">
+                                ${sourcesHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            streamEl.innerHTML = html;
+        }
+
+        // Firebase 認証＆データ監視
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                location.href = "index.html";
+                return;
+            }
+
+            // 問題データの監視
+            onValue(ref(database, 'users/' + user.uid + '/problems'), (snapshot) => {
+                rawProblems = snapshot.val() || {};
+                renderTimeline();
+            });
+
+            // 授業データの監視
+            onValue(ref(database, 'users/' + user.uid + '/lessons'), (snapshot) => {
+                rawLessons = snapshot.val() || {};
+                renderTimeline();
+            });
+        });
+    </script>
+</body>
+</html>
