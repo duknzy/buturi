@@ -11,11 +11,11 @@
     --bg-color: #000000;
     --bg-image: url('bg.avif'); 
     
-    /* 💡 カードの背景を40〜50%まで透過させて、すりガラス感を大幅アップ */
-    --card-bg: rgba(6, 8, 14, 0.48);
-    --card-bg-glass: rgba(10, 12, 20, 0.42);
-    --border-color: rgba(255, 255, 255, 0.12);
-    --border-glow: rgba(0, 243, 255, 0.4);
+    /* 💡 カードの背景色（黒さを程よく薄くして、すりガラス越しに透けさせます） */
+    --card-bg: rgba(6, 8, 14, 0.62);
+    --card-bg-glass: rgba(8, 10, 18, 0.52);
+    --border-color: rgba(255, 255, 255, 0.08);
+    --border-glow: rgba(0, 243, 255, 0.3);
     
     /* Neon Accents */
     --accent-cyan: #00f3ff;
@@ -24,8 +24,8 @@
     
     /* Text */
     --text-main: #ffffff;
-    --text-muted: #9ab0bd;
-    --text-bright-muted: #c2d5e0;
+    --text-muted: #8ea4b0;
+    --text-bright-muted: #b0c5d0;
     
     /* Fonts */
     --fs-xl: clamp(2.5rem, 6vw + 1rem, 4.5rem);
@@ -36,8 +36,8 @@
 
 body {
     background-color: var(--bg-color);
-    /* 💡 暗幕を 75-85% → 45-60% に緩和して、写真の発色をしっかり出します */
-    background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.62)), var(--bg-image);
+    /* 💡 写真全体の暗幕をしっかり暗いダークトーン（78%〜88%）に戻します */
+    background-image: linear-gradient(rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.88)), var(--bg-image);
     background-size: cover;
     background-position: center;
     background-attachment: fixed;

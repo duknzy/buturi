@@ -44,11 +44,11 @@
             box-shadow: 6px 6px 0px #3a3a4a;
         }
         .glass-card {
-            background: var(--card-bg-glass);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
+    background: var(--card-bg-glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
 
         .dashboard-container {
             max-width: 1400px;
@@ -486,16 +486,18 @@
 
         /* 📋【新設】問題一覧：コンパクトなリスト行表示 */
         .problem-row {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            background: var(--card-bg-glass);
-            border: 1px solid var(--border-color);
-            border-radius: 14px;
-            padding: 0.7rem 1rem;
-            cursor: pointer;
-            transition: all 150ms ease;
-        }
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--card-bg-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 0.7rem 1rem;
+    cursor: pointer;
+    transition: all 150ms ease;
+}
         .problem-row:hover {
             background: rgba(255, 255, 255, 0.03);
             transform: translateX(3px);
@@ -779,13 +781,13 @@
 
             <div id="dynamic-cards-area" style="grid-column: span 12; display: flex; flex-direction: column; gap: 0.6rem;"></div>
 
-            <div class="squircle-card size-mini" style="background: linear-gradient(135deg, rgba(6, 8, 14, 0.4), rgba(40, 0, 25, 0.45)); border-color: rgba(255, 0, 127, 0.35); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
+            <div class="squircle-card size-mini" style="background: linear-gradient(135deg, rgba(6, 8, 14, 0.6), rgba(30, 0, 20, 0.6)); border-color: rgba(255, 0, 127, 0.25); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
                 <div class="mini-label" style="color: var(--accent-magenta);">TOTAL ERRORS</div>
                 <div class="mini-value" id="total-errors-display" style="color: var(--accent-magenta);">--</div>
                 <div class="mini-sub">未消化の累積誤答数</div>
             </div>
 
-            <div class="squircle-card size-mini" style="background: linear-gradient(135deg, rgba(6, 8, 14, 0.4), rgba(0, 35, 40, 0.45)); border-color: rgba(0, 243, 255, 0.35); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
+            <div class="squircle-card size-mini" style="background: linear-gradient(135deg, rgba(6, 8, 14, 0.6), rgba(0, 25, 30, 0.6)); border-color: rgba(0, 243, 255, 0.25); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
                 <div class="mini-label" style="color: var(--accent-cyan);">SOLVED TODAY</div>
                 <div class="mini-value" id="solved-today-display" style="color: var(--accent-cyan);">00</div>
                 <div class="mini-sub">本日の克服弱点数</div>
