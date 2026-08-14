@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#050508">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="LOLZ">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icons/icon.png">
+    <link rel="apple-touch-icon" href="icons/icon.png">
+    <title>LOLZ // ナレッジ＆質問アーカイブ</title>
+    <link rel="stylesheet" href="style.css">
+
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true,
+                macros: { fbox: ["\\bbox[2px,border:1px solid]{#1}", 1] }
+            },
+            options: {
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process',
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+            },
+            chtml: { displayAlign: 'left' }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+
+    <style>
+        .archive-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            min-height: calc(100vh - 4rem);
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 1px solid #22222a;
+            padding-bottom: 1.2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo {
+            font-size: var(--fs-xl);
+            font-weight: 900;
+            letter-spacing: -2px;
+            line-height: 0.9;
+            background: linear-gradient(90deg, var(--text-main) 70%, var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* 🎛 モード切り替え大タブ */
+        .main-tab-bar {
+            display: flex;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+        }
+        .main-tab-btn {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-bright-muted);
+            border: 1px solid var(--border-color);
+            padding: 0.8rem 1.6rem;
+            border-radius: 14px;
+            font-size: 0.95rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.1, 0.8, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .main-tab-btn:hover {
+            background: rgba(0, 243, 255, 0.08);
+            border-color: var(--accent-cyan);
+            color: #fff;
+        }
+        .main-tab-btn.active {
+            background: var(--accent-cyan) !important;
+            color: #000 !important;
+            font-weight: 900;
+            border-color: var(--accent-cyan) !important;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.35);
+        }
+        .main-tab-btn.tab-yellow.active {
+            background: var(--accent-yellow) !important;
+            border-color: var(--accent-yellow) !important;
+            box-shadow: 0 0 20px rgba(255, 245, 0, 0.35);
+        }
+
+        /* 検索・絞り込みツールバー */
+        .toolbar-card {
+            padding: 1.2rem 1.6rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+        .filter-row {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+        .filter-label {
+            font-size: 0.75rem;
+            font-weight: 900;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            min-width: 70px;
+        }
+        .search-input {
+            flex-grow: 1;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #fff;
+            padding: 0.6rem 1rem;
+            border-radius: 10px;
+            font-size: 0.9rem;
+        }
+        .search-input:focus { outline: none; border-color: var(--accent-cyan); }
+        .field-select {
+            background: #000;
+            color: var(--accent-cyan);
+            border: 1px solid var(--accent-cyan);
+            padding: 0.45rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            cursor: pointer;
+            outline: none;
+        }
+
+        /* 🧠 気づきメモグリッド */
+        .insight-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 1.2rem;
+        }
+        .insight-card {
+            background: var(--card-bg-glass);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--accent-cyan);
+            border-radius: 16px;
+            padding: 1.3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 0.8rem;
+            transition: all 0.15s ease;
+        }
+        .insight-card:hover {
+            border-color: var(--accent-cyan);
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.04);
+        }
+        .insight-text {
+            font-size: 1rem;
+            line-height: 1.7;
+            color: var(--text-main);
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-weight: 600;
+        }
+
+        /* 💬 質問ログ 2カラムビュー（PC大画面対応） */
+        .qna-layout {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 1.5rem;
+            align-items: start;
+            min-height: 600px;
+        }
+        @media (max-width: 1000px) {
+            .qna-layout { grid-template-columns: 1fr; }
+        }
+
+        .qna-list-pane {
+            max-height: calc(100vh - 280px);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            padding-right: 0.4rem;
+        }
+        .qna-list-item {
+            background: var(--card-bg-glass);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 0.9rem 1.1rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .qna-list-item:hover { border-color: var(--accent-yellow); transform: translateX(3px); }
+        .qna-list-item.active {
+            background: rgba(255, 245, 0, 0.08);
+            border-color: var(--accent-yellow);
+            box-shadow: 0 0 15px rgba(255, 245, 0, 0.15);
+        }
+        .qna-item-preview {
+            font-size: 0.85rem;
+            color: var(--text-bright-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 0.3rem;
+        }
+
+        .qna-detail-pane {
+            background: var(--card-bg-glass);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 1.6rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            min-height: 600px;
+            max-height: calc(100vh - 280px);
+        }
+        .qna-messages-stream {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            padding-right: 0.5rem;
+        }
+        .chat-bubble {
+            padding: 1rem 1.3rem;
+            border-radius: 16px;
+            font-size: 0.95rem;
+            line-height: 1.7;
+            max-width: 90%;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+        .bubble-user {
+            background: rgba(255, 0, 127, 0.15);
+            border-right: 3px solid var(--accent-magenta);
+            color: #fff;
+            align-self: flex-end;
+        }
+        .bubble-ai {
+            background: rgba(18, 22, 34, 0.85);
+            border-left: 3px solid var(--accent-cyan);
+            color: #e0f2fe;
+            align-self: flex-start;
+        }
+
+        /* 🎴 語呂合わせカード */
+        .mnemonic-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1rem;
+        }
+        .mnemonic-card {
+            background: var(--card-bg-glass);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--accent-yellow);
+            border-radius: 14px;
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            transition: all 0.15s ease;
+        }
+        .mnemonic-card:hover {
+            border-color: var(--accent-yellow);
+            transform: translateY(-2px);
+        }
+        .mnemonic-body {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: #ffffff;
+            line-height: 1.6;
+        }
+
+        .goto-btn {
+            font-size: 0.78rem;
+            font-weight: 800;
+            padding: 0.35rem 0.75rem;
+            border-radius: 8px;
+            background: rgba(0, 243, 255, 0.08);
+            color: var(--accent-cyan);
+            border: 1px solid var(--accent-cyan);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: all 0.15s ease;
+        }
+        .goto-btn:hover { background: rgba(0, 243, 255, 0.2); }
+    </style>
+</head>
+<body>
+
+    <div class="archive-container">
+        <!-- GLOBAL CYBER HUD NAV -->
+        <nav class="global-cyber-nav">
+            <div class="nav-brand">//Lolz</div>
+            <div class="nav-links">
+                <a href="index.html" class="nav-btn">🧠 誤答ノート</a>
+                <a href="daily.html" class="nav-btn">🏁 計算スプリント</a>
+                <a href="custom-sprint.html" class="nav-btn">🎯 カスタムスプリント</a>
+                <a href="lesson.html" class="nav-btn">📖 授業・解説</a>
+                <a href="answer-check.html" class="nav-btn">⚡ 答え合わせ</a>
+                <a href="insights.html" class="nav-btn active">💡 気づき・質問ログ</a>
+                <a href="timeline.html" class="nav-btn">🌍 世界史年表</a>
+                <a href="tokei/index.html" class="nav-btn global-timer-link">⏱️ 集中タイマー</a>
+                <a href="#" onclick="openTimerPopout(event)" class="nav-btn" title="別ウィンドウでタイマーを開く">🗔 小窓</a>
+                <a href="#" onclick="openLogPopout(event)" class="nav-btn" title="24hログを小窓で開く">📊 24hログ</a>
+                <a href="#" onclick="openGooglePhotosPopout(event)" class="nav-btn" title="Google Photosを小窓で開く">📷 Photos</a>
+            </div>
+        </nav>
+        <script src="global-timer-sync.js"></script>
+
+        <header>
+            <div>
+                <h1 class="logo">KNOWLEDGE</h1>
+                <p style="color: var(--text-muted); margin-top: 0.4rem; font-size: 0.85rem;">
+                    これまでの演習で記録した「気づき・極意」「AI質問ログ」「語呂合わせ」の統合ナレッジベースです。
+                </p>
+            </div>
+            <div style="font-size: 0.85rem; color: var(--accent-cyan); font-weight: 800;" id="stat-summary-text">
+                読み込み中...
+            </div>
+        </header>
+
+        <!-- メインタブ切り替え -->
+        <div class="main-tab-bar">
+            <button type="button" class="main-tab-btn active" id="tab-btn-insights">
+                🧠 気づき・極意メモ (<span id="count-insights">0</span>)
+            </button>
+            <button type="button" class="main-tab-btn tab-yellow" id="tab-btn-qna">
+                💬 AI質問ログ (<span id="count-qna">0</span>)
+            </button>
+            <button type="button" class="main-tab-btn tab-yellow" id="tab-btn-mnemonics">
+                🎴 世界史 語呂合わせ (<span id="count-mnemonics">0</span>)
+            </button>
+        </div>
+
+        <!-- ツールバー（検索・ソート・教科） -->
+        <div class="squircle-card glass-card toolbar-card">
+            <div class="filter-row">
+                <span class="filter-label">🔎 検索：</span>
+                <input type="text" class="search-input" id="search-input" placeholder="キーワード・単元名・問題タイトルで検索...">
+                <span class="filter-label" style="min-width:auto; margin-left:0.5rem;">🔀 並べ替え：</span>
+                <select class="field-select" id="sort-select">
+                    <option value="newest">記録・更新が新しい順</option>
+                    <option value="oldest">記録・更新が古い順</option>
+                    <option value="subject">教科・単元順</option>
+                </select>
+                <span class="filter-label" style="min-width:auto; margin-left:0.5rem;">📚 教科：</span>
+                <select class="field-select" id="subject-select">
+                    <option value="ALL">すべての教科</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- メイン表示領域 -->
+        <main>
+            <!-- 1. 気づきメモビュー -->
+            <div id="view-insights" class="insight-grid"></div>
+
+            <!-- 2. AI質問ログビュー（2カラム） -->
+            <div id="view-qna" class="qna-layout" style="display: none;">
+                <div class="qna-list-pane" id="qna-list-pane"></div>
+                <div class="qna-detail-pane" id="qna-detail-pane">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #22222a; padding-bottom:0.8rem; flex-wrap:wrap; gap:0.5rem;">
+                        <div>
+                            <span class="badge badge-physics" id="qna-detail-subject">--</span>
+                            <span style="font-weight:800; font-size:1rem; margin-left:0.4rem;" id="qna-detail-title">質問を選択してください</span>
+                            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem;" id="qna-detail-date"></div>
+                        </div>
+                        <div style="display:flex; gap:0.6rem;">
+                            <a href="#" id="qna-detail-goto" class="goto-btn" style="display:none;">📌 問題を開く</a>
+                            <button type="button" id="qna-detail-delete" class="tactile-btn" style="display:none; font-size:0.75rem; padding:0.35rem 0.75rem; background:rgba(255,0,127,0.1); color:var(--accent-magenta); border:1px solid var(--accent-magenta); box-shadow:none;">🗑 削除</button>
+                        </div>
+                    </div>
+                    <div class="qna-messages-stream" id="qna-messages-stream">
+                        <div style="text-align:center; padding:5rem 1rem; color:var(--text-muted); font-size:0.9rem;">
+                            左のリストから質問ログを選択すると、ここに会話全文が表示されます。
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. 語呂合わせビュー -->
+            <div id="view-mnemonics" class="mnemonic-grid" style="display: none;"></div>
+
+            <!-- 空データ時の通知 -->
+            <div id="empty-notice" style="display:none; text-align:center; padding:5rem 1rem; color:var(--text-muted); font-size:0.95rem;"></div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getDatabase, ref, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+        import { showToast } from "./api-key-manager.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB55MdhpjJizQaLEdRu-XhBVJ4PqrHsAyY",
+            authDomain: "buturi-2449e.firebaseapp.com",
+            databaseURL: "https://buturi-2449e-default-rtdb.asia-southeast1.firebasedatabase.app/",
+            projectId: "buturi-2449e",
+            storageBucket: "buturi-2449e.appspot.com",
+            messagingSenderId: "976306696124",
+            appId: "1:976306696124:web:e455c1953544bff5c345b9"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const database = getDatabase(app);
+
+        let currentUser = null;
+        let activeTab = "insights"; // "insights" | "qna" | "mnemonics"
+        let rawProblems = {};
+        let rawQnaLogs = {};
+        let selectedQnaLogId = null;
+
+        // 🎛 タブ切り替え
+        const tabBtnInsights = document.getElementById("tab-btn-insights");
+        const tabBtnQna = document.getElementById("tab-btn-qna");
+        const tabBtnMnemonics = document.getElementById("tab-btn-mnemonics");
+
+        function switchTab(tab) {
+            activeTab = tab;
+            tabBtnInsights.classList.toggle("active", tab === "insights");
+            tabBtnQna.classList.toggle("active", tab === "qna");
+            tabBtnMnemonics.classList.toggle("active", tab === "mnemonics");
+
+            document.getElementById("view-insights").style.display = tab === "insights" ? "grid" : "none";
+            document.getElementById("view-qna").style.display = tab === "qna" ? "grid" : "none";
+            document.getElementById("view-mnemonics").style.display = tab === "mnemonics" ? "grid" : "none";
+
+            populateSubjectFilter();
+            renderActiveView();
+        }
+
+        tabBtnInsights.addEventListener("click", () => switchTab("insights"));
+        tabBtnQna.addEventListener("click", () => switchTab("qna"));
+        tabBtnMnemonics.addEventListener("click", () => switchTab("mnemonics"));
+
+        // フィルター＆検索
+        const searchInput = document.getElementById("search-input");
+        const sortSelect = document.getElementById("sort-select");
+        const subjectSelect = document.getElementById("subject-select");
+
+        searchInput.addEventListener("input", renderActiveView);
+        sortSelect.addEventListener("change", renderActiveView);
+        subjectSelect.addEventListener("change", renderActiveView);
+
+        function populateSubjectFilter() {
+            const currentVal = subjectSelect.value || "ALL";
+            let subjects = new Set();
+
+            if (activeTab === "insights") {
+                Object.values(rawProblems).forEach(p => { if (p.insight) subjects.add(p.subject || "未分類"); });
+            } else if (activeTab === "qna") {
+                Object.values(rawQnaLogs).forEach(l => { if (l.subject) subjects.add(l.subject); });
+            } else {
+                subjects.add("世界史");
+            }
+
+            const sorted = [...subjects].sort((a, b) => a.localeCompare(b, "ja"));
+            subjectSelect.innerHTML = `<option value="ALL">すべての教科</option>` +
+                sorted.map(s => `<option value="${s}">${s}</option>`).join("");
+
+            if (subjects.has(currentVal)) subjectSelect.value = currentVal;
+        }
+
+        function formatDate(iso) {
+            if (!iso) return "日付不明";
+            return new Date(iso).toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        // 🧠 1. 気づきメモ描画
+        function renderInsights() {
+            const container = document.getElementById("view-insights");
+            const query = searchInput.value.trim().toLowerCase();
+            const subject = subjectSelect.value;
+            const sort = sortSelect.value;
+
+            let items = Object.values(rawProblems).filter(p => p && p.insight && p.insight.trim() !== "");
+
+            if (subject !== "ALL") items = items.filter(p => (p.subject || "未分類") === subject);
+            if (query) {
+                items = items.filter(p =>
+                    (p.insight || "").toLowerCase().includes(query) ||
+                    (p.short_title || "").toLowerCase().includes(query) ||
+                    (p.field || "").toLowerCase().includes(query)
+                );
+            }
+
+            items.sort((a, b) => {
+                if (sort === "oldest") return new Date(a.insightUpdatedAt || a.createdAt || 0) - new Date(b.insightUpdatedAt || b.createdAt || 0);
+                if (sort === "subject") return (a.subject || "").localeCompare(b.subject || "", "ja");
+                return new Date(b.insightUpdatedAt || b.createdAt || 0) - new Date(a.insightUpdatedAt || a.createdAt || 0);
+            });
+
+            if (items.length === 0) {
+                container.innerHTML = "";
+                showEmptyNotice("該当する「気づきメモ」が見つかりませんでした。");
+                return;
+            }
+            hideEmptyNotice();
+
+            container.innerHTML = items.map(p => `
+                <div class="insight-card">
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:0.4rem; margin-bottom:0.6rem; flex-wrap:wrap;">
+                            <span class="badge badge-physics">${p.subject || "未分類"} // ${p.field || "未分類"}</span>
+                            <span style="font-size:0.72rem; color:var(--text-muted);">🗓️ ${formatDate(p.insightUpdatedAt || p.createdAt)}</span>
+                        </div>
+                        <div class="insight-text tex2jax_process">${p.insight}</div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed rgba(255,255,255,0.08); padding-top:0.6rem; margin-top:0.4rem;">
+                        <span style="font-size:0.8rem; font-weight:800; color:var(--text-bright-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px;">
+                            📌 ${p.short_title || "問題"}
+                        </span>
+                        <a href="problem.html?id=${encodeURIComponent(p.id)}" class="goto-btn">問題を開く ➔</a>
+                    </div>
+                </div>
+            `).join("");
+
+            if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([container]);
+        }
+
+        // 💬 2. AI質問ログ描画
+        function renderQna() {
+            const listPane = document.getElementById("qna-list-pane");
+            const query = searchInput.value.trim().toLowerCase();
+            const subject = subjectSelect.value;
+            const sort = sortSelect.value;
+
+            let entries = Object.entries(rawQnaLogs);
+            if (subject !== "ALL") entries = entries.filter(([, l]) => (l.subject || "未分類") === subject);
+            if (query) {
+                entries = entries.filter(([, l]) =>
+                    (l.shortTitle || "").toLowerCase().includes(query) ||
+                    (l.field || "").toLowerCase().includes(query) ||
+                    (l.messages || []).some(m => (m.content || "").toLowerCase().includes(query))
+                );
+            }
+
+            entries.sort((a, b) => {
+                if (sort === "oldest") return new Date(a[1].savedAt || 0) - new Date(b[1].savedAt || 0);
+                if (sort === "subject") return (a[1].subject || "").localeCompare(b[1].subject || "", "ja");
+                return new Date(b[1].savedAt || 0) - new Date(a[1].savedAt || 0);
+            });
+
+            if (entries.length === 0) {
+                listPane.innerHTML = "";
+                showEmptyNotice("該当する「AI質問ログ」が見つかりませんでした。");
+                return;
+            }
+            hideEmptyNotice();
+
+            listPane.innerHTML = entries.map(([id, log]) => {
+                const firstUser = (log.messages || []).find(m => m.role === "user");
+                const preview = firstUser ? firstUser.content : "（内容なし）";
+                const activeCls = id === selectedQnaLogId ? "active" : "";
+                return `
+                    <div class="qna-list-item ${activeCls}" data-qna-id="${id}">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:0.4rem;">
+                            <span class="badge badge-physics" style="font-size:0.68rem;">${log.subject || "未分類"} // ${log.field || "未分類"}</span>
+                            <span style="font-size:0.68rem; color:var(--text-muted);">${formatDate(log.savedAt)}</span>
+                        </div>
+                        <div style="font-weight:800; font-size:0.88rem; color:var(--accent-yellow); margin-top:0.3rem;">📌 ${log.shortTitle || "問題"}</div>
+                        <div class="qna-item-preview">💬 ${preview}</div>
+                    </div>
+                `;
+            }).join("");
+
+            listPane.querySelectorAll("[data-qna-id]").forEach(el => {
+                el.addEventListener("click", () => {
+                    selectedQnaLogId = el.getAttribute("data-qna-id");
+                    renderQna();
+                    renderQnaDetail(selectedQnaLogId);
+                });
+            });
+
+            if (selectedQnaLogId && rawQnaLogs[selectedQnaLogId]) {
+                renderQnaDetail(selectedQnaLogId);
+            }
+        }
+
+        function renderQnaDetail(logId) {
+            const log = rawQnaLogs[logId];
+            if (!log) return;
+
+            document.getElementById("qna-detail-subject").textContent = `${log.subject || "未分類"} // ${log.field || "未分類"}`;
+            document.getElementById("qna-detail-title").textContent = log.shortTitle || "無題の問題";
+            document.getElementById("qna-detail-date").textContent = `🗓️ 記録日時: ${formatDate(log.savedAt)}`;
+
+            const gotoBtn = document.getElementById("qna-detail-goto");
+            gotoBtn.style.display = "inline-flex";
+            gotoBtn.href = `problem.html?id=${encodeURIComponent(log.problemId)}`;
+
+            const delBtn = document.getElementById("qna-detail-delete");
+            delBtn.style.display = "inline-flex";
+            delBtn.onclick = async () => {
+                if (!confirm("この質問ログを削除しますか？")) return;
+                try {
+                    await remove(ref(database, 'users/' + currentUser.uid + '/qna_logs/' + logId));
+                    selectedQnaLogId = null;
+                    showToast("質問ログを削除しました。", "success", 2500);
+                } catch (e) {
+                    showToast("削除に失敗しました。", "error");
+                }
+            };
+
+            const stream = document.getElementById("qna-messages-stream");
+            stream.innerHTML = (log.messages || []).map(m => {
+                const isUser = m.role === "user";
+                return `
+                    <div class="chat-bubble ${isUser ? 'bubble-user' : 'bubble-ai'} tex2jax_process">
+                        <div style="font-size:0.72rem; font-weight:800; margin-bottom:0.3rem; opacity:0.8;">${isUser ? 'あなた' : 'AIチューター'}</div>
+                        <div>${m.content}</div>
+                    </div>
+                `;
+            }).join("");
+
+            if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([stream]);
+        }
+
+        // 🎴 3. 語呂合わせ描画
+        function renderMnemonics() {
+            const container = document.getElementById("view-mnemonics");
+            const query = searchInput.value.trim().toLowerCase();
+
+            let items = Object.values(rawProblems).filter(p => p && p.subject === "世界史" && p.mnemonic && p.mnemonic.trim() !== "");
+
+            if (query) {
+                items = items.filter(p =>
+                    (p.mnemonic || "").toLowerCase().includes(query) ||
+                    (p.short_title || "").toLowerCase().includes(query) ||
+                    (p.field || "").toLowerCase().includes(query)
+                );
+            }
+
+            if (items.length === 0) {
+                container.innerHTML = "";
+                showEmptyNotice("登録済みの「世界史 語呂合わせ」が見つかりませんでした。");
+                return;
+            }
+            hideEmptyNotice();
+
+            container.innerHTML = items.map(p => `
+                <div class="mnemonic-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:0.4rem; flex-wrap:wrap;">
+                        <span class="badge badge-history">${p.field || "世界史"}</span>
+                        <span style="font-size:0.82rem; font-weight:800; color:var(--accent-yellow);">📌 ${p.short_title || "問題"}</span>
+                    </div>
+                    <div class="mnemonic-body">🎴 ${p.mnemonic}</div>
+                    <div style="display:flex; justify-content:flex-end; margin-top:0.4rem; padding-top:0.4rem; border-top:1px dashed rgba(255,255,255,0.08);">
+                        <a href="problem.html?id=${encodeURIComponent(p.id)}" class="goto-btn">問題を開く ➔</a>
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        function renderActiveView() {
+            if (activeTab === "insights") renderInsights();
+            else if (activeTab === "qna") renderQna();
+            else if (activeTab === "mnemonics") renderMnemonics();
+        }
+
+        function showEmptyNotice(msg) {
+            const el = document.getElementById("empty-notice");
+            el.textContent = msg;
+            el.style.display = "block";
+        }
+        function hideEmptyNotice() {
+            document.getElementById("empty-notice").style.display = "none";
+        }
+
+        function updateCounts() {
+            const insightCount = Object.values(rawProblems).filter(p => p && p.insight && p.insight.trim() !== "").length;
+            const qnaCount = Object.keys(rawQnaLogs).length;
+            const mnemonicCount = Object.values(rawProblems).filter(p => p && p.subject === "世界史" && p.mnemonic && p.mnemonic.trim() !== "").length;
+
+            document.getElementById("count-insights").textContent = insightCount;
+            document.getElementById("count-qna").textContent = qnaCount;
+            document.getElementById("count-mnemonics").textContent = mnemonicCount;
+            document.getElementById("stat-summary-text").textContent = `総蓄積ナレッジ: ${insightCount + qnaCount + mnemonicCount} 件`;
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                location.href = "index.html";
+                return;
+            }
+            currentUser = user;
+
+            onValue(ref(database, 'users/' + user.uid + '/problems'), (snapshot) => {
+                rawProblems = snapshot.val() || {};
+                updateCounts();
+                populateSubjectFilter();
+                renderActiveView();
+            });
+
+            onValue(ref(database, 'users/' + user.uid + '/qna_logs'), (snapshot) => {
+                rawQnaLogs = snapshot.val() || {};
+                updateCounts();
+                populateSubjectFilter();
+                renderActiveView();
+            });
+        });
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW register error:', err));
+            });
+        }
+    </script>
+</body>
+</html>
