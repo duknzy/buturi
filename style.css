@@ -11,11 +11,12 @@
     --bg-color: #000000;
     --bg-image: url('bg.avif'); 
     
-    /* 💡 カードの背景色（黒さを程よく薄くして、すりガラス越しに透けさせます） */
-    --card-bg: rgba(6, 8, 14, 0.62);
-    --card-bg-glass: rgba(8, 10, 18, 0.52);
-    --border-color: rgba(255, 255, 255, 0.08);
-    --border-glow: rgba(0, 243, 255, 0.3);
+    /* 💡 カードの黒塗りを 60% → 25% 前後まで大幅に薄くします */
+    --card-bg: rgba(6, 8, 14, 0.28);
+    --card-bg-glass: rgba(6, 8, 16, 0.22);
+    /* 💡 ガラスの輪郭（枠線）を少しだけ光らせて立体感をキープ */
+    --border-color: rgba(255, 255, 255, 0.12);
+    --border-glow: rgba(0, 243, 255, 0.35);
     
     /* Neon Accents */
     --accent-cyan: #00f3ff;
@@ -24,8 +25,8 @@
     
     /* Text */
     --text-main: #ffffff;
-    --text-muted: #8ea4b0;
-    --text-bright-muted: #b0c5d0;
+    --text-muted: #9bb2c0;
+    --text-bright-muted: #cce0ec;
     
     /* Fonts */
     --fs-xl: clamp(2.5rem, 6vw + 1rem, 4.5rem);
@@ -36,7 +37,7 @@
 
 body {
     background-color: var(--bg-color);
-    /* 💡 写真全体の暗幕をしっかり暗いダークトーン（78%〜88%）に戻します */
+    /* 写真全体の落ち着いた暗幕はしっかりキープ */
     background-image: linear-gradient(rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.88)), var(--bg-image);
     background-size: cover;
     background-position: center;
@@ -63,8 +64,9 @@ body::before {
 
 .squircle-card, .squircle-tile {
     background-color: var(--card-bg);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    /* 💡 ボケすぎると写真が見えなくなるため、blurを 16px → 8px に弱めて写真を見えやすく */
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid var(--border-color);
     border-radius: 32px / 32px;
     padding: 1.8rem;
@@ -116,9 +118,9 @@ mjx-container[jax="CHTML"][display="true"] {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: rgba(10, 10, 18, 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: rgba(10, 10, 18, 0.35);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid rgba(0, 243, 255, 0.25);
     border-radius: 16px;
     padding: 0.6rem 1.2rem;
