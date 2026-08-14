@@ -15,13 +15,19 @@
     <title>LOLZ // ナレッジ＆質問アーカイブ</title>
     <link rel="stylesheet" href="style.css">
 
+    <!-- MathJax 3 (bbox / color 拡張パッケージを完全有効化) -->
     <script>
         window.MathJax = {
+            loader: { load: ['[tex]/bbox', '[tex]/color'] },
             tex: {
+                packages: { '[+]': ['bbox', 'color'] },
                 inlineMath: [['$', '$'], ['\\(', '\\)']],
                 displayMath: [['$$', '$$'], ['\\[', '\\]']],
                 processEscapes: true,
-                macros: { fbox: ["\\bbox[2px,border:1px solid]{#1}", 1] }
+                macros: {
+                    fbox: ["\\bbox[2px,border:1px solid]{\\text{#1}}", 1],
+                    boxed: ["\\bbox[2px,border:1px solid]{\\text{#1}}", 1]
+                }
             },
             options: {
                 ignoreHtmlClass: 'tex2jax_ignore',
@@ -121,10 +127,7 @@
             box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
         }
 
-        /* ─────────────────────────────────────────────
-   【修正後】PC大画面でゆったり2列配置 ＆ 問題文がしっかり読めるスタイル
-   ───────────────────────────────────────────── */
-        /* 🎴 リッチ対比カード表示（最小幅を 380px → 520px に拡大して列数を抑える） */
+        /* 🎴 リッチ対比カード表示 */
         .insight-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(520px, 1fr));
@@ -157,7 +160,7 @@
         }
         .insight-card.pinned:hover { border-color: var(--accent-yellow); }
 
-        /* 上半分：問題の型・問題文プレビュー（複数行でしっかり読める枠） */
+        /* 上半分：問題の型・問題文プレビュー */
         .insight-problem-preview {
             background: rgba(0, 243, 255, 0.03);
             border: 1px dashed rgba(0, 243, 255, 0.25);
@@ -313,6 +316,16 @@
             text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem; transition: all 0.15s ease;
         }
         .goto-btn:hover { background: rgba(0, 243, 255, 0.2); }
+
+        /* 🔲 MathJax 穴埋め四角枠（\bbox）の美しいサイバーパンク風スタイル */
+        mjx-box {
+            border-color: rgba(0, 243, 255, 0.6) !important;
+            background: rgba(0, 243, 255, 0.08) !important;
+            border-radius: 4px !important;
+            padding: 1px 5px !important;
+            color: #ffffff !important;
+            font-weight: 700;
+        }
     </style>
 </head>
 <body>
@@ -461,7 +474,7 @@
         let insightViewMode = "card"; // "card" | "compact"
         let isGrouped = true; // 単元グループ化 ON/OFF
         let filterPinnedOnly = false; // スター付きのみ ON/OFF
-        let expandedGroups = new Set(); // 💡 初期状態は空Set＝すべて折りたたんだ状態で開始
+        let expandedGroups = new Set(); // 初期状態は空Set＝すべて折りたたんだ状態で開始
 
         let rawProblems = {};
         let rawQnaLogs = {};
@@ -602,7 +615,87 @@
             }
         };
 
-        // 🧠 1. 気づきメモ描画（初期折りたたみ ＆ ワイド対比カード ＆ 爆速リスト対応）
+        // 🧠 数式正規化＆穴埋め枠の修復処理
+        function normalizeMathSyntax(str) {
+            if (!str) return "";
+            let s = String(str);
+
+            // 1. \bbox[...] または \bbox[...]{...} の波括弧抜け・表記ゆれを完全正規化
+            s = s.replace(/\\bbox\s*\[[^\]]*\]\s*\{([^}]*)\}/g, (_, content) => {
+                let c = content.trim();
+                if (!c) c = "\\quad";
+                else c = c.replace(/^\\text\{([\s\S]*)\}$/, "$1").trim();
+                return `\\bbox[2px,border:1px solid]{\\text{${c}}}`;
+            });
+
+            s = s.replace(/\\bbox\s*\[[^\]]*\]\s*([0-9A-Za-zぁ-んァ-ヶー一-龠々]+)/g, (_, content) => {
+                return `\\bbox[2px,border:1px solid]{\\text{${content.trim()}}}`;
+            });
+
+            s = s.replace(/\\bbox\s*\[[^\]]*\]/g, `\\bbox[2px,border:1px solid]{\\text{\\quad}}`);
+
+            // 2. \fbox, \boxed, \framebox の正規化
+            s = s.replace(/\\(?:fbox|boxed|framebox)(?:\s*\[[^\]]*\])?\s*\{([^}]*)\}/g, (_, content) => {
+                let c = content.trim();
+                if (!c) c = "\\quad";
+                else c = c.replace(/^\\text\{([\s\S]*)\}$/, "$1").trim();
+                return `\\bbox[2px,border:1px solid]{\\text{${c}}}`;
+            });
+            s = s.replace(/\\(?:fbox|boxed|framebox)(?:\s*\[[^\]]*\])?\s+([0-9A-Za-zぁ-んァ-ヶー一-龠々]+)/g, (_, content) => {
+                return `\\bbox[2px,border:1px solid]{\\text{${content.trim()}}}`;
+            });
+
+            // 3. $...$ の外にある \bbox や孤立した TeX 記号を $...$ で保護
+            const parts = s.split(/(\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g);
+            for (let i = 0; i < parts.length; i += 2) {
+                let chunk = parts[i];
+                if (!chunk) continue;
+
+                // \bbox が $ の外にある場合、$ で包む
+                chunk = chunk.replace(/(\\bbox\[2px,border:1px solid\]\{\\text\{[^}]*\}\}(?:\^[0-9A-Za-z^\circ]+)?)/g, '$$$1$$');
+
+                // 孤立した TeX 記号・数式コマンドを $...$ で包む
+                chunk = chunk.replace(/(\\(?:triangle|angle|sqrt|frac|vec|alpha|beta|gamma|theta|pi|pm|mp|le|ge|leqq|geqq|neq|approx|sim|equiv|subset|supset|cap|cup|times|div|cdot|int|sum|lim|log|ln|sin|cos|tan)\b[^\s$、。,.)）]*)/g, '$$$1$$');
+
+                // 不正な連続 $$ や 空の $$ を整理
+                chunk = chunk.replace(/\$\s*\$/g, '');
+
+                parts[i] = chunk;
+            }
+
+            return parts.join("");
+        }
+
+        function formatQuestionText(raw) {
+            if (!raw) return "";
+            let t = normalizeMathSyntax(raw);
+            t = t.replace(/\\n/g, '\n').replace(/\r\n?/g, '\n').trim();
+            const noWordBefore = "(?<![0-9A-Za-zぁ-んァ-ヶー一-龠々'’])";
+            t = t.replace(new RegExp(noWordBefore + "\\(\\s*([1-9]|10)\\s*\\)(?!\\d)", "g"), "\n\n($1)");
+            t = t.replace(new RegExp(noWordBefore + "\\(\\s*(i{1,3}|iv)\\s*\\)", "gi"), "\n($1)");
+            return t.replace(/\n{3,}/g, "\n\n").replace(/^\n+/, "").trim().replace(/\n/g, "<br>");
+        }
+
+        // Markdown＆数式フォーマット関数
+        function renderFormattedMarkdown(text) {
+            if (!text) return "";
+            let trimmed = normalizeMathSyntax(text).trim();
+            const mathBlocks = [];
+            let placeholderText = trimmed.replace(/(\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g, (match) => {
+                mathBlocks.push(match);
+                return `%%%MATH_${mathBlocks.length - 1}%%%`;
+            });
+            let formatted = placeholderText
+                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            formatted = formatted.replace(/^###\s*(.+)$/gm, '<h4 style="font-size:0.92rem; font-weight:800; color:var(--accent-cyan); margin:0.5rem 0 0.2rem 0; border-bottom:1px solid rgba(0,243,255,0.2); padding-bottom:0.2rem;">$1</h4>');
+            formatted = formatted.replace(/^---\s*$/gm, '<hr style="border:none; border-top:1px dashed rgba(255,255,255,0.15); margin:0.5rem 0;">');
+            formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff; font-weight:700;">$1</strong>');
+            formatted = formatted.replace(/^(\d+\.)\s*/gm, '<span style="color:var(--accent-yellow); font-weight:800; margin-right:0.3rem;">$1</span>');
+            formatted = formatted.replace(/%%%MATH_(\d+)%%%/g, (_, idx) => mathBlocks[idx]);
+            return formatted.replace(/\n/g, '<br>');
+        }
+
+        // 🧠 1. 気づきメモ描画
         function renderInsights() {
             const container = document.getElementById("view-insights");
             const query = searchInput.value.trim().toLowerCase();
@@ -651,7 +744,6 @@
                 });
 
                 container.innerHTML = Object.entries(groups).map(([groupKey, groupItems]) => {
-                    // 💡 expandedGroupsに入っているものだけ開く（初期状態は閉じた状態）
                     const isExpanded = expandedGroups.has(groupKey);
                     const rowsHtml = insightViewMode === "card"
                         ? `<div class="insight-grid">${groupItems.map(p => renderCardHtml(p)).join("")}</div>`
@@ -687,10 +779,12 @@
                     : `<div class="insight-compact-list">${items.map(p => renderCompactRowHtml(p)).join("")}</div>`;
             }
 
-            if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([container]);
+            if (window.MathJax && MathJax.typesetPromise) {
+                MathJax.typesetPromise([container]).catch(err => console.log('MathJax typeset error:', err));
+            }
         }
 
-        // リッチ対比カードのHTML（問題文全文をしっかり表示）
+        // リッチ対比カードのHTML
         function renderCardHtml(p) {
             const isEditing = editingProblemId === p.id;
             const starClass = p.isPinned ? "active" : "";
@@ -706,7 +800,7 @@
                         </div>
                     </div>
                 `
-                : `<div class="insight-text tex2jax_process" onclick="startEditInsight('${p.id}', event)" title="クリックしてその場で編集">${p.insight}</div>`;
+                : `<div class="insight-text tex2jax_process" onclick="startEditInsight('${p.id}', event)" title="クリックしてその場で編集">${normalizeMathSyntax(p.insight)}</div>`;
 
             return `
                 <div class="insight-card ${pinnedClass}">
@@ -719,14 +813,14 @@
                             </div>
                         </div>
 
-                        <!-- 上半分：問題の型プレビュー（数式や問題文がしっかり読める） -->
+                        <!-- 上半分：問題の型プレビュー -->
                         <div class="insight-problem-preview">
                             <div class="insight-problem-title">📌 ${p.short_title || "問題"}</div>
                             <div class="insight-problem-snippet tex2jax_process">${formatQuestionText(p.title || "（問題文なし）")}</div>
                         </div>
                     </div>
 
-                    <!-- 下半分：あなたが掴んだ極意 -->
+                    <!-- 下半分：掴んだ極意 -->
                     <div class="insight-body-box">
                         <div class="insight-body-label">
                             <span>🧠 掴んだ極意・解法の地図</span>
@@ -752,40 +846,12 @@
                     <button type="button" class="star-btn ${starClass}" onclick="togglePin('${p.id}', event)" title="スター">★</button>
                     <span class="badge badge-physics" style="font-size:0.68rem; flex-shrink:0;">${p.subject || "未分類"} // ${p.field || "未分類"}</span>
                     <div class="compact-main">
-                        <div class="compact-text tex2jax_process">${p.insight}</div>
+                        <div class="compact-text tex2jax_process">${normalizeMathSyntax(p.insight)}</div>
                         <div class="compact-sub">📌 ${p.short_title || "問題"} ｜ ${formatDate(p.insightUpdatedAt || p.createdAt)}</div>
                     </div>
                     <a href="problem.html?id=${encodeURIComponent(p.id)}" class="goto-btn" style="flex-shrink:0;">➔</a>
                 </div>
             `;
-        }
-
-        // Markdown＆数式フォーマット関数
-        function renderFormattedMarkdown(text) {
-            if (!text) return "";
-            let trimmed = text.trim();
-            const mathBlocks = [];
-            let placeholderText = trimmed.replace(/(\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g, (match) => {
-                mathBlocks.push(match);
-                return `%%%MATH_${mathBlocks.length - 1}%%%`;
-            });
-            let formatted = placeholderText
-                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            formatted = formatted.replace(/^###\s*(.+)$/gm, '<h4 style="font-size:0.92rem; font-weight:800; color:var(--accent-cyan); margin:0.5rem 0 0.2rem 0; border-bottom:1px solid rgba(0,243,255,0.2); padding-bottom:0.2rem;">$1</h4>');
-            formatted = formatted.replace(/^---\s*$/gm, '<hr style="border:none; border-top:1px dashed rgba(255,255,255,0.15); margin:0.5rem 0;">');
-            formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff; font-weight:700;">$1</strong>');
-            formatted = formatted.replace(/^(\d+\.)\s*/gm, '<span style="color:var(--accent-yellow); font-weight:800; margin-right:0.3rem;">$1</span>');
-            formatted = formatted.replace(/%%%MATH_(\d+)%%%/g, (_, idx) => mathBlocks[idx]);
-            return formatted.replace(/\n/g, '<br>');
-        }
-
-        function formatQuestionText(raw) {
-            if (!raw) return "";
-            let t = String(raw).replace(/\\n/g, '\n').replace(/\r\n?/g, '\n').trim();
-            const noWordBefore = "(?<![0-9A-Za-zぁ-んァ-ヶー一-龠々'’])";
-            t = t.replace(new RegExp(noWordBefore + "\\(\\s*([1-9]|10)\\s*\\)(?!\\d)", "g"), "\n\n($1)");
-            t = t.replace(new RegExp(noWordBefore + "\\(\\s*(i{1,3}|iv)\\s*\\)", "gi"), "\n($1)");
-            return t.replace(/\n{3,}/g, "\n\n").replace(/^\n+/, "").trim().replace(/\n/g, "<br>");
         }
 
         // 💬 2. AI質問ログ描画
@@ -898,7 +964,7 @@
             }).join("");
 
             if (window.MathJax && MathJax.typesetPromise) {
-                MathJax.typesetPromise([problemBox, stream]).catch(err => console.log(err));
+                MathJax.typesetPromise([problemBox, stream]).catch(err => console.log('MathJax typeset error:', err));
             }
         }
 
