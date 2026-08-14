@@ -121,22 +121,29 @@
             box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
         }
 
-        /* 🎴 リッチ対比カード表示 */
+        /* ─────────────────────────────────────────────
+   【修正後】PC大画面でゆったり2列配置 ＆ 問題文がしっかり読めるスタイル
+   ───────────────────────────────────────────── */
+        /* 🎴 リッチ対比カード表示（最小幅を 380px → 520px に拡大して列数を抑える） */
         .insight-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-            gap: 1.2rem;
+            grid-template-columns: repeat(auto-fill, minmax(520px, 1fr));
+            gap: 1.4rem;
         }
+        @media (max-width: 700px) {
+            .insight-grid { grid-template-columns: 1fr; }
+        }
+
         .insight-card {
             background: var(--card-bg-glass);
             border: 1px solid var(--border-color);
             border-left: 4px solid var(--accent-cyan);
-            border-radius: 16px;
-            padding: 1.2rem 1.4rem;
+            border-radius: 18px;
+            padding: 1.3rem 1.5rem;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            gap: 0.8rem;
+            gap: 1rem;
             transition: all 0.15s ease;
         }
         .insight-card.pinned {
@@ -150,35 +157,52 @@
         }
         .insight-card.pinned:hover { border-color: var(--accent-yellow); }
 
-        /* 上半分：問題の型プレビュー */
+        /* 上半分：問題の型・問題文プレビュー（複数行でしっかり読める枠） */
         .insight-problem-preview {
             background: rgba(0, 243, 255, 0.03);
-            border: 1px dashed rgba(0, 243, 255, 0.2);
-            border-radius: 10px;
-            padding: 0.6rem 0.8rem;
+            border: 1px dashed rgba(0, 243, 255, 0.25);
+            border-radius: 12px;
+            padding: 0.8rem 1rem;
             display: flex;
             flex-direction: column;
-            gap: 0.2rem;
+            gap: 0.4rem;
         }
-        .insight-problem-title { font-size: 0.85rem; font-weight: 800; color: #ffffff; }
+        .insight-problem-title {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #ffffff;
+        }
         .insight-problem-snippet {
-            font-size: 0.76rem; color: var(--text-muted);
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            font-size: 0.88rem;
+            color: var(--text-bright-muted);
+            line-height: 1.6;
+            max-height: 130px;
+            overflow-y: auto;
+            word-break: break-word;
         }
 
-        /* 下半分：極意・気づき（ネオン強調） */
+        /* 下半分：極意・気づき */
         .insight-body-box {
             display: flex;
             flex-direction: column;
-            gap: 0.3rem;
+            gap: 0.4rem;
         }
         .insight-body-label {
-            font-size: 0.7rem; font-weight: 900; color: var(--accent-cyan);
-            letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.72rem;
+            font-weight: 900;
+            color: var(--accent-cyan);
+            letter-spacing: 0.5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .insight-text {
-            font-size: 1rem; line-height: 1.65; color: var(--text-main);
-            white-space: pre-wrap; word-break: break-word; font-weight: 600;
+            font-size: 1.05rem;
+            line-height: 1.7;
+            color: var(--text-main);
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-weight: 600;
         }
 
         /* 📋 爆速コンパクトリスト表示 */
@@ -437,7 +461,7 @@
         let insightViewMode = "card"; // "card" | "compact"
         let isGrouped = true; // 単元グループ化 ON/OFF
         let filterPinnedOnly = false; // スター付きのみ ON/OFF
-        let collapsedGroups = new Set(); // 折りたたまれたグループキー
+        let expandedGroups = new Set(); // 💡 初期状態は空Set＝すべて折りたたんだ状態で開始
 
         let rawProblems = {};
         let rawQnaLogs = {};
@@ -531,11 +555,6 @@
             return new Date(iso).toLocaleDateString('ja-JP', { year: '2-digit', month: 'numeric', day: 'numeric' });
         }
 
-        function formatQuestionSnippet(raw) {
-            if (!raw) return "（問題文なし）";
-            return String(raw).replace(/\\n/g, " ").replace(/\r?\n/g, " ").slice(0, 70) + "…";
-        }
-
         // ⭐ ピン留め（スター）切り替え
         window.togglePin = async function(problemId, e) {
             if (e) e.stopPropagation();
@@ -583,7 +602,7 @@
             }
         };
 
-        // 🧠 1. 気づきメモ描画（対比カード ＆ 爆速リスト ＆ 単元グループ化対応）
+        // 🧠 1. 気づきメモ描画（初期折りたたみ ＆ ワイド対比カード ＆ 爆速リスト対応）
         function renderInsights() {
             const container = document.getElementById("view-insights");
             const query = searchInput.value.trim().toLowerCase();
@@ -632,18 +651,19 @@
                 });
 
                 container.innerHTML = Object.entries(groups).map(([groupKey, groupItems]) => {
-                    const isCollapsed = collapsedGroups.has(groupKey);
+                    // 💡 expandedGroupsに入っているものだけ開く（初期状態は閉じた状態）
+                    const isExpanded = expandedGroups.has(groupKey);
                     const rowsHtml = insightViewMode === "card"
                         ? `<div class="insight-grid">${groupItems.map(p => renderCardHtml(p)).join("")}</div>`
                         : `<div class="insight-compact-list">${groupItems.map(p => renderCompactRowHtml(p)).join("")}</div>`;
 
                     return `
                         <div class="group-section">
-                            <div class="group-header ${isCollapsed ? 'collapsed' : ''}" data-group="${groupKey}">
+                            <div class="group-header ${isExpanded ? '' : 'collapsed'}" data-group="${groupKey}">
                                 <span>📁 ${groupKey} (${groupItems.length}件)</span>
                                 <span class="group-chevron">▼</span>
                             </div>
-                            <div class="group-content ${isCollapsed ? 'collapsed' : ''}" data-content="${groupKey}">
+                            <div class="group-content ${isExpanded ? '' : 'collapsed'}" data-content="${groupKey}">
                                 ${rowsHtml}
                             </div>
                         </div>
@@ -654,8 +674,8 @@
                 container.querySelectorAll(".group-header").forEach(header => {
                     header.addEventListener("click", () => {
                         const key = header.getAttribute("data-group");
-                        if (collapsedGroups.has(key)) collapsedGroups.delete(key);
-                        else collapsedGroups.add(key);
+                        if (expandedGroups.has(key)) expandedGroups.delete(key);
+                        else expandedGroups.add(key);
                         renderInsights();
                     });
                 });
@@ -670,7 +690,7 @@
             if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([container]);
         }
 
-        // リッチ対比カードのHTML
+        // リッチ対比カードのHTML（問題文全文をしっかり表示）
         function renderCardHtml(p) {
             const isEditing = editingProblemId === p.id;
             const starClass = p.isPinned ? "active" : "";
@@ -699,10 +719,10 @@
                             </div>
                         </div>
 
-                        <!-- 上半分：問題の型プレビュー -->
+                        <!-- 上半分：問題の型プレビュー（数式や問題文がしっかり読める） -->
                         <div class="insight-problem-preview">
                             <div class="insight-problem-title">📌 ${p.short_title || "問題"}</div>
-                            <div class="insight-problem-snippet tex2jax_process">${formatQuestionSnippet(p.title)}</div>
+                            <div class="insight-problem-snippet tex2jax_process">${formatQuestionText(p.title || "（問題文なし）")}</div>
                         </div>
                     </div>
 
