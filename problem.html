@@ -561,6 +561,7 @@
                 <a href="lesson.html" class="nav-btn">📖 授業・解説</a>
                 <a href="answer-check.html" class="nav-btn">⚡ 答え合わせ</a>
                 <a href="mark-test.html" class="nav-btn">🎯 マーク模試</a>
+                <a href="timeline.html" class="nav-btn">🌍 世界史年表</a>
                 <a href="tokei/index.html" class="nav-btn global-timer-link">⏱️ 集中タイマー</a>
                 <a href="study/index.html" class="nav-btn" title="24hログを開く">📊 24hログ</a>
                 <a href="https://photos.google.com" target="_blank" rel="noopener" class="nav-btn" title="Google Photosを開く">📷 Photos</a>
@@ -603,6 +604,7 @@
                         <option value="英語">英語</option>
                         <option value="国語">国語</option>
                         <option value="地歴公民">地歴公民</option>
+                        <option value="世界史">世界史</option>
                     </select>
                     <button type="button" class="btn-analyze-now" id="on-demand-analyze-btn">⚡ この問題をAI解析する</button>
                     <span id="analyze-engine-hint" style="display:none; font-size:0.7rem; color:var(--text-muted); font-weight:700; margin-left:0.3rem;"></span>
@@ -969,6 +971,31 @@ extracted_textには、写真やテキストに含まれる問題文を一字一
   "strategy_pattern": "【最重要】この問題固有の単語や具体的な訳には一切触れず、①英文のどの特徴（接続詞・構文・時制などのキーワード）を見て問題の『型』を判断するか、②その型に対して定石として使うべき読解・解答アプローチ、③なぜそのアプローチが有効なのか、を一般化して説明すること。2〜4文程度。",
   "model_answer": "最終的な正しい答え・和訳と、ステップごとの分かりやすい解説（文構造の分解、重要単語・熟語の意味、文法事項の解説を含む）。手順ごとに改行コード（\\n）を挟んで見やすい箇条書き形式（1., 2.など）で出力すること"
 }
+`.trim(),
+
+            "世界史": `
+あなたは高校世界史の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
+数式のLaTeX記法（$記号など）は一切使用しないこと。
+出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
+{
+  "subject": "世界史",
+  "field": "分野名（例：古代オリエント、中国史 唐〜宋、イスラーム世界の成立、近代ヨーロッパ 市民革命、冷戦期の国際関係 など、時代と地域が分かる形で）",
+  "short_title": "問題の要約タイトル",
+  "extracted_text": "読み取った正確な問題文の全文（年表・系図・地図が問題に含まれる場合はその要点も書き起こすこと） 【厳守】要約・省略は絶対禁止。問題文がどれだけ長くても、最後の設問・選択肢・空欄記号（ア,イ,ウ…等）まで一字一句省略せず全文を書き出すこと。1つでも文・記号を省いたら失格とみなす。",
+  "trap_description": "高校生がこの問題で最も間違えやすいポイント（年代の前後関係の取り違え、似た名前の人物・王朝・条約・戦争の混同、離れた地域で起きた同時代の出来事の混同、原因と結果の取り違えなど）の解説文",
+  "strategy_pattern": "【最重要】この問題固有の年号・人物名・地名には一切触れず、①設問文のどの特徴（時期を問う／因果関係を問う／地域間の比較を問うなど）を見て問題の『型』を判断するか、②その型に対して定石として使うべき考え方（例：年表上の前後関係で捉える、対になる出来事とセットで覚える、同時代の他地域と横に並べて整理するなど）、③なぜそれが有効なのかを一般化して説明すること。2〜4文程度。",
+  "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。重要な出来事には可能な限り西暦（例：1789年）を明記すること。関連が深い場合は同時代の他地域の出来事にも一言触れ、時代・地域をまたいだ位置づけがつかめるようにすること。手順ごとに改行コード（\\n）を挟んで、見やすい箇条書き形式（1., 2.など）で出力すること",
+  "mnemonic": "この問題に登場する重要な年号のうち、最も覚える価値が高いもの1つについての語呂合わせ（「年号：語呂合わせ本文」の形式、例：『1789年：火(1789)の粉ちるフランス革命』のような一文）。該当する重要な年号が無い、または語呂合わせにする価値が薄い問題の場合は空文字（""）にすること",
+  "events": [
+    {
+      "name": "出来事の名前（例：フランス革命の勃発）",
+      "year": "表示用の年（例：1789年、前3世紀、14世紀後半 など、わかる精度で）",
+      "year_sort": "並べ替え用の年（西暦の整数。紀元前は負の数、例：前221年なら-221）",
+      "region": "次のいずれか1つ：東アジア／東南アジア／南アジア／西アジア・中央アジア／ヨーロッパ／アメリカ大陸／アフリカ／地域をまたぐ／世界全体"
+    }
+  ]
+}
+※eventsには、この問題文・解説中に登場する年号つきの出来事をすべて含めること（1個でも複数でもよい）。年号が特定できる出来事が1つも無い問題の場合は空配列（[]）にすること。
 `.trim()
         };
 
@@ -1042,6 +1069,19 @@ extracted_textには、写真やテキストに含まれる問題文を一字一
 数式のLaTeX記法（$記号など）は一切使用しないこと。
 生徒は提示された「模範解答と解説」を読んでいますが、文法・構文・語彙・訳し方のどこかで納得がいかず質問しています。
 生徒の疑問に対して、ピンポイントで優しく、論理的に日本語で解説してください。英文を引用する場合はそのまま英語で書いてよい。
+
+返答は以下のJSONのみ（説明不要）：
+{
+  "ai_response": "生徒の疑問に対する丁寧な解説",
+  "current_step_label": "解説中・疑問解消など"
+}
+`.trim(),
+
+            "世界史": `
+あなたは高校世界史の解説エキスパートAIチューターです。
+数式のLaTeX記法（$記号など）は一切使用しないこと。
+生徒は提示された「模範解答と解説」を読んでいますが、年代関係・因果関係・人物や王朝の混同などが理解できずに質問しています。
+生徒の疑問に対して、ピンポイントで優しく、論理的に解説してください。年号に触れる場合は西暦を明記し、可能であれば同時代の他地域の出来事とも関連づけて、生徒が時代・地域をまたいだ位置づけを掴めるようにしてください。
 
 返答は以下のJSONのみ（説明不要）：
 {
@@ -1493,6 +1533,10 @@ ${glossaryBlock}`;
          * ※ DeepSeekは画像を直接読めないため、画像のみでまだ問題文（title）が未確定の場合はエラーにする。
          */
         // 🔒【新設】SUBJECT_CREATE_PROMPTS（getCreatePrompt/getRegenPrompt共通）のJSON構造をAPI側で強制するためのスキーマ
+        // 🌍【新設】世界史の年表ビュー用：出来事の地域を固定カテゴリに揃えることで、
+        //    複数の問題・授業をまたいでも同じ地域名でレーン分けできるようにする
+        const HISTORY_REGIONS = ["東アジア", "東南アジア", "南アジア", "西アジア・中央アジア", "ヨーロッパ", "アメリカ大陸", "アフリカ", "地域をまたぐ／世界全体"];
+
         const SUBJECT_ANALYSIS_RESPONSE_SCHEMA = {
             type: "OBJECT",
             properties: {
@@ -1502,7 +1546,21 @@ ${glossaryBlock}`;
                 extracted_text: { type: "STRING" },
                 trap_description: { type: "STRING" },
                 strategy_pattern: { type: "STRING" },
-                model_answer: { type: "STRING" }
+                model_answer: { type: "STRING" },
+                mnemonic: { type: "STRING" },
+                events: {
+                    type: "ARRAY",
+                    items: {
+                        type: "OBJECT",
+                        properties: {
+                            name: { type: "STRING" },
+                            year: { type: "STRING" },
+                            year_sort: { type: "INTEGER" },
+                            region: { type: "STRING", enum: HISTORY_REGIONS }
+                        },
+                        required: ["name", "year", "year_sort", "region"]
+                    }
+                }
             },
             required: ["subject", "field", "short_title", "extracted_text", "trap_description", "strategy_pattern", "model_answer"]
         };
@@ -1636,6 +1694,8 @@ ${glossaryBlock}`;
                 currentProblemData.trap_description = aiResult.trap_description || "";
                 currentProblemData.strategyPattern = aiResult.strategy_pattern || "";
                 currentProblemData.answerFormula = aiResult.model_answer || "解説データなし";
+                currentProblemData.mnemonic = aiResult.mnemonic || "";
+                currentProblemData.events = Array.isArray(aiResult.events) ? aiResult.events : [];
                 currentProblemData.lastAnswerEngine = ACTIVE_ENGINE;
 
                 const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
@@ -2036,6 +2096,11 @@ ${glossaryBlock}`;
                     `あなたは高校英語の「超精密な誤答分析・解説生成AI」です。\n` +
                     `先ほど生成された解説の文法解釈・訳出精度に不備があった可能性があるため、今回は【最高精度】で解説を再生成してください。\n` +
                     `文構造の分解、訳の正確さ、文法用語の使い方に一切の曖昧さがないよう細心の注意を払ってください。\n\n`;
+            } else if (subject === "世界史") {
+                header =
+                    `あなたは高校世界史の「超精密な誤答分析・解説生成AI」です。\n` +
+                    `先ほど生成された解説の年代・因果関係・人物や王朝名の精度に不備があった可能性があるため、今回は【最高精度】で解説を再生成してください。\n` +
+                    `年号（西暦）の正確さ、人物・王朝・条約名の表記の正確さ、因果関係の順序に一切の曖昧さがないよう細心の注意を払ってください。数式のLaTeX記法（$記号など）は一切使用しないこと。\n\n`;
             } else {
                 header =
                     `あなたは高校${subject}の「超精密な誤答分析・解説生成AI」です。\n` +
@@ -2100,6 +2165,8 @@ ${glossaryBlock}`;
                 currentProblemData.trap_description = aiResult.trap_description || "";
                 currentProblemData.strategyPattern = aiResult.strategy_pattern || "";
                 currentProblemData.answerFormula = aiResult.model_answer || currentProblemData.answerFormula;
+                currentProblemData.mnemonic = (aiResult.mnemonic !== undefined) ? (aiResult.mnemonic || "") : currentProblemData.mnemonic;
+                currentProblemData.events = Array.isArray(aiResult.events) ? aiResult.events : currentProblemData.events;
                 currentProblemData.lastAnswerEngine = ACTIVE_ENGINE;
 
                 // Firebaseのデータを上書き保存して同期

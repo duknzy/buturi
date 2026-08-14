@@ -435,6 +435,7 @@
                 <a href="lesson.html" class="nav-btn active">📖 授業・解説</a>
                 <a href="answer-check.html" class="nav-btn">⚡ 答え合わせ</a>
                 <a href="mark-test.html" class="nav-btn">🎯 マーク模試</a>
+                <a href="timeline.html" class="nav-btn">🌍 世界史年表</a>
                 <a href="tokei/index.html" class="nav-btn global-timer-link">⏱️ 集中タイマー</a>
                 <a href="#" onclick="openTimerPopout(event)" class="nav-btn" title="別ウィンドウでタイマーを開く">🗔 小窓</a>
                 <a href="#" onclick="openLogPopout(event)" class="nav-btn" title="24hログを小窓で開く">📊 24hログ</a>
@@ -838,6 +839,10 @@
         });
 
         // 🔒【新設】PLAN_SYSTEM_INSTRUCTION（写真モード／単元名モード共通）のJSON構造をAPI側で強制するためのスキーマ
+        // 🌍【新設】世界史の年表ビュー用：出来事の地域を固定カテゴリに揃えることで、
+        //    複数の授業・問題をまたいでも同じ地域名でレーン分けできるようにする
+        const HISTORY_REGIONS = ["東アジア", "東南アジア", "南アジア", "西アジア・中央アジア", "ヨーロッパ", "アメリカ大陸", "アフリカ", "地域をまたぐ／世界全体"];
+
         const LESSON_PLAN_RESPONSE_SCHEMA = {
             type: "OBJECT",
             properties: {
@@ -863,6 +868,19 @@
                             definition: { type: "STRING" }
                         },
                         required: ["name", "definition"]
+                    }
+                },
+                historical_events: {
+                    type: "ARRAY",
+                    items: {
+                        type: "OBJECT",
+                        properties: {
+                            name: { type: "STRING" },
+                            year: { type: "STRING" },
+                            year_sort: { type: "INTEGER" },
+                            region: { type: "STRING", enum: HISTORY_REGIONS }
+                        },
+                        required: ["name", "year", "year_sort", "region"]
                     }
                 }
             },
@@ -897,6 +915,7 @@
 1. 添付された参考書ページの内容を正確に読み取り、全文を書き出すこと（数式は $ $ で囲むこと）。【厳守】要約・省略は絶対禁止。ページ数が多くても、最後のページの内容まで一字一句省略せず全文を書き出すこと。1文でも省いたら失格とみなす。
 2. 内容量を踏まえて、区切りの良い単位で「大まかな授業プラン」を作成すること（目安は2〜6パート程度。多すぎず少なすぎないように）
 3. この範囲の中で、参考書オリジナルの名前がついた法則・定理・原則・手順（例:「タッチの定理」「大原則」「手順①〜⑦」のような、この本独自の呼び方をしているもの）があれば、その名称と定義を簡潔に抽出すること。一般的な物理・数学用語（力、速度など）はここには含めない。「この本オリジナルの呼び方・造語・番号付き手順」だけを対象にすること
+4. もしこの参考書の内容が世界史・日本史など歴史科目である場合に限り、本文中に登場する年号つきの出来事をすべてhistorical_eventsとして抽出すること。歴史科目でない場合（数学・物理・英語など）は historical_events は空配列（[]）にすること
 
 出力は必ず以下のJSON形式のみで返してください。他のテキストは一切含めないこと。
 {
@@ -907,6 +926,9 @@
   ],
   "key_terms": [
     { "name": "この本オリジナルの用語・法則名（例：タッチの定理）", "definition": "簡潔で正確な定義（1〜2文）" }
+  ],
+  "historical_events": [
+    { "name": "出来事の名前", "year": "表示用の年（例：1789年、前3世紀 など）", "year_sort": "並べ替え用の年（西暦の整数。紀元前は負の数）", "region": "東アジア／東南アジア／南アジア／西アジア・中央アジア／ヨーロッパ／アメリカ大陸／アフリカ／地域をまたぐ／世界全体 のいずれか1つ" }
   ]
 }`;
 
@@ -934,6 +956,7 @@
    ・前回学んだ内容を「存在しないもの」として無視したり、逆に体系的に教え直したりしない
    ・授業の冒頭（目安として最初のパートの導入部分）で、前回の内容を軽く復習として触れる。ただし分量はあくまで「軽め」にとどめ、単なる繰り返しにしないこと。「前回は〜だったが、今回はこれを土台にして〜を見ていく」のように、今回のレベルへの橋渡しとして位置づけること
    ・授業本編の大部分は、既習事項を道具・土台として自然に参照しながら（例：「前回学んだ○○を使うと」）、そこにはなかった発展的な内容・そのレベルならではの着眼点に重点を置くこと
+5. もし指定された単元が世界史・日本史など歴史科目である場合に限り、授業ノート中に登場する年号つきの出来事をすべてhistorical_eventsとして抽出すること。歴史科目でない場合（数学・物理・英語など）は historical_events は空配列（[]）にすること
 
 出力は必ず以下のJSON形式のみで返してください。他のテキストは一切含めないこと。
 {
@@ -944,6 +967,9 @@
   ],
   "key_terms": [
     { "name": "重要な用語・公式・定理名", "definition": "簡潔で正確な定義（1〜2文）" }
+  ],
+  "historical_events": [
+    { "name": "出来事の名前", "year": "表示用の年（例：1789年、前3世紀 など）", "year_sort": "並べ替え用の年（西暦の整数。紀元前は負の数）", "region": "東アジア／東南アジア／南アジア／西アジア・中央アジア／ヨーロッパ／アメリカ大陸／アフリカ／地域をまたぐ／世界全体 のいずれか1つ" }
   ]
 }`;
 
@@ -1062,6 +1088,7 @@
                     keyTerms: thisLessonKeyTerms,           // この授業で新しく登場した用語
                     inheritedKeyTerms: inheritedKeyTerms,    // 前回までに教わった用語（そのまま）
                     accumulatedKeyTerms: mergedKeyTerms,      // 次の続き授業へ引き継ぐ累積用語集
+                    historicalEvents: Array.isArray(draftPlan.historical_events) ? draftPlan.historical_events : [], // 🌍 年表ビュー用（歴史科目以外は空配列）
                     ...(continuationId ? { previousLessonId: continuationId, previousLessonTitle } : {}),
                     // 🎓【新設】問題タブの「前提から授業でやり直す」から作られた授業なら、元の問題を紐付ける
                     ...(pendingSourceProblem ? { sourceProblemId: pendingSourceProblem.id, sourceProblemTitle: pendingSourceProblem.title } : {}),

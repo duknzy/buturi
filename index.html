@@ -324,6 +324,15 @@
             color: var(--accent-cyan);
             text-shadow: 0 0 8px rgba(0, 243, 255, 0.8);
         }
+        /* 世界史（アンバー・琥珀色のネオン） */
+        .glow-history {
+            background: radial-gradient(circle at center, rgba(255, 245, 0, 0.15) 0%, #0a0802 100%) !important;
+            border: 1px solid rgba(255, 245, 0, 0.3) !important;
+        }
+        .glow-history span {
+            color: var(--accent-yellow);
+            text-shadow: 0 0 8px rgba(255, 245, 0, 0.8);
+        }
         /* 未分類（マゼンタピンクのネオン） */
         .glow-purple {
             background: radial-gradient(circle at center, rgba(255, 0, 127, 0.15) 0%, #0a0206 100%) !important;
@@ -353,6 +362,7 @@
         .badge-pending  { background: rgba(150, 0, 255, 0.1) !important; color: #b16eff !important; }
         .badge-physics  { background: rgba(0, 243, 255, 0.08) !important; color: var(--accent-cyan) !important; }
         .badge-math     { background: rgba(0, 255, 120, 0.08) !important; color: #00ff78 !important; }
+        .badge-history  { background: rgba(255, 245, 0, 0.08) !important; color: var(--accent-yellow) !important; }
 
         /* 🧩【追加】分野バッジをチップ分割表示するための軽量スタイル */
         .field-chip {
@@ -618,6 +628,7 @@
                 <a href="lesson.html" class="nav-btn">📖 授業・解説</a>
                 <a href="answer-check.html" class="nav-btn">⚡ 答え合わせ</a>
                 <a href="mark-test.html" class="nav-btn">🎯 マーク模試</a>
+                <a href="timeline.html" class="nav-btn">🌍 世界史年表</a>
                 <a href="tokei/index.html" class="nav-btn global-timer-link">⏱️ 集中タイマー</a>
                 <a href="#" onclick="openTimerPopout(event)" class="nav-btn" title="別ウィンドウでタイマーを開く">🗔 小窓</a>
                 <a href="#" onclick="openLogPopout(event)" class="nav-btn" title="24hログを小窓で開く">📊 24hログ</a>
@@ -643,6 +654,11 @@
 <!-- 💬【追加】全問題横断の質問履歴アーカイブモーダルを開くボタン -->
 <button type="button" class="tactile-btn" id="open-qna-archive-btn" style="background: rgba(255, 245, 0, 0.08); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); box-shadow: 3px 3px 0px rgba(255,245,0,0.2); display:none;">
     💬 質問履歴アーカイブ
+</button>
+
+<!-- 🎴【新設】世界史の語呂合わせだけを集めた一覧モーダルを開くボタン -->
+<button type="button" class="tactile-btn" id="open-mnemonic-list-btn" style="background: rgba(255, 245, 0, 0.08); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); box-shadow: 3px 3px 0px rgba(255,245,0,0.2); display:none;">
+    🎴 語呂合わせ帳
 </button>
                 <div id="auth-panel" style="font-weight: 800; border: 1px solid #22222a; padding: 0.5rem 1rem; border-radius: 12px;" class="glass-card">
                     LOADING...
@@ -760,6 +776,7 @@
                     <button type="button" class="subject-select-btn" data-subject="英語" onclick="setSelectedSubject('英語')">英語</button>
                     <button type="button" class="subject-select-btn" data-subject="国語" onclick="setSelectedSubject('国語')">国語</button>
                     <button type="button" class="subject-select-btn" data-subject="地歴公民" onclick="setSelectedSubject('地歴公民')">地歴公民</button>
+                    <button type="button" class="subject-select-btn" data-subject="世界史" onclick="setSelectedSubject('世界史')">世界史</button>
                 </div>
             </div>
             <style>
@@ -911,6 +928,23 @@
         </div>
     </div>
 
+    <!-- 🎴【新設】世界史の語呂合わせ帳モーダル -->
+    <div class="modal-overlay" id="mnemonic-list-modal">
+        <div class="squircle-tile modal-content glass-card" style="max-width: 620px; max-height: 85vh; display: flex; flex-direction: column;">
+            <div class="tile-header-group">
+                <span class="badge badge-ai" style="color: var(--accent-yellow);">世界史 // 語呂合わせ帳</span>
+                <h3 style="font-size: 1.3rem; font-weight: 800; margin-top: 0.3rem;">これまでにAIが作った語呂合わせ</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem;">世界史の問題を解析したときに生成された語呂合わせだけを自動で集めた一覧です。クリックでその問題を開けます。</p>
+            </div>
+            <div id="mnemonic-list-container" style="overflow-y: auto; flex-grow: 1; margin-top: 1.2rem; padding-right: 0.4rem;">
+                <!-- JSで動的に生成されます -->
+            </div>
+            <div style="display: flex; justify-content: flex-end; margin-top: 1.2rem; border-top: 1px solid #22222a; padding-top: 0.8rem;">
+                <button type="button" class="tactile-btn tactile-btn-secondary" id="close-mnemonic-list-btn">閉じる</button>
+            </div>
+        </div>
+    </div>
+
 
 
    <script type="module">
@@ -945,6 +979,10 @@
 
         // 🧠【教科ごとの解析プロンプト集】選択中の教科に応じて出し分ける
         // 🔒【新設】SUBJECT_CREATE_PROMPTS 各科目共通のJSON構造をAPI側で強制するためのスキーマ
+        // 🌍【新設】世界史の年表ビュー用：出来事の地域を固定カテゴリに揃えることで、
+        //    複数の問題・授業をまたいでも同じ地域名でレーン分けできるようにする
+        const HISTORY_REGIONS = ["東アジア", "東南アジア", "南アジア", "西アジア・中央アジア", "ヨーロッパ", "アメリカ大陸", "アフリカ", "地域をまたぐ／世界全体"];
+
         const SUBJECT_ANALYSIS_RESPONSE_SCHEMA = {
             type: "OBJECT",
             properties: {
@@ -954,7 +992,21 @@
                 extracted_text: { type: "STRING" },
                 trap_description: { type: "STRING" },
                 strategy_pattern: { type: "STRING" },
-                model_answer: { type: "STRING" }
+                model_answer: { type: "STRING" },
+                mnemonic: { type: "STRING" },
+                events: {
+                    type: "ARRAY",
+                    items: {
+                        type: "OBJECT",
+                        properties: {
+                            name: { type: "STRING" },
+                            year: { type: "STRING" },
+                            year_sort: { type: "INTEGER" },
+                            region: { type: "STRING", enum: HISTORY_REGIONS }
+                        },
+                        required: ["name", "year", "year_sort", "region"]
+                    }
+                }
             },
             required: ["subject", "field", "short_title", "extracted_text", "trap_description", "strategy_pattern", "model_answer"]
         };
@@ -1043,6 +1095,31 @@
   "strategy_pattern": "【最重要】この問題固有の単語や具体的な訳には一切触れず、①英文のどの特徴（接続詞・構文・時制などのキーワード）を見て問題の『型』を判断するか、②その型に対して定石として使うべき読解・解答アプローチ、③なぜそのアプローチが有効なのか、を一般化して説明すること。2〜4文程度。",
   "model_answer": "最終的な正しい答え・和訳と、ステップごとの分かりやすい解説（文構造の分解、重要単語・熟語の意味、文法事項の解説を含む）。手順ごとに改行コード（\\n）を挟んで見やすい箇条書き形式（1., 2.など）で出力すること"
 }
+`.trim(),
+
+            "世界史": `
+あなたは高校世界史の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
+数式のLaTeX記法（$記号など）は一切使用しないこと。
+出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
+{
+  "subject": "世界史",
+  "field": "分野名（例：古代オリエント、中国史 唐〜宋、イスラーム世界の成立、近代ヨーロッパ 市民革命、冷戦期の国際関係 など、時代と地域が分かる形で）",
+  "short_title": "問題の要約タイトル",
+  "extracted_text": "読み取った正確な問題文の全文（年表・系図・地図が問題に含まれる場合はその要点も書き起こすこと） 【厳守】要約・省略は絶対禁止。問題文がどれだけ長くても、最後の設問・選択肢・空欄記号（ア,イ,ウ…等）まで一字一句省略せず全文を書き出すこと。1つでも文・記号を省いたら失格とみなす。",
+  "trap_description": "高校生がこの問題で最も間違えやすいポイント（年代の前後関係の取り違え、似た名前の人物・王朝・条約・戦争の混同、離れた地域で起きた同時代の出来事の混同、原因と結果の取り違えなど）の解説文",
+  "strategy_pattern": "【最重要】この問題固有の年号・人物名・地名には一切触れず、①設問文のどの特徴（時期を問う／因果関係を問う／地域間の比較を問うなど）を見て問題の『型』を判断するか、②その型に対して定石として使うべき考え方（例：年表上の前後関係で捉える、対になる出来事とセットで覚える、同時代の他地域と横に並べて整理するなど）、③なぜそれが有効なのかを一般化して説明すること。2〜4文程度。",
+  "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。重要な出来事には可能な限り西暦（例：1789年）を明記すること。関連が深い場合は同時代の他地域の出来事にも一言触れ、時代・地域をまたいだ位置づけがつかめるようにすること。手順ごとに改行コード（\\n）を挟んで、見やすい箇条書き形式（1., 2.など）で出力すること",
+  "mnemonic": "この問題に登場する重要な年号のうち、最も覚える価値が高いもの1つについての語呂合わせ（「年号：語呂合わせ本文」の形式、例：『1789年：火(1789)の粉ちるフランス革命』のような一文）。該当する重要な年号が無い、または語呂合わせにする価値が薄い問題の場合は空文字（""）にすること",
+  "events": [
+    {
+      "name": "出来事の名前（例：フランス革命の勃発）",
+      "year": "表示用の年（例：1789年、前3世紀、14世紀後半 など、わかる精度で）",
+      "year_sort": "並べ替え用の年（西暦の整数。紀元前は負の数、例：前221年なら-221）",
+      "region": "次のいずれか1つ：東アジア／東南アジア／南アジア／西アジア・中央アジア／ヨーロッパ／アメリカ大陸／アフリカ／地域をまたぐ／世界全体"
+    }
+  ]
+}
+※eventsには、この問題文・解説中に登場する年号つきの出来事をすべて含めること（1個でも複数でもよい）。年号が特定できる出来事が1つも無い問題の場合は空配列（[]）にすること。
 `.trim()
         };
 
@@ -1054,7 +1131,7 @@
             });
             // 英語選択時は数式キーパッドを隠す（数式を使わないため）
             const kb = document.getElementById("math-keyboard-group");
-            if (kb) kb.style.display = (subject === "英語" || subject === "国語" || subject === "地歴公民") ? "none" : "";
+            if (kb) kb.style.display = (subject === "英語" || subject === "国語" || subject === "地歴公民" || subject === "世界史") ? "none" : "";
         };
 
         let currentUser = null;
@@ -1177,6 +1254,7 @@
                 registerBtn.style.display = "block";
 document.getElementById("open-insight-list-btn").style.display = "block"; // 💡 追加
 document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬 追加
+document.getElementById("open-mnemonic-list-btn").style.display = "block"; // 🎴 追加
                 loginNotice.style.display = "none";
                 mainGrid.style.display = "grid";
                 filterBar.style.display = "flex"; 
@@ -1192,6 +1270,7 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
                 registerBtn.style.display = "none";
                 document.getElementById("open-insight-list-btn").style.display = "none"; // 💡 非表示処理を追加
                 document.getElementById("open-qna-archive-btn").style.display = "none"; // 💬 非表示処理を追加
+                document.getElementById("open-mnemonic-list-btn").style.display = "none"; // 🎴 非表示処理を追加
                 loginNotice.style.display = "block";
                 mainGrid.style.display = "none";
                 filterBar.style.display = "none";
@@ -1527,7 +1606,7 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
                 totalProblemEntries++;
                 dynamicTotalCount += Number(p.errorCount || 0);
                 
-                let badgeSubjectClass = subjectText.includes("物理") ? "badge-physics" : (subjectText.includes("数学") ? "badge-math" : "badge-new");
+                let badgeSubjectClass = subjectText.includes("物理") ? "badge-physics" : (subjectText.includes("数学") ? "badge-math" : (subjectText.includes("世界史") ? "badge-history" : "badge-new"));
 
                 if (p.lastAttemptAt && p.lastResult === true) {
                     if (new Date(p.lastAttemptAt).toDateString() === todayStr) {
@@ -1599,6 +1678,7 @@ document.getElementById("open-qna-archive-btn").style.display = "block"; // 💬
                         let glowClass = "glow-purple";
                         if (subjectText.includes("数学")) { symbol = "$f(x)$"; glowClass = "glow-math"; }
                         else if (subjectText.includes("物理")) { symbol = "$\\vec{F}$"; glowClass = "glow-physics"; }
+                        else if (subjectText.includes("世界史")) { symbol = "🌍"; glowClass = "glow-history"; }
                         thumbHtml = `<div class="row-thumb row-thumb-icon ${glowClass} tex2jax_process"><span>${symbol}</span></div>`;
                     }
                 }
@@ -1821,6 +1901,8 @@ ${glossaryBlock}`;
                     thumb: thumbDataUrl,
                     imageCount: fullImageDataUrls.length,
                     answerFormula: aiResult.model_answer || "解説データなし",
+                    mnemonic: aiResult.mnemonic || "",
+                    events: Array.isArray(aiResult.events) ? aiResult.events : [],
                     createdAt: nowIso,
                     ...(linkedLessonId ? {
                         sourceLessonId: linkedLessonId,
@@ -2077,6 +2159,65 @@ ${glossaryBlock}`;
             insightListModal.addEventListener("click", (e) => {
                 if (e.target === insightListModal) {
                     insightListModal.style.display = "none";
+                }
+            });
+        }
+
+        // ==========================================================================
+        // 🎴【新設】世界史の語呂合わせ帳：lastCloudProblemsSnapshotから
+        //    subject==="世界史" かつ mnemonic が空でない問題だけを抽出して一覧表示する
+        // ==========================================================================
+        function renderMnemonicList() {
+            const container = document.getElementById("mnemonic-list-container");
+            if (!container) return;
+
+            const entries = Object.values(lastCloudProblemsSnapshot || {})
+                .filter(p => p && p.subject === "世界史" && p.mnemonic && String(p.mnemonic).trim() !== "")
+                .sort((a, b) => new Date(b.lastAttemptAt || b.createdAt || 0) - new Date(a.lastAttemptAt || a.createdAt || 0));
+
+            if (entries.length === 0) {
+                container.innerHTML = `
+                    <div style="padding: 3rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+                        まだ語呂合わせが記録されていません。<br>世界史の問題をAI解析すると、ここに自動で貯まっていきます。
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = entries.map(p => `
+                <div class="qna-archive-item" data-problem-id="${p.id}">
+                    <span class="badge badge-history" style="font-size: 0.7rem;">${p.field || "未分類"}</span>
+                    <div style="font-size: 0.85rem; font-weight: 800; color: var(--accent-yellow); margin-top: 0.4rem;">📌 ${p.short_title || "無題の問題"}</div>
+                    <div class="qna-archive-preview">🎴 ${String(p.mnemonic).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+                </div>
+            `).join("");
+
+            container.querySelectorAll("[data-problem-id]").forEach(itemEl => {
+                itemEl.addEventListener("click", () => {
+                    location.href = `problem.html?id=${itemEl.getAttribute("data-problem-id")}`;
+                });
+            });
+        }
+
+        const mnemonicListModal = document.getElementById("mnemonic-list-modal");
+        const openMnemonicListBtn = document.getElementById("open-mnemonic-list-btn");
+        const closeMnemonicListBtn = document.getElementById("close-mnemonic-list-btn");
+
+        if (openMnemonicListBtn && mnemonicListModal) {
+            openMnemonicListBtn.addEventListener("click", () => {
+                renderMnemonicList();
+                mnemonicListModal.style.display = "flex";
+            });
+        }
+        if (closeMnemonicListBtn && mnemonicListModal) {
+            closeMnemonicListBtn.addEventListener("click", () => {
+                mnemonicListModal.style.display = "none";
+            });
+        }
+        if (mnemonicListModal) {
+            mnemonicListModal.addEventListener("click", (e) => {
+                if (e.target === mnemonicListModal) {
+                    mnemonicListModal.style.display = "none";
                 }
             });
         }
