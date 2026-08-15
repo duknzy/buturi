@@ -565,22 +565,10 @@
                 <a href="#" onclick="openTimerPopout(event)" class="nav-btn" title="別ウィンドウでタイマーを開く">🗔 小窓</a>
                 <a href="#" onclick="openLogPopout(event)" class="nav-btn" title="24hログを小窓で開く">📊 24hログ</a>
                 <a href="#" onclick="openGooglePhotosPopout(event)" class="nav-btn" title="Google Photosを小窓で開く">📷 Photos</a>
-            </div>
         </nav>
+        <div class="nav-drawer-overlay"></div>
         <script src="global-timer-sync.js"></script>
-        <script>
-            // 📱 モバイルハンバーガーメニューの開閉スクリプト（インライン化して404を防止）
-            (function() {
-                const btn = document.querySelector('.nav-hamburger-btn');
-                const links = document.querySelector('.nav-links');
-                if (btn && links) {
-                    btn.addEventListener('click', () => {
-                        const isOpen = links.classList.toggle('open');
-                        btn.setAttribute('aria-expanded', isOpen);
-                    });
-                }
-            })();
-        </script>
+        <script src="mobile-nav.js"></script>
 
         <header>
             <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
@@ -887,6 +875,7 @@
         }
 
         // 🧾【新設】extracted_textが問題文の途中で省略されてしまう事故への対策。
+        //    どの教科でも共通して使う「全文書き写しルール」を1箇所にまとめ、getCreatePrompt()で必ず先頭に差し込む。
         const EXTRACTED_TEXT_COMPLETENESS_RULE = `
 【最重要・絶対厳守：問題文の完全な書き写し】
 extracted_textには、写真やテキストに含まれる問題文を一字一句省略せず、最初から最後まで全文をそのまま書き写すこと。
@@ -896,240 +885,207 @@ extracted_textには、写真やテキストに含まれる問題文を一字一
 - 問題文が長い場合でも、要約したり「以下同様」のように途中を省略したりしないこと。
 `.trim();
 
-        // 🧠【オネエ系カリスマ予備校講師 キャラクター共通プロンプト】
-        const ONEE_ANALYSIS_HEADER = `
-【キャラクター設定（最重要）】
-あなたは【愛と情熱あふれるオネエ系カリスマ予備校講師】です。一人称は必ず「アタシ」、生徒への呼びかけは「アンタ」を使うこと。
-trap_description（罠）、strategy_pattern（定石）、model_answer（解説）の文体はすべて情熱的なオネエ言葉（「〜よ！」「〜じゃないの！」「ちょっと待ちなさい！」「愛のムチよ！」等）で統一し、愛を込めて生徒の弱点を鍛え上げてください。
-`.trim();
-
         // 🧠【教科ごとの解析プロンプト集】未解析問題の解析・再解析で共通利用
         const SUBJECT_CREATE_PROMPTS = {
             "数学": `
-${ONEE_ANALYSIS_HEADER}
-提出された問題（画像またはテキスト）を深く分析してください。
+あなたは高校数学の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
 出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
 {
   "subject": "数学",
   "field": "分野名（例：数学II 式と証明、数学B ベクトル など）",
   "short_title": "問題の要約タイトル",
   "extracted_text": "読み取った正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと 【厳守】要約・省略は絶対禁止。問題文がどれだけ長くても、最後の設問・選択肢・空欄記号（ア,イ,ウ…等）まで一字一句省略せず全文を書き出すこと。1つでも文・記号を省いたら失格とみなす。",
-  "trap_description": "アンタたちがこの問題で最も引っかかりやすいポイントや罠についてのオネエ愛のムチ解説文",
-  "strategy_pattern": "【最重要】この問題固有の数値や図形には一切触れず、①問題文のどの特徴（キーワード・条件・図形の形）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ、③なぜそのアプローチが有効なのか、を一般化してオネエ言葉で説明すること。これは『解き方の地図』であり、具体的な計算はここに書かない。2〜4文程度。数式を含む場合は$で囲むこと",
-  "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすいオネエ解説。冒頭でstrategy_patternに書いた定石に軽く触れてから、それに沿って具体的な数値・文字で計算を進めること。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
+  "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
+  "strategy_pattern": "【最重要】この問題固有の数値や図形には一切触れず、①問題文のどの特徴（キーワード・条件・図形の形）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ、③なぜそのアプローチが有効なのか、を一般化して説明すること。これは『解き方の地図』であり、具体的な計算はここに書かない。2〜4文程度。数式を含む場合は$で囲むこと",
+  "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。冒頭でstrategy_patternに書いた定石に軽く触れてから、それに沿って具体的な数値・文字で計算を進めること。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
 }
 `.trim(),
 
             "物理": `
-${ONEE_ANALYSIS_HEADER}
-提出された問題（画像またはテキスト）を深く分析してください。物理基礎の範囲を前提とすること。
+あなたは高校「物理基礎」の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。物理基礎の範囲（力と運動、エネルギー、熱、波、電気の基礎など）を前提とし、物理IIIで扱うような発展的内容（単振動の一般解、電磁誘導の応用、原子物理など）には踏み込まないこと。
 出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
 {
   "subject": "物理",
   "field": "分野名（例：力学基礎 等加速度運動、熱 状態変化、波 音の性質、電気 オームの法則 など）",
   "short_title": "問題の要約タイトル",
   "extracted_text": "読み取った正確な問題文の全文。数式や記号を含む場合は必ず $ $ で挟むこと 【厳守】要約・省略は絶対禁止。問題文がどれだけ長くても、最後の設問・選択肢・空欄記号（ア,イ,ウ…等）まで一字一句省略せず全文を書き出すこと。1つでも文・記号を省いたら失格とみなす。",
-  "trap_description": "アンタたちがこの問題で最も間違えやすいポイントや罠（単位・符号ミスなど）のオネエ解説文",
-  "strategy_pattern": "【最重要】この問題固有の数値や図形には一切触れず、①問題文のどの特徴（キーワード・条件・設定）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ、③なぜそのアプローチが有効なのか、を一般化してオネエ言葉で説明すること。2〜4文程度。数式を含む場合は$で囲むこと",
-  "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすいオネエ解説。冒頭でstrategy_patternに触れてから具体的な計算を進めること。数式や変数は必ず前後に $ または $$ をつけてLaTeX形式にすること。手順ごとに必ず改行コード（\\n）を挟んで箇条書き形式（1., 2.など）で出力すること"
+  "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文（単位・符号ミスなども含む）",
+  "strategy_pattern": "【最重要】この問題固有の数値や図形には一切触れず、①問題文のどの特徴（キーワード・条件・設定）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ（例:『エネルギー保存が使えるかまず疑う』など）、③なぜそのアプローチが有効なのか、を一般化して説明すること。これは『解き方の地図』であり、具体的な計算はここに書かない。2〜4文程度。数式を含む場合は$で囲むこと",
+  "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。冒頭でstrategy_patternに書いた定石に軽く触れてから、それに沿って具体的な数値・文字で計算を進めること。数式や変数を記述する場合は、必ず前後に $ または $$ をつけて美しいLaTeX形式にすること。解説文は1行に詰め込まず、手順ごとに必ず改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
 }
 `.trim(),
 
             "化学": `
-${ONEE_ANALYSIS_HEADER}
-提出された問題（画像またはテキスト）を深く分析してください。化学基礎の範囲を前提とすること。
+あなたは高校「化学基礎」の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。化学基礎の範囲（物質の構成、化学結合、mol計算、酸塩基、酸化還元の基礎など）を前提とし、化学（発展）で扱うような内容（有機化学の構造決定、高分子、詳細な無機化学の反応系統など）には踏み込まないこと。
 出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
 {
   "subject": "化学",
   "field": "分野名（例：物質の構成 mol計算、化学結合、酸と塩基、酸化還元反応 など）",
   "short_title": "問題の要約タイトル",
-  "extracted_text": "読み取った正確な問題文の全文。化学式や数値は $H_2O$ や $CO_2$ のようにLaTeX形式（$で囲む）で表現すること 【厳守】要約・省略は絶対禁止。問題文がどれだけ長くても、最後の設問・選択肢・空欄記号（ア,イ,ウ…等）まで一字一句省略せず全文を書き出すこと。1つでも文・記号を省いたら失格とみなす。",
-  "trap_description": "アンタたちが最も間違えやすいポイント（単位換算ミス、有効数字、反応式の係数合わせなど）のオネエ解説文",
-  "strategy_pattern": "【最重要】この問題固有の数値や物質名には一切触れず、①問題文のどの特徴（キーワード・条件）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ、③なぜそのアプローチが有効なのか、を一般化してオネエ言葉で説明すること。2〜4文程度。数式を含む場合は$で囲むこと",
-  "model_answer": "最終的な正しい答えと、ステップごとの分かりやすいオネエ解説。化学反応式・化学式・数値・単位は必ず $ で囲んだLaTeX形式で書くこと。手順ごとに改行コード（\\n）を挟んで見やすい箇条書き形式（1., 2.など）で出力すること"
+  "extracted_text": "読み取った正確な問題文の全文。化学式や数値は $H_2O$ や $CO_2$ のように下付き文字を含むLaTeX形式（$で囲む）で表現すること 【厳守】要約・省略は絶対禁止。問題文がどれだけ長くても、最後の設問・選択肢・空欄記号（ア,イ,ウ…等）まで一字一句省略せず全文を書き出すこと。1つでも文・記号を省いたら失格とみなす。",
+  "trap_description": "高校生がこの問題で最も間違えやすいポイント（単位換算ミス、有効数字、反応式の係数合わせなど）の解説文",
+  "strategy_pattern": "【最重要】この問題固有の数値や物質名には一切触れず、①問題文のどの特徴（キーワード・条件）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ、③なぜそのアプローチが有効なのか、を一般化して説明すること。2〜4文程度。数式を含む場合は$で囲むこと",
+  "model_answer": "最終的な正しい答えと、ステップごとの分かりやすい解説。化学反応式・化学式・数値・単位は必ず $ で囲んだLaTeX形式（例：$2H_2 + O_2 \\rightarrow 2H_2O$）で書くこと。手順ごとに改行コード（\\n）を挟んで見やすい箇条書き形式（1., 2.など）で出力すること"
 }
 `.trim(),
 
             "国語": `
-${ONEE_ANALYSIS_HEADER}
-提出された問題（画像またはテキスト）を深く分析してください。
+あなたは高校国語（現代文・古文・漢文）の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
 出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
 {
   "subject": "国語",
   "field": "分野名（例：現代文 論理的文章、古文 助動詞の識別、漢文 句法 など）",
   "short_title": "問題の要約タイトル",
   "extracted_text": "読み取った正確な問題文の全文（古文・漢文は原文のまま。設問文も含める） 【厳守】要約・省略は絶対禁止。問題文がどれだけ長くても、最後の設問・選択肢・空欄記号（ア,イ,ウ…等）まで一字一句省略せず全文を書き出すこと。1つでも文・記号を省いたら失格とみなす。",
-  "trap_description": "アンタたちが最も間違えやすいポイント（本文の誤読、語彙・文法の混同など）のオネエ解説文",
-  "strategy_pattern": "【最重要】この問題固有の本文内容には一切触れず、①設問文のどの特徴を見て問題の『型』を判断するか、②その型に対して定石として使うべき読み方・解答アプローチ、③なぜそれが有効なのか、を一般化してオネエ言葉で説明すること。2〜4文程度。",
-  "model_answer": "この問題の最終的な正しい答えと、根拠となる本文箇所を明示した分かりやすいオネエ解説。古文・漢文は現代語訳や句法の説明も含めること。手順ごとに改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
+  "trap_description": "高校生がこの問題で最も間違えやすいポイント（本文の誤読、語彙・文法の混同、設問の条件見落としなど）の解説文",
+  "strategy_pattern": "【最重要】この問題固有の本文内容には一切触れず、①設問文のどの特徴（キーワード・条件・設問形式）を見て問題の『型』を判断するか、②その型に対して定石として使うべき読み方・解答アプローチ、③なぜそのアプローチが有効なのか、を一般化して説明すること。2〜4文程度。",
+  "model_answer": "この問題の最終的な正しい答えと、根拠となる本文箇所を明示した分かりやすい解説。古文・漢文は現代語訳や句法の説明も含めること。手順ごとに改行コード（\\n）を挟んで、美しい箇条書き形式（1., 2.など）で出力すること"
 }
 `.trim(),
 
             "地歴公民": `
-${ONEE_ANALYSIS_HEADER}
-提出された問題（画像またはテキスト）を深く分析してください。
+あなたは高校地理・公民（地理総合、公共・現代社会など）の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
 出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
 {
   "subject": "地歴公民",
   "field": "分野名（例：地理総合 気候区分、地理総合 統計資料の読み取り、公共 政治のしくみ、公共 経済のしくみ など）",
   "short_title": "問題の要約タイトル",
   "extracted_text": "読み取った正確な問題文の全文（資料・統計・地図の内容が問題に含まれる場合はその要点も書き起こすこと） 【厳守】要約・省略は絶対禁止。問題文がどれだけ長くても、最後の設問・選択肢・空欄記号（ア,イ,ウ…等）まで一字一句省略せず全文を書き出すこと。1つでも文・記号を省いたら失格とみなす。",
-  "trap_description": "アンタたちが最も間違えやすい用語の混同や、統計・資料の読み違いのポイントのオネエ解説文",
-  "strategy_pattern": "【最重要】この問題固有の地名・数値・制度名には一切触れず、①問題文や資料のどの特徴を見て問題の『型』を判断するか、②その型に対して定石として使うべき考え方、③なぜそれが有効なのか、を一般化してオネエ言葉で説明すること。2〜4文程度。",
-  "model_answer": "最終的な正しい答えと、ステップごとの分かりやすいオネエ解説。用語・制度名は正確に使うこと。手順ごとに改行コード（\\n）を挟んで見やすい箇条書き形式（1., 2.など）で出力すること"
+  "trap_description": "高校生がこの問題で最も間違えやすい用語の混同や、統計・資料の読み違いのポイントの解説文",
+  "strategy_pattern": "【最重要】この問題固有の地名・数値・制度名には一切触れず、①問題文や資料のどの特徴（キーワード・条件）を見て問題の『型』を判断するか、②その型に対して定石として使うべき考え方、③なぜそれが有効なのか、を一般化して説明すること。2〜4文程度。",
+  "model_answer": "最終的な正しい答えと、ステップごとの分かりやすい解説。用語・制度名は正確に使うこと。手順ごとに改行コード（\\n）を挟んで見やすい箇条書き形式（1., 2.など）で出力すること"
 }
 `.trim(),
 
             "英語": `
-${ONEE_ANALYSIS_HEADER}
-提出された問題（画像またはテキスト）を深く分析してください。数式のLaTeX記法（$記号など）は一切使用しないこと。
+あなたは高校英語の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
+数式のLaTeX記法（$記号など）は一切使用しないこと。英文はそのまま英語表記で、解説はすべて日本語で書くこと。
 出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
 {
   "subject": "英語",
   "field": "分野名（例：文法・語法、長文読解、英作文、語彙 など）",
   "short_title": "問題の要約タイトル",
   "extracted_text": "読み取った正確な問題文・英文の全文（英語のまま。改行は\\nで保持） 【厳守】要約・省略は絶対禁止。問題文がどれだけ長くても、最後の設問・選択肢・空欄記号（ア,イ,ウ…等）まで一字一句省略せず全文を書き出すこと。1つでも文・記号を省いたら失格とみなす。",
-  "trap_description": "アンタたちが引っかかりやすい文法事項・構文・語彙・訳し方のポイントをオネエ言葉で解説",
-  "strategy_pattern": "【最重要】この問題固有の単語や具体的な訳には一切触れず、①英文のどの特徴を見て問題の『型』を判断するか、②その型に対して定石として使うべき読解・解答アプローチ、③なぜそのアプローチが有効なのか、を一般化してオネエ言葉で説明すること。2〜4文程度。",
-  "model_answer": "最終的な正しい答え・和訳と、ステップごとの分かりやすいオネエ解説（文構造の分解、重要単語・熟語の意味、文法事項の解説を含む）。手順ごとに改行コード（\\n）を挟んで見やすい箇条書き形式（1., 2.など）で出力すること"
+  "trap_description": "高校生がこの問題で引っかかりやすい文法事項・構文・語彙・訳し方のポイントを日本語で解説",
+  "strategy_pattern": "【最重要】この問題固有の単語や具体的な訳には一切触れず、①英文のどの特徴（接続詞・構文・時制などのキーワード）を見て問題の『型』を判断するか、②その型に対して定石として使うべき読解・解答アプローチ、③なぜそのアプローチが有効なのか、を一般化して説明すること。2〜4文程度。",
+  "model_answer": "最終的な正しい答え・和訳と、ステップごとの分かりやすい解説（文構造の分解、重要単語・熟語の意味、文法事項の解説を含む）。手順ごとに改行コード（\\n）を挟んで見やすい箇条書き形式（1., 2.など）で出力すること"
 }
 `.trim(),
 
             "世界史": `
-${ONEE_ANALYSIS_HEADER}
-提出された問題（画像またはテキスト）を深く分析してください。数式のLaTeX記法（$記号など）は一切使用しないこと。
+あなたは高校世界史の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
+数式のLaTeX記法（$記号など）は一切使用しないこと。
 出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
 {
   "subject": "世界史",
-  "field": "分野名（例：古代オリエント、中国史 唐〜宋、イスラーム世界の成立、近代ヨーロッパ 市民革命、冷戦期の国際関係 など）",
+  "field": "分野名（例：古代オリエント、中国史 唐〜宋、イスラーム世界の成立、近代ヨーロッパ 市民革命、冷戦期の国際関係 など、時代と地域が分かる形で）",
   "short_title": "問題の要約タイトル",
   "extracted_text": "読み取った正確な問題文の全文（年表・系図・地図が問題に含まれる場合はその要点も書き起こすこと） 【厳守】要約・省略は絶対禁止。問題文がどれだけ長くても、最後の設問・選択肢・空欄記号（ア,イ,ウ…等）まで一字一句省略せず全文を書き出すこと。1つでも文・記号を省いたら失格とみなす。",
-  "trap_description": "アンタたちが最も間違えやすいポイント（年代の前後関係の取り違え、似た名前の人物・王朝・条約の混同など）のオネエ解説文",
-  "strategy_pattern": "【最重要】この問題固有の年号・人物名・地名には一切触れず、①設問文のどの特徴を見て問題の『型』を判断するか、②その型に対して定石として使うべき考え方、③なぜそれが有効なのかを一般化してオネエ言葉で説明すること。2〜4文程度。",
-  "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすいオネエ解説。重要な出来事には可能な限り西暦を明記すること。手順ごとに改行コード（\\n）を挟んで、見やすい箇条書き形式（1., 2.など）で出力すること",
-  "mnemonic": "この問題に登場する重要な年号のうち、最も覚える価値が高いもの1つについての語呂合わせ（「年号：語呂合わせ本文」の形式）。該当する重要な年号が無い場合は空文字（\"\"）にすること",
+  "trap_description": "高校生がこの問題で最も間違えやすいポイント（年代の前後関係の取り違え、似た名前の人物・王朝・条約・戦争の混同、離れた地域で起きた同時代の出来事の混同、原因と結果の取り違えなど）の解説文",
+  "strategy_pattern": "【最重要】この問題固有の年号・人物名・地名には一切触れず、①設問文のどの特徴（時期を問う／因果関係を問う／地域間の比較を問うなど）を見て問題の『型』を判断するか、②その型に対して定石として使うべき考え方（例：年表上の前後関係で捉える、対になる出来事とセットで覚える、同時代の他地域と横に並べて整理するなど）、③なぜそれが有効なのかを一般化して説明すること。2〜4文程度。",
+  "model_answer": "この問題の最終的な正しい答えと、ステップごとの分かりやすい解説。重要な出来事には可能な限り西暦（例：1789年）を明記すること。関連が深い場合は同時代の他地域の出来事にも一言触れ、時代・地域をまたいだ位置づけがつかめるようにすること。手順ごとに改行コード（\\n）を挟んで、見やすい箇条書き形式（1., 2.など）で出力すること",
+  "mnemonic": "この問題に登場する重要な年号のうち、最も覚える価値が高いもの1つについての語呂合わせ（「年号：語呂合わせ本文」の形式、例：『1789年：火(1789)の粉ちるフランス革命』のような一文）。該当する重要な年号が無い、または語呂合わせにする価値が薄い問題の場合は空文字（""）にすること",
   "events": [
     {
       "name": "出来事の名前（例：フランス革命の勃発）",
-      "year": "表示用の年（例：1789年、前3世紀 など）",
-      "year_sort": "並べ替え用の年（西暦の整数。紀元前は負の数）",
+      "year": "表示用の年（例：1789年、前3世紀、14世紀後半 など、わかる精度で）",
+      "year_sort": "並べ替え用の年（西暦の整数。紀元前は負の数、例：前221年なら-221）",
       "region": "次のいずれか1つ：東アジア／東南アジア／南アジア／西アジア・中央アジア／ヨーロッパ／アメリカ大陸／アフリカ／地域をまたぐ／世界全体"
     }
   ]
 }
+※eventsには、この問題文・解説中に登場する年号つきの出来事をすべて含めること（1個でも複数でもよい）。年号が特定できる出来事が1つも無い問題の場合は空配列（[]）にすること。
 `.trim()
         };
 
-
-    // 🧠【オネエ系カリスマ予備校講師 キャラクター指示】
-        const ONEE_TUTOR_BASE_INSTRUCTION = `
-【キャラクター設定（最重要）】
-・あなたの一人称は必ず「アタシ」と名乗ること（「私」「僕」「AI」などは使用禁止）。
-・話し方は完全な【愛と情熱あふれるオネエ言葉】を使うこと（「〜よ！」「〜じゃないの！」「アンタ」「〜かしら？」「ちょっと待ちなさい！」「愛のムチよ！」など、切れ味鋭くも最高に親身な口調）。
-・生徒が良い質問や着眼点を持ってきたら「キャーーッ！アンタいいセンスしてるじゃないの！」「その着眼点、ゾクゾクしちゃうわ！」と熱狂的に褒めちぎること。
-・生徒がつまずいていたら「惜しいわ！でもその悩み方、アタシ嫌いじゃないのよ」「もう〜しょうがないわね、アタシからとびっきりの愛のヒントをあげるわ！」と共感しながら導くこと。
-`.trim();
-
-        // 🧠【教科ごとのチャット（質問対応）プロンプト集】
+        // 🧠【教科ごとのチャット（質問対応）プロンプト集】保存済みのsubjectで自動選択
         const SUBJECT_CHAT_PROMPTS = {
             "数学": `
-${ONEE_TUTOR_BASE_INSTRUCTION}
-
-あなたは高校数学のカリスマ予備校講師です。
+あなたは高校数学の解説エキスパートAIチューターです。
 生徒は提示された「模範解答と解説」を読んでいますが、一部納得がいかない、または計算の途中過程が理解できずに質問しています。
-生徒の疑問に対して、ピンポイントで情熱的に、論理的に分かりやすく解説してください。
-数式や変数（x, y, a, b等）は必ず「$x$」「$\\sin\\theta$」のように$で囲むLaTeX形式にすること。上付き文字は必ず $90^{\\circ}$ や $x^{2}$ のように波括弧 {} を明記すること。
+生徒の疑問（例:「なぜこの式変形になるのか」「なぜこの条件が必要なのか」など）に対して、ピンポイントで優しく、論理的に解説してください。
+数式や変数（x, y, a, b等）は必ず「$x$」「$\\sin\\theta$」のように$で囲むLaTeX形式にすること。
 
 返答は以下のJSONのみ（説明不要）：
 {
-  "ai_response": "生徒の疑問に対する愛と情熱のオネエ解説（数式は$ $を使用）",
-  "current_step_label": "愛の個別指導中・疑問解消など"
+  "ai_response": "生徒の疑問に対する丁寧な解説（数式は$ $を使用）",
+  "current_step_label": "解説中・疑問解消など"
 }
 `.trim(),
 
             "物理": `
-${ONEE_TUTOR_BASE_INSTRUCTION}
-
-あなたは高校物理のカリスマ予備校講師です。
-生徒は提示された「模範解答と解説」を読んでいますが、一部納得がいかない、または物理現象や立式の意味が理解できずに質問しています。
-生徒の疑問に対して、ピンポイントで情熱的に、直感的なイメージと数式を結びつけて解説してください。
+あなたは高校物理の解説エキスパートAIチューターです。
+生徒は提示された「模範解答と解説」を読んでいますが、一部納得がいかない、または計算の途中過程が理解できずに質問しています。
+生徒の疑問（例:「なぜこの式変形になるのか」「なぜこの条件が必要なのか」など）に対して、ピンポイントで優しく、論理的に解説してください。
 数式や変数（m, v, g, theta等）は必ず「$m$」「$\\sin\\theta$」のように$で囲むLaTeX形式にすること。
 
 返答は以下のJSONのみ（説明不要）：
 {
-  "ai_response": "生徒の疑問に対する愛と情熱のオネエ解説（数式は$ $を使用）",
-  "current_step_label": "愛の個別指導中・疑問解消など"
+  "ai_response": "生徒の疑問に対する丁寧な解説（数式は$ $を使用）",
+  "current_step_label": "解説中・疑問解消など"
 }
 `.trim(),
 
             "化学": `
-${ONEE_TUTOR_BASE_INSTRUCTION}
-
-あなたは高校化学のカリスマ予備校講師です。
-生徒は提示された「模範解答と解説」を読んでいますが、一部納得がいかない、または反応の理由・mol計算が理解できずに質問しています。
-生徒の疑問に対して、ピンポイントで情熱的に分かりやすく解説してください。
+あなたは高校化学の解説エキスパートAIチューターです。
+生徒は提示された「模範解答と解説」を読んでいますが、一部納得がいかない、または計算の途中過程が理解できずに質問しています。
+生徒の疑問に対して、ピンポイントで優しく、論理的に解説してください。
 化学式・数式・数値は必ず「$H_2O$」「$2H_2 + O_2 \\rightarrow 2H_2O$」のように$で囲むLaTeX形式にすること。
 
 返答は以下のJSONのみ（説明不要）：
 {
-  "ai_response": "生徒の疑問に対する愛と情熱のオネエ解説（数式・化学式は$ $を使用）",
-  "current_step_label": "愛の個別指導中・疑問解消など"
+  "ai_response": "生徒の疑問に対する丁寧な解説（数式・化学式は$ $を使用）",
+  "current_step_label": "解説中・疑問解消など"
 }
 `.trim(),
 
             "国語": `
-${ONEE_TUTOR_BASE_INSTRUCTION}
-
-あなたは高校国語（現代文・古文・漢文）のカリスマ予備校講師です。
+あなたは高校国語（現代文・古文・漢文）の解説エキスパートAIチューターです。
 生徒は提示された「模範解答と解説」を読んでいますが、本文の解釈や文法・句法の理解が納得いかず質問しています。
-生徒の疑問に対して、ピンポイントで情熱的に、本文の該当箇所をズバッと示しながら解説してください。
+生徒の疑問に対して、ピンポイントで優しく、本文の該当箇所を示しながら解説してください。
 
 返答は以下のJSONのみ（説明不要）：
 {
-  "ai_response": "生徒の疑問に対する愛と情熱のオネエ解説",
-  "current_step_label": "愛の個別指導中・疑問解消など"
+  "ai_response": "生徒の疑問に対する丁寧な解説",
+  "current_step_label": "解説中・疑問解消など"
 }
 `.trim(),
 
             "地歴公民": `
-${ONEE_TUTOR_BASE_INSTRUCTION}
-
-あなたは高校地理・公民（地理総合、公共・現代社会など）のカリスマ予備校講師です。
+あなたは高校地理・公民（地理総合、公共・現代社会など）の解説エキスパートAIチューターです。
 生徒は提示された「模範解答と解説」を読んでいますが、用語や制度の仕組み、資料の読み取り方が理解できずに質問しています。
-生徒の疑問に対して、ピンポイントで情熱的かつ明快に解説してください。
+生徒の疑問に対して、ピンポイントで優しく、論理的に解説してください。
 
 返答は以下のJSONのみ（説明不要）：
 {
-  "ai_response": "生徒の疑問に対する愛と情熱のオネエ解説",
-  "current_step_label": "愛の個別指導中・疑問解消など"
+  "ai_response": "生徒の疑問に対する丁寧な解説",
+  "current_step_label": "解説中・疑問解消など"
 }
 `.trim(),
 
             "英語": `
-${ONEE_TUTOR_BASE_INSTRUCTION}
-
-あなたは高校英語のカリスマ予備校講師です。数式のLaTeX記法（$記号など）は一切使用しないこと。
+あなたは高校英語の解説エキスパートAIチューターです。
+数式のLaTeX記法（$記号など）は一切使用しないこと。
 生徒は提示された「模範解答と解説」を読んでいますが、文法・構文・語彙・訳し方のどこかで納得がいかず質問しています。
-生徒の疑問に対して、ピンポイントで情熱的に日本語で解説してください。英文を引用する場合はそのまま英語で書いてよい。
+生徒の疑問に対して、ピンポイントで優しく、論理的に日本語で解説してください。英文を引用する場合はそのまま英語で書いてよい。
 
 返答は以下のJSONのみ（説明不要）：
 {
-  "ai_response": "生徒の疑問に対する愛と情熱のオネエ解説",
-  "current_step_label": "愛の個別指導中・疑問解消など"
+  "ai_response": "生徒の疑問に対する丁寧な解説",
+  "current_step_label": "解説中・疑問解消など"
 }
 `.trim(),
 
             "世界史": `
-${ONEE_TUTOR_BASE_INSTRUCTION}
-
-あなたは高校世界史のカリスマ予備校講師です。数式のLaTeX記法（$記号など）は一切使用しないこと。
+あなたは高校世界史の解説エキスパートAIチューターです。
+数式のLaTeX記法（$記号など）は一切使用しないこと。
 生徒は提示された「模範解答と解説」を読んでいますが、年代関係・因果関係・人物や王朝の混同などが理解できずに質問しています。
-生徒の疑問に対して、ピンポイントで情熱的に解説してください。年号に触れる場合は西暦を明記し、時代・地域をまたいだ位置づけをドラマチックに教えてあげてください。
+生徒の疑問に対して、ピンポイントで優しく、論理的に解説してください。年号に触れる場合は西暦を明記し、可能であれば同時代の他地域の出来事とも関連づけて、生徒が時代・地域をまたいだ位置づけを掴めるようにしてください。
 
 返答は以下のJSONのみ（説明不要）：
 {
-  "ai_response": "生徒の疑問に対する愛と情熱のオネエ解説",
-  "current_step_label": "愛の個別指導中・疑問解消など"
+  "ai_response": "生徒の疑問に対する丁寧な解説",
+  "current_step_label": "解説中・疑問解消など"
 }
 `.trim()
         };
@@ -1599,8 +1555,9 @@ ${glossaryBlock}`;
                             name: { type: "STRING" },
                             year: { type: "STRING" },
                             year_sort: { type: "INTEGER" },
-                            region: { type: "STRING" }
-                        }
+                            region: { type: "STRING", enum: HISTORY_REGIONS }
+                        },
+                        required: ["name", "year", "year_sort", "region"]
                     }
                 }
             },
@@ -1619,9 +1576,8 @@ ${glossaryBlock}`;
 
         async function callAnalysisEngine(instructionText, systemInstruction, responseSchema) {
             if (ACTIVE_ENGINE === "deepseek") {
-                const analysisImages = getProblemImages(currentProblemData);
-                if (analysisImages.length > 0 && !currentProblemData.title) {
-                    throw new Error("DeepSeekは画像を直接読み取れません。右上のトグルで✨Geminiに切り替えて解析してください。");
+                if (getProblemImages(currentProblemData).length > 0 && !currentProblemData.title) {
+                    throw new Error("DeepSeekは画像を直接読み取れません。先に✨Geminiで一度解析して問題文を文字起こしするか、問題文を手動で入力してから再度お試しください。");
                 }
                 const deepseekBody = JSON.stringify({
                     "model": MODEL_NAME,
@@ -1633,7 +1589,7 @@ ${glossaryBlock}`;
                     "thinking": { "type": "enabled" },
                     "reasoning_effort": "high",
                     "response_format": { "type": "json_object" },
-                    "max_tokens": 8192
+                    "max_tokens": 8192 // 💡 未指定だとthinkingで使い切ってcontentが空のまま打ち切られることがあるため明示
                 });
 
                 const MAX_DEEPSEEK_ATTEMPTS = 3;
@@ -1666,15 +1622,15 @@ ${glossaryBlock}`;
                     }
 
                     try {
-                        return cleanDeepSeekResponse(rawText);
-                    } catch (parseErr) {
-                        console.warn(`⚠️ DeepSeekの応答が不正なJSONでした（${attempt}/${MAX_DEEPSEEK_ATTEMPTS}回目）→ リトライ`, parseErr);
-                        deepseekLastError = parseErr;
-                        continue;
-                    }
+    return cleanDeepSeekResponse(rawText);
+} catch (parseErr) {
+    console.warn(`⚠️ DeepSeekの応答が不正なJSONでした（${attempt}/${MAX_DEEPSEEK_ATTEMPTS}回目）→ リトライ`, parseErr);
+    deepseekLastError = parseErr;
+    continue;
+}
                 }
 
-                throw new Error(`DeepSeekブレインの応答取得に失敗しました。✨Geminiに切り替えてお試しください。\n最終エラー: ${deepseekLastError?.message || "不明"}`);
+                throw new Error(`DeepSeekブレインが${MAX_DEEPSEEK_ATTEMPTS}回連続で空/不正な応答を返しました（DeepSeek側の既知の仕様上の問題です）。もう一度実行するか、✨Geminiに切り替えてみてください。\n最終エラー: ${deepseekLastError?.message || "不明"}`);
 
             } else {
                 // ✨ Gemini（画像入力対応・複数枚まとめて送信可）
@@ -1683,37 +1639,28 @@ ${glossaryBlock}`;
                 if (analysisImages.length > 0) {
                     try {
                         analysisImages.forEach(imageData => {
-                            if (!imageData || typeof imageData !== "string") return;
-                            let base64Raw = "";
-                            let mimeType = "image/jpeg";
-                            if (imageData.startsWith("data:")) {
-                                const partsArr = imageData.split(",");
-                                base64Raw = partsArr[1] || "";
-                                const match = partsArr[0].match(/:(.*?);/);
-                                if (match) mimeType = match[1];
-                            } else {
-                                base64Raw = imageData;
-                            }
-                            if (base64Raw) {
-                                parts.push({ "inlineData": { "mimeType": mimeType, "data": base64Raw } });
-                            }
+                            let base64Raw = imageData.split(",")[1];
+                            let mimeType = imageData.split(",")[0].split(":")[1].split(";")[0];
+                            parts.push({ "inlineData": { "mimeType": mimeType, "data": base64Raw } });
                         });
+                        // 🖼️【複数枚対応】写真が複数枚ある場合、それらは同じ1つの登録済み問題の
+                        // 異なるページ・カット（問題文ページ＋解答用紙など）であることをAIに明示する
                         if (analysisImages.length > 1) {
-                            parts[0].text += `\n\n【重要】画像は${analysisImages.length}枚提出されていますが、これらは全て同じ1つの問題に関する別々のページ・カットです。すべての画像の情報を統合して、この1問についての内容として解析してください。`;
+                            parts[0].text += `\n\n【重要】画像は${analysisImages.length}枚提出されていますが、これらは全て同じ1つの問題に関する別々のページ・カット（例：問題文のページと、生徒が実際に解いた解答用紙のページなど）です。複数の異なる問題として分割せず、すべての画像の情報を統合して、この1問についての内容として解析してください。`;
                         }
                     } catch (e) {
-                        console.error("画像の読み込みに失敗したため、テキストのみで解析を実行します。", e);
+                        console.error("画像の読み込みに失敗したため、テキストのみで解析を実行します。");
                     }
                 }
 
+                // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
                 return await callGeminiJSON(parts, systemInstruction, { temperature: 0.3, responseSchema: responseSchema || undefined });
             }
         }
 
-       async function runOnDemandAnalysis() {
-            const problemImages = getProblemImages(currentProblemData);
-            const hasData = problemImages.length > 0 || currentProblemData.title || currentProblemData.short_title;
-            if (!loginUid || !hasData) {
+        async function runOnDemandAnalysis() {
+            // 画像も問題文テキストも両方ない場合はエラー
+            if (!loginUid || (getProblemImages(currentProblemData).length === 0 && !currentProblemData.title)) {
                 showToast("解析可能なデータ（画像または手動入力された問題文）が見つかりません。", "error");
                 return;
             }
@@ -1723,19 +1670,22 @@ ${glossaryBlock}`;
             analyzeBtn.textContent = `⚙️ ${getEngineLabel(ACTIVE_ENGINE)}で爆速解析中...`;
             analyzeBtn.disabled = true;
 
+            // 基本の指示文
             let instructionText = "提出されたデータを解析し、最終的な『正しい答え（model_answer）』も含めて指定のJSONで返してください。";
 
+            // 手動登録された問題文があれば、テキストをプロンプトに追加
             if (currentProblemData.title) {
                 instructionText += `\n\n【解析対象の問題文】\n${currentProblemData.title}`;
             }
 
+            // ユーザーが選んだ教科に応じたプロンプトを使用（未選択時は数学扱い）
             const subjectSelectEl = document.getElementById("on-demand-subject-select");
             const chosenSubject = (subjectSelectEl && subjectSelectEl.value) || "数学";
 
             try {
                 const aiResult = await callAnalysisEngine(instructionText, getCreatePrompt(chosenSubject), SUBJECT_ANALYSIS_RESPONSE_SCHEMA);
 
-                currentProblemData.title = aiResult.extracted_text || currentProblemData.title || "";
+                currentProblemData.title = aiResult.extracted_text || currentProblemData.title;
                 currentProblemData.short_title = aiResult.short_title || "解析問題";
                 currentProblemData.subject = chosenSubject;
                 currentProblemData.field = aiResult.field || "手動管理";
@@ -1744,36 +1694,31 @@ ${glossaryBlock}`;
                 currentProblemData.answerFormula = aiResult.model_answer || "解説データなし";
                 currentProblemData.mnemonic = aiResult.mnemonic || "";
                 currentProblemData.events = Array.isArray(aiResult.events) ? aiResult.events : [];
-                currentProblemData.lastAnswerEngine = ACTIVE_ENGINE || "gemini";
+                currentProblemData.lastAnswerEngine = ACTIVE_ENGINE;
 
-                const sanitizedData = JSON.parse(JSON.stringify(currentProblemData));
                 const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
-                await set(probRef, sanitizedData);
+                await set(probRef, currentProblemData);
+
                 showToast(`${getEngineLabel(ACTIVE_ENGINE)}によるAI解析が完了しました！セッションをリロードします。`, "success", 2000);
                 setTimeout(() => { window.location.reload(); }, 900);
 
             } catch (error) {
                 console.error(error);
                 showToast("オンデマンド解析に失敗しました。原因: " + error.message, "error", 8000);
-            } finally {
-                if (analyzeBtn) {
-                    analyzeBtn.textContent = originalBtnText;
-                    analyzeBtn.disabled = false;
-                }
+                analyzeBtn.textContent = originalBtnText;
+                analyzeBtn.disabled = false;
             }
         }
 
+        // 🧭【新設】答えだけ確認済みの問題に、定石・罠の解説だけを軽量に後付け生成する
         function getStrategyOnlyPrompt(subject) {
             return `
-【キャラクター設定（最重要）】
-あなたは高校${subject}の【オネエ系カリスマ予備校講師】です。一人称は必ず「アタシ」、生徒への呼びかけは「アンタ」を使うこと。
-trap_description（罠）とstrategy_pattern（定石）は、情熱的なオネエ言葉（「〜よ！」「〜じゃないの！」「愛のムチよ！」等）で記述してください。
-
-すでに問題文と模範解答は確定しています。模範解答を作り直す必要はありません。以下の【問題文】と【模範解答】だけを読んで、アンタたちが復習で使う「定石」と「間違えやすいポイント」の2つだけをオネエ愛を込めて作成してください。
+あなたは高校${subject}の「誤答分析エキスパートAI」です。すでに問題文と模範解答は確定しています。
+今回は模範解答を作り直す必要はありません。以下の【問題文】と【模範解答】だけを読んで、生徒が復習で使う「定石」と「間違えやすいポイント」の2つだけを追加で作成してください。
 出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
 {
-  "trap_description": "アンタたちがこの問題で最も間違えやすいポイントや罠についてのオネエ愛のムチ解説文",
-  "strategy_pattern": "【最重要】この問題固有の数値や図形・物質名には一切触れず、①問題文のどの特徴（キーワード・条件）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ、③なぜそのアプローチが有効なのか、を一般化してオネエ言葉で説明すること。これは『解き方の地図』であり、具体的な計算はここに書かない。2〜4文程度。数式を含む場合は$で囲むこと"
+  "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
+  "strategy_pattern": "【最重要】この問題固有の数値や図形・物質名には一切触れず、①問題文のどの特徴（キーワード・条件）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ、③なぜそのアプローチが有効なのか、を一般化して説明すること。これは『解き方の地図』であり、具体的な計算はここに書かない。2〜4文程度。数式を含む場合は$で囲むこと"
 }
 `.trim();
         }
@@ -1801,11 +1746,8 @@ trap_description（罠）とstrategy_pattern（定石）は、情熱的なオネ
             } catch (error) {
                 console.error(error);
                 showToast("定石・罠の解説の生成に失敗しました。原因: " + error.message, "error", 8000);
-            } finally {
-                if (btn) {
-                    btn.textContent = originalText;
-                    btn.disabled = false;
-                }
+                btn.textContent = originalText;
+                btn.disabled = false;
             }
         }
 
@@ -1833,13 +1775,13 @@ trap_description（罠）とstrategy_pattern（定石）は、情熱的なオネ
         }
 
         function cleanDeepSeekResponse(rawText) {
-            let text = (rawText || "").trim();
-            if (text.includes("</think>")) {
-                text = text.split("</think>").pop().trim();
-            }
-            const cleanJsonStr = fixJsonEscapes(extractJsonObject(stripCodeFence(text)));
-            return JSON.parse(cleanJsonStr);
-        }
+    let text = (rawText || "").trim();
+    if (text.includes("</think>")) {
+        text = text.split("</think>")[1].trim();
+    }
+    const cleanJsonStr = fixJsonEscapes(extractJsonObject(stripCodeFence(text)));
+    return JSON.parse(cleanJsonStr);
+}
 
         async function sendMessageToTutor(studentMessage) {
             if (currentProblemData.subject === "未分類") {
@@ -2139,28 +2081,24 @@ trap_description（罠）とstrategy_pattern（定石）は、情熱的なオネ
         // 🛠️【拡張】userNoteが指定された場合、生徒が指摘した間違いを最優先で反映させる指示を追加する
         function getRegenPrompt(subject, userNote) {
             const base = getCreatePrompt(subject);
-            let header = `
-【最重要：キャラクター設定（オネエ系カリスマ予備校講師）】
-・一人称は必ず「アタシ」、生徒への呼びかけは「アンタ」にすること。
-・話し方は完全な【愛と情熱あふれるオネエ言葉】（「〜よ！」「〜じゃないの！」「愛のムチよ！」等）を使うこと。
-`;
+            let header;
             if (subject === "英語") {
-                header +=
-                    `あなたは高校英語の「オネエ系カリスマ予備校講師」です。\n` +
-                    `先ほど生成された解説に不備があった可能性があるため、今回はアンタのために【最高精度】で解説を愛を込めて再生成してあげます。\n` +
+                header =
+                    `あなたは高校英語の「超精密な誤答分析・解説生成AI」です。\n` +
+                    `先ほど生成された解説の文法解釈・訳出精度に不備があった可能性があるため、今回は【最高精度】で解説を再生成してください。\n` +
                     `文構造の分解、訳の正確さ、文法用語の使い方に一切の曖昧さがないよう細心の注意を払ってください。\n\n`;
             } else if (subject === "世界史") {
-                header +=
-                    `あなたは高校世界史の「オネエ系カリスマ予備校講師」です。\n` +
-                    `先ほど生成された解説に不備があった可能性があるため、今回はアンタのために【最高精度】で解説を愛を込めて再生成してあげます。\n` +
+                header =
+                    `あなたは高校世界史の「超精密な誤答分析・解説生成AI」です。\n` +
+                    `先ほど生成された解説の年代・因果関係・人物や王朝名の精度に不備があった可能性があるため、今回は【最高精度】で解説を再生成してください。\n` +
                     `年号（西暦）の正確さ、人物・王朝・条約名の表記の正確さ、因果関係の順序に一切の曖昧さがないよう細心の注意を払ってください。数式のLaTeX記法（$記号など）は一切使用しないこと。\n\n`;
             } else {
-                header +=
-                    `あなたは高校${subject}の「オネエ系カリスマ予備校講師」です。\n` +
-                    `先ほど生成された解説の計算精度や数式記法に不備があったため、今回はアンタのために【最高精度・厳密フォーマット】で愛を込めて解説を作り直してあげます。\n\n` +
+                header =
+                    `あなたは高校${subject}の「超精密な誤答分析・解説生成AI」です。\n` +
+                    `先ほど生成された解説の計算精度、または数式レンダリング（LaTeX記法）に不備があったため、今回は【最高精度・厳密フォーマット】で解説を再生成してください。\n\n` +
                     `【最重要：数式フォーマットの絶対規律】\n` +
-                    `1. 本文中に登場するすべての数式、変数、関数、数値、演算記号は、単一の文字であっても【必ず漏れなく】前後に $ または $$ をつけて完全なLaTeX形式にしてください。\n` +
-                    `2. 上付き文字は必ず $90^{\\circ}$ や $x^{2}$ のように波括弧 {} を明記すること。\n` +
+                    `1. 本文中に登場するすべての数式、変数、関数、数値、演算記号(⇒、等号、プラスマイナス)、分数(\\frac)、点(\\cdot)は、単一の文字であっても【必ず漏れなく】前後に $ または $$ をつけて完全なLaTeX形式にしてください。\n` +
+                    `2. $ で囲まれていない生の「\\frac」や「\\cdot」などの記法が本文中に露出することは絶対に許されません。\n` +
                     `3. 解説文は、手順ごとに必ず改行コード（\\n）を適切に挟んで、論理の飛躍がない見やすい箇条書き形式（1., 2.など）で出力してください。\n\n`;
             }
 
@@ -2177,9 +2115,7 @@ trap_description（罠）とstrategy_pattern（定石）は、情熱的なオネ
         }
 
         async function runRegenerateAnalysis() {
-            const problemImages = getProblemImages(currentProblemData);
-            const hasData = problemImages.length > 0 || currentProblemData.title || currentProblemData.short_title || currentProblemData.answerFormula;
-            if (!loginUid || !hasData) {
+            if (!loginUid || (getProblemImages(currentProblemData).length === 0 && !currentProblemData.title)) {
                 showToast("再解析可能なデータが見つかりません。", "error");
                 return;
             }
@@ -2213,21 +2149,20 @@ trap_description（罠）とstrategy_pattern（定石）は、情熱的なオネ
             try {
                 const aiResult = await callAnalysisEngine(instructionText, getRegenPrompt(currentProblemData.subject || "数学", userNote), SUBJECT_ANALYSIS_RESPONSE_SCHEMA);
 
-                currentProblemData.title = aiResult.extracted_text || currentProblemData.title || "";
-                currentProblemData.short_title = aiResult.short_title || currentProblemData.short_title || "解析問題";
-                currentProblemData.subject = aiResult.subject || currentProblemData.subject || "数学";
-                currentProblemData.field = aiResult.field || currentProblemData.field || "未分類";
-                currentProblemData.trap_description = aiResult.trap_description || currentProblemData.trap_description || "";
-                currentProblemData.strategyPattern = aiResult.strategy_pattern || currentProblemData.strategyPattern || "";
-                currentProblemData.answerFormula = aiResult.model_answer || currentProblemData.answerFormula || "解説データなし";
-                currentProblemData.mnemonic = (aiResult.mnemonic !== undefined) ? (aiResult.mnemonic || "") : (currentProblemData.mnemonic || "");
-                currentProblemData.events = Array.isArray(aiResult.events) ? aiResult.events : (Array.isArray(currentProblemData.events) ? currentProblemData.events : []);
-                currentProblemData.lastAnswerEngine = ACTIVE_ENGINE || "gemini";
+                currentProblemData.title = aiResult.extracted_text || currentProblemData.title;
+                currentProblemData.short_title = aiResult.short_title || currentProblemData.short_title;
+                currentProblemData.subject = aiResult.subject || currentProblemData.subject;
+                currentProblemData.field = aiResult.field || currentProblemData.field;
+                currentProblemData.trap_description = aiResult.trap_description || "";
+                currentProblemData.strategyPattern = aiResult.strategy_pattern || "";
+                currentProblemData.answerFormula = aiResult.model_answer || currentProblemData.answerFormula;
+                currentProblemData.mnemonic = (aiResult.mnemonic !== undefined) ? (aiResult.mnemonic || "") : currentProblemData.mnemonic;
+                currentProblemData.events = Array.isArray(aiResult.events) ? aiResult.events : currentProblemData.events;
+                currentProblemData.lastAnswerEngine = ACTIVE_ENGINE;
 
-                const sanitizedData = JSON.parse(JSON.stringify(currentProblemData));
-
+                // Firebaseのデータを上書き保存して同期
                 const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
-                await set(probRef, sanitizedData);
+                await set(probRef, currentProblemData);
 
                 if (noteInput) noteInput.value = "";
 
@@ -2237,13 +2172,11 @@ trap_description（罠）とstrategy_pattern（定石）は、情熱的なオネ
             } catch (error) {
                 console.error(error);
                 showToast("再解析の実行中にエラーが発生しました。原因: " + error.message, "error", 8000);
-            } finally {
-                if (regenBtn) {
-                    regenBtn.innerHTML = originalText;
-                    regenBtn.disabled = false;
-                }
+                regenBtn.innerHTML = originalText;
+                regenBtn.disabled = false;
             }
         }
+
         // リスナーバインド
         const regenBtnEl = document.getElementById("regenerate-analysis-btn");
         if (regenBtnEl) {
@@ -2485,11 +2418,12 @@ trap_description（罠）とstrategy_pattern（定石）は、情熱的なオネ
 
             const promptText = `【元の問題文】\n${currentProblemData.title || "（問題文なし）"}\n\n【AIチューターとの質問チャット全文】\n${conversationText}`;
 
+            // 🔒 levelは列挙値なので、enumで選択肢自体をAPI側で強制する
             const stuckTopicResponseSchema = {
                 type: "OBJECT",
                 properties: {
                     topic: { type: "STRING" },
-                    level: { type: "STRING" },
+                    level: { type: "STRING", enum: LEVEL_OPTIONS },
                     note: { type: "STRING" }
                 },
                 required: ["topic", "level", "note"]

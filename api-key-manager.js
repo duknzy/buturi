@@ -198,19 +198,38 @@ export function extractJsonArray(text) {
     return text.substring(start);
 }
 
+// --------------------------------------------------------------------------
+// 🧠【共通化】各ページに個別コピペされていた「Geminiにcontentsを投げて、モデルを
+// 順にフォールバックしながらJSONで受け取る」ループ本体。ここを直せば、
+// モデル追加・リトライ仕様の変更・エラーメッセージの修正が全ページに一括反映される。
+//
+// - callGeminiJSON(parts, systemInstruction, options)  : 単発質問（画像添付OK）用
+// - callGeminiChat(contents, systemInstruction, options): 複数ターンの会話履歴を渡す用
+// どちらも中身は同じで、渡す contents の組み立て方が違うだけ。
+//
+// options:
+//   temperature: number（省略時 0.4）
+//   arrayMode: true にすると応答をJSON配列として抽出する（省略時はJSONオブジェクト）
+//   silentFallback: true にすると notifyModelFallback（画面右下トースト）を出さない
+// --------------------------------------------------------------------------
 async function runGeminiFallbackLoop(contents, systemInstruction, options = {}) {
     const { temperature = 0.4, arrayMode = false, silentFallback = false, responseSchema = null } = options;
     const keys = getGeminiKeys();
 
+    // ❗JSON厳守の追加指示（responseSchemaを指定できない呼び出し元向けの保険。
+    //   responseSchemaがある場合はAPI側で構造そのものが強制されるため、これは主にschema未指定時の保険として働く）
     const strictJsonReminder = "\n\n❗最重要ルール: 出力は指定されたJSON形式のみとすること。挨拶・前置き・説明文・Markdownのコードブロック(```)など、JSON以外の文字列は一切含めないこと。";
 
     let lastError = null;
     const fallbackAttempts = [];
-    let currentSchema = responseSchema;
 
+    // 1回分のリクエスト実行＋JSON抽出を行う内部ヘルパー
+    // 戻り値: { ok: true, parsed } または { ok: false, isFormatError, reason, error }
     async function attemptOnce(modelName, systemInstructionText) {
         const generationConfig = { "responseMimeType": "application/json", "temperature": temperature };
-        if (currentSchema) generationConfig.responseSchema = currentSchema;
+        // 🔒【最重要】responseSchemaを渡すと、Gemini側でJSON構造そのものを強制するデコードになり、
+        //   「JSONで返して」という自然文のお願いより遥かに確実にフォーマット崩れを防げる。
+        if (responseSchema) generationConfig.responseSchema = responseSchema;
 
         const requestBody = JSON.stringify({
             "contents": contents,
@@ -225,12 +244,6 @@ async function runGeminiFallbackLoop(contents, systemInstruction, options = {}) 
                 options: { method: "POST", headers: { "Content-Type": "application/json" }, body: requestBody }
             }));
         } catch (err) {
-            // 🛡️ responseSchema が原因で 400 Bad Request が出た場合、スキーマを解除して即座にテキストJSON指示で再試行
-            if (currentSchema && (err?.message?.includes("400") || err?.message?.includes("INVALID_ARGUMENT") || err?.message?.includes("response_schema") || err?.message?.includes("HTTPエラー: 400"))) {
-                console.warn(`⚠️ ${modelName} で responseSchema による 400 エラーの可能性を検知 → スキーマなしで再試行`, err);
-                currentSchema = null;
-                return attemptOnce(modelName, systemInstructionText + strictJsonReminder);
-            }
             return { ok: false, isFormatError: false, reason: err?.message || "不明な通信エラー", error: err };
         }
 
@@ -253,8 +266,10 @@ async function runGeminiFallbackLoop(contents, systemInstruction, options = {}) 
     for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
         let result = await attemptOnce(modelName, systemInstruction);
 
+        // 🔁 JSON形式が崩れていた場合のみ、同じモデル・同じキー群に「JSON厳守」の
+        //   指示を強めて1回だけ再挑戦する（レート制限や通信エラーでは再挑戦しない＝即次のモデルへ）
         if (!result.ok && result.isFormatError) {
-            console.warn(`⚠️ ${modelName} の応答が不正なJSONでした → フォーマット厳守の指示を追加して再挑戦`, result.error);
+            console.warn(`⚠️ ${modelName} の応答が不正なJSONでした → フォーマット厳守の指示を追加して同じモデルに再挑戦`, result.error, result.rawText);
             result = await attemptOnce(modelName, systemInstruction + strictJsonReminder);
         }
 
@@ -265,7 +280,7 @@ async function runGeminiFallbackLoop(contents, systemInstruction, options = {}) 
 
         console.warn(`⚠️ ${modelName} が失敗しました（${result.reason}） → 次のモデルへフォールバック`, result.error);
         lastError = result.error;
-        fallbackAttempts.push({ model: modelName, reason: result.isFormatError ? "JSON解析エラー" : result.reason });
+        fallbackAttempts.push({ model: modelName, reason: result.isFormatError ? "JSON解析エラー（再指示後も形式が崩れていた）" : result.reason });
     }
 
     if (!silentFallback) notifyModelFallback(fallbackAttempts, null);

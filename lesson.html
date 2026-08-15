@@ -998,8 +998,9 @@
                             name: { type: "STRING" },
                             year: { type: "STRING" },
                             year_sort: { type: "INTEGER" },
-                            region: { type: "STRING" }
-                        }
+                            region: { type: "STRING", enum: HISTORY_REGIONS }
+                        },
+                        required: ["name", "year", "year_sort", "region"]
                     }
                 }
             },
@@ -1726,8 +1727,6 @@ ${socraticInstructionBlock}
                     errorCount: 1,
                     lastAttemptAt: nowIso,
                     lastResult: false,
-                    thumb: null,
-                    imageCount: 0,
                     answerFormula: currentActiveDrill.model_answer || "解説データ",
                     createdAt: nowIso,
                     sourceLessonId: currentLesson.id,
