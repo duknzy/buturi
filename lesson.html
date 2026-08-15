@@ -113,13 +113,6 @@
         .lesson-grid-card-top { display: flex; justify-content: space-between; align-items: center; gap: 0.4rem; }
         .lesson-grid-card-title { font-weight: 800; font-size: 0.92rem; line-height: 1.35; }
         .lesson-grid-card-meta { font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
-        .lesson-grid-card-mini-roadmap { display: flex; align-items: center; gap: 0.2rem; margin-top: 0.1rem; }
-        .lesson-mini-step {
-            flex: 1; text-align: center; padding: 0.2rem 0.1rem; border-radius: 6px; font-size: 0.62rem; font-weight: 800;
-            border: 1px solid var(--border-color); color: var(--text-muted); background: rgba(255,255,255,0.02);
-        }
-        .lesson-mini-step.rm-done { background: rgba(0,243,255,0.12); color: var(--accent-cyan); border-color: var(--accent-cyan); }
-        .lesson-mini-step.rm-teaching { background: rgba(255,245,0,0.12); color: var(--accent-yellow); border-color: var(--accent-yellow); }
         .lesson-grid-card-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 0.2rem; }
         .lesson-grid-card-delete {
             background: transparent; color: #ff4545; border: 1px solid #2a0000; box-shadow: none;
@@ -127,7 +120,29 @@
         }
         .lesson-list-empty-state { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 2rem 0; }
 
-        .new-lesson-form { display: flex; flex-direction: column; gap: 1rem; }
+        .new-lesson-form { display: flex; flex-direction: column; }
+        .new-lesson-toggle {
+            display: flex; justify-content: space-between; align-items: center; width: 100%;
+            background: none; border: none; color: var(--text-main); cursor: pointer;
+            font-weight: 900; font-size: 1.05rem; padding: 0.2rem 0;
+        }
+        .new-lesson-toggle-icon { color: var(--accent-cyan); font-size: 0.9rem; transition: transform 0.2s ease; flex-shrink: 0; }
+        .new-lesson-toggle.open .new-lesson-toggle-icon { transform: rotate(180deg); }
+        .new-lesson-body { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
+        .new-lesson-body.hidden { display: none; }
+
+        /* ▶ 続きから再開カード */
+        .continue-card {
+            display: flex; align-items: center; justify-content: space-between; gap: 0.8rem;
+            padding: 1rem 1.1rem; margin-bottom: 1rem; cursor: pointer;
+            border: 1px solid var(--accent-yellow); background: rgba(255,245,0,0.06);
+            box-shadow: 4px 4px 0px rgba(255,245,0,0.15);
+        }
+        .continue-card:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0px rgba(255,245,0,0.2); }
+        .continue-card-label { font-size: 0.7rem; font-weight: 800; color: var(--accent-yellow); margin-bottom: 0.25rem; }
+        .continue-card-title { font-weight: 800; font-size: 0.95rem; line-height: 1.3; }
+        .continue-card-meta { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem; }
+        .continue-card-arrow { font-size: 1.3rem; color: var(--accent-yellow); flex-shrink: 0; }
         .file-drop-label { border: 1px dashed #3a3a4a; border-radius: 14px; padding: 1.2rem; text-align: center; cursor: pointer; color: var(--text-muted); font-size: 0.9rem; }
         .file-drop-label:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
         .thumb-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
@@ -622,9 +637,15 @@
 
         <!-- ============ 一覧・新規作成 ============ -->
         <div id="view-list">
-            <div class="squircle-card new-lesson-form">
-                <div style="font-weight:900; font-size:1.05rem;">🆕 新しい授業を始める</div>
+            <div id="continue-card-wrap"></div>
 
+            <div class="squircle-card new-lesson-form">
+                <button type="button" class="new-lesson-toggle" id="new-lesson-toggle">
+                    <span>🆕 新しい授業を始める</span>
+                    <span class="new-lesson-toggle-icon" id="new-lesson-toggle-icon">▾</span>
+                </button>
+
+                <div id="new-lesson-body" class="new-lesson-body hidden">
                 <!-- 🌟 授業スタイル選択スイッチ -->
                 <div>
                     <label style="font-size:0.82rem; font-weight:800; color:var(--text-muted); display:block; margin-bottom:0.4rem;">
@@ -687,6 +708,7 @@
                 <button type="button" class="tactile-btn" id="generate-plan-btn" style="background: var(--accent-yellow); color:#000; box-shadow: 3px 3px 0px #a89f00; margin-top: 0.8rem;">
                     🧑‍🏫 授業プランを作ってもらう
                 </button>
+                </div>
             </div>
 
             <div id="roadmap-wrap" style="display:none; margin-bottom: 1.2rem;">
@@ -695,7 +717,7 @@
             </div>
 
             <div id="lesson-list-wrap">
-                <div style="font-weight:900; font-size:1rem; margin: 0.5rem 0;">📚 これまでの授業</div>
+                <div style="font-weight:900; font-size:1rem; margin: 0.5rem 0;">📚 その他の授業</div>
                 <div class="lesson-list-toolbar">
                     <input type="text" class="lesson-search-input" id="lesson-search-input" placeholder="🔍 授業名で検索...">
                     <div class="lesson-subject-chips" id="lesson-subject-chips"></div>
@@ -947,6 +969,16 @@
         }
         el("mode-tab-photo").addEventListener("click", () => setCreationMode("photo"));
         el("mode-tab-topic").addEventListener("click", () => setCreationMode("topic"));
+
+        // 🆕 新しい授業を始める：アコーディオン開閉
+        function setNewLessonFormOpen(open) {
+            el("new-lesson-body").classList.toggle("hidden", !open);
+            el("new-lesson-toggle").classList.toggle("open", open);
+        }
+        el("new-lesson-toggle").addEventListener("click", () => {
+            const isOpen = !el("new-lesson-body").classList.contains("hidden");
+            setNewLessonFormOpen(!isOpen);
+        });
 
         let chatSelectedImages = [];
         let draftPlan = null;
@@ -1387,6 +1419,39 @@ ${socraticAddon}
         let lessonListSearchQuery = "";
         let lessonListSubjectFilter = "すべて";
 
+        // ▶ 続きから再開：未完了の授業のうち最新のものを1枚だけ大きく出す
+        function renderContinueCard(lessonsObj) {
+            const wrap = el("continue-card-wrap");
+            if (!wrap) return;
+            const lessons = Object.values(lessonsObj || {})
+                .filter(l => l.status !== "completed")
+                .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+            if (lessons.length === 0) {
+                wrap.innerHTML = "";
+                return;
+            }
+            const l = lessons[0];
+            const total = (l.parts || []).length;
+            const partLabel = total ? `パート ${((l.currentPartIndex || 0) + 1)}/${total}` : "進行中";
+            const updated = new Date(l.updatedAt).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
+
+            wrap.innerHTML = `
+                <div class="squircle-tile continue-card" id="continue-card-btn">
+                    <div>
+                        <div class="continue-card-label">▶ 続きから再開</div>
+                        <div class="continue-card-title">${(l.title || "無題の授業").replace(/</g, "&lt;")}</div>
+                        <div class="continue-card-meta">${partLabel} ｜ 🗓️ 前回 ${updated}</div>
+                    </div>
+                    <div class="continue-card-arrow">→</div>
+                </div>
+            `;
+            el("continue-card-btn").addEventListener("click", () => {
+                window.location.href = `lesson.html?id=${l.id}`;
+            });
+        }
+
+
         function computeTopicSlotsMap(lessonsObj) {
             const lessons = Object.values(lessonsObj || {});
             const map = {};
@@ -1402,10 +1467,9 @@ ${socraticAddon}
             return map;
         }
 
-        function renderLessonSubjectChips(lessonsObj) {
+        function renderLessonSubjectChips(lessons) {
             const wrap = el("lesson-subject-chips");
             if (!wrap) return;
-            const lessons = Object.values(lessonsObj || {});
             const counts = {};
             lessons.forEach(l => {
                 const s = detectLessonSubject(l);
@@ -1427,7 +1491,7 @@ ${socraticAddon}
             });
         }
 
-        function renderLessonCardHtml(l, topicSlotsMap) {
+        function renderLessonCardHtml(l) {
             const total = (l.parts || []).length;
             const done = l.status === "completed";
             const badgeClass = done ? "badge-completed" : "badge-teaching";
@@ -1443,18 +1507,6 @@ ${socraticAddon}
                 ? `<button type="button" class="tactile-btn lesson-levelup-btn" data-levelup-id="${l.id}" style="font-size:0.68rem; padding:0.3rem 0.6rem; background:transparent; color:var(--accent-yellow); border:1px solid var(--accent-yellow); box-shadow:none;">🎓 ${LEVEL_SHORT[LEVEL_ORDER.indexOf(nxt)]}へ</button>`
                 : "";
 
-            // 🪜 レベル別4段階のミニ表示（このレッスンが単元ロードマップに属する場合のみ）
-            let miniRoadmapHtml = "";
-            if (l.topicKey && topicSlotsMap[l.topicKey]) {
-                const slots = topicSlotsMap[l.topicKey];
-                const stepsHtml = slots.map((s, i) => {
-                    let cls = "lesson-mini-step";
-                    if (s) cls += (s.status === "completed") ? " rm-done" : " rm-teaching";
-                    return `<div class="${cls}">${LEVEL_SHORT[i].slice(0, 2)}</div>`;
-                }).join("");
-                miniRoadmapHtml = `<div class="lesson-grid-card-mini-roadmap">${stepsHtml}</div>`;
-            }
-
             return `
                 <div class="squircle-tile lesson-grid-card" data-lesson-id="${l.id}">
                     <div class="lesson-grid-card-top">
@@ -1462,7 +1514,6 @@ ${socraticAddon}
                         ${l.level ? `<span class="lesson-level-badge">🎚️ ${LEVEL_SHORT[l.levelIndex] || l.level}</span>` : ""}
                     </div>
                     <div class="lesson-grid-card-title">${(l.title || "無題の授業").replace(/</g, "&lt;")}</div>
-                    ${miniRoadmapHtml}
                     <div class="lesson-grid-card-meta">
                         ${styleBadge}
                         <span>🗓️ ${updated}</span>
@@ -1476,10 +1527,15 @@ ${socraticAddon}
         }
 
         function renderLessonList(lessonsObj) {
-            const allLessons = Object.values(lessonsObj || {}).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+            // 🪜 単元ロードマップに属する授業(topicKey+level持ち)は、上のロードマップ側で
+            //    一元管理する（レベルアップの開始もロードマップの「＋」ステップから行える）ため、
+            //    ここでは対象外にして二重表示を避ける。
+            const allLessons = Object.values(lessonsObj || {})
+                .filter(l => !(l.topicKey && l.level))
+                .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
             const listEl = el("lesson-list");
 
-            renderLessonSubjectChips(lessonsObj);
+            renderLessonSubjectChips(allLessons);
 
             const query = lessonListSearchQuery.trim().toLowerCase();
             const filtered = allLessons.filter(l => {
@@ -1489,8 +1545,11 @@ ${socraticAddon}
             });
 
             if (allLessons.length === 0) {
+                const hasAnyLesson = Object.keys(lessonsObj || {}).length > 0;
                 el("lesson-list-empty").style.display = "block";
-                el("lesson-list-empty").textContent = "まだ授業履歴はありません。";
+                el("lesson-list-empty").textContent = hasAnyLesson
+                    ? "単元ロードマップ以外の授業はまだありません。"
+                    : "まだ授業履歴はありません。";
                 listEl.innerHTML = "";
                 return;
             }
@@ -1501,8 +1560,6 @@ ${socraticAddon}
                 return;
             }
             el("lesson-list-empty").style.display = "none";
-
-            const topicSlotsMap = computeTopicSlotsMap(lessonsObj);
 
             // 教科ごとにグループ化（各グループ内は更新日時順）
             const groups = {};
@@ -1520,7 +1577,7 @@ ${socraticAddon}
                         <span class="lesson-subject-group-count">${groups[subject].length}件</span>
                     </div>
                     <div class="lesson-grid">
-                        ${groups[subject].map(l => renderLessonCardHtml(l, topicSlotsMap)).join("")}
+                        ${groups[subject].map(l => renderLessonCardHtml(l)).join("")}
                     </div>
                 </div>
             `).join("");
@@ -2437,6 +2494,7 @@ ${GAL_SENSEI_PERSONA_PROMPT}
             } else {
                 onValue(ref(database, 'users/' + loginUid + '/lessons'), (snapshot) => {
                     lastLessonsSnapshot = snapshot.val() || {};
+                    renderContinueCard(lastLessonsSnapshot);
                     renderLessonList(lastLessonsSnapshot);
                     renderContinuationOptions(lastLessonsSnapshot);
                     renderTopicRoadmap(lastLessonsSnapshot);
