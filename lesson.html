@@ -440,25 +440,6 @@
             line-height: 1.45;
         }
 
-        .lesson-note-textarea {
-            width: 100%;
-            flex-grow: 1;
-            min-height: 250px;
-            background: #000;
-            border: 1px solid #22222a;
-            color: #fff;
-            padding: 0.9rem;
-            border-radius: 12px;
-            font-size: 0.88rem;
-            line-height: 1.6;
-            font-family: inherit;
-            resize: none;
-        }
-        .lesson-note-textarea:focus {
-            outline: none;
-            border-color: var(--accent-cyan);
-        }
-
         .source-text-box {
             background: #000;
             border: 1px solid #1a2a35;
@@ -476,6 +457,43 @@
         .chat-input-wrap { display: flex; flex-direction: column; gap: 0.5rem; border-top: 1px solid #1a2a35; padding-top: 1rem; margin-top: 0.5rem; }
         .chat-input-row { display: flex; gap: 0.5rem; }
         .chat-input { flex-grow: 1; background: #000; border: 1px solid #222; padding: 0.7rem 1rem; color: #fff; border-radius: 10px; }
+
+        /* 🖼️ 図解リクエスト */
+        .diagram-request-btn {
+            background: rgba(255, 245, 0, 0.08);
+            border: 1px solid var(--accent-yellow);
+            color: var(--accent-yellow);
+            box-shadow: none;
+            font-size: 0.85rem;
+        }
+        .diagram-request-btn:hover { background: rgba(255, 245, 0, 0.16); }
+        .diagram-request-row { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
+        .diagram-request-row.hidden { display: none; }
+        .diagram-request-input {
+            flex-grow: 1; background: #000; border: 1px solid var(--accent-yellow);
+            padding: 0.6rem 0.9rem; color: #fff; border-radius: 10px; font-size: 0.9rem;
+        }
+        .ai-diagram-box {
+            margin-top: 0.8rem;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 245, 0, 0.25);
+            border-radius: 12px;
+            padding: 0.8rem;
+            overflow-x: auto;
+        }
+        .ai-diagram-box svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+
+        /* 📝 授業メモ一覧 */
+        .memo-add-row { display: flex; gap: 0.5rem; margin-bottom: 0.9rem; }
+        .memo-add-input { flex-grow: 1; background: #000; border: 1px solid #22222a; color: #fff; padding: 0.6rem 0.8rem; border-radius: 10px; font-size: 0.85rem; }
+        .lesson-memo-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .lesson-memo-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-left: 3px solid var(--accent-yellow); border-radius: 0 10px 10px 0; padding: 0.6rem 0.8rem; }
+        .lesson-memo-item-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+        .lesson-memo-text { font-size: 0.85rem; color: var(--text-bright-muted); line-height: 1.5; flex-grow: 1; white-space: pre-wrap; }
+        .lesson-memo-meta { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.35rem; }
+        .lesson-memo-del-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; flex-shrink: 0; line-height: 1; padding: 0.1rem; }
+        .lesson-memo-del-btn:hover { color: var(--accent-magenta); }
+        .lesson-memo-empty { font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 1.4rem 0; }
         .chat-attach-btn {
             flex-shrink: 0;
             display: inline-flex;
@@ -685,9 +703,16 @@
                             <input type="text" class="chat-input" id="chat-input" placeholder="このパートについて質問する...（📷で該当ページの写真を添付できます）">
                             <button type="button" class="tactile-btn" id="send-chat-btn">送信</button>
                         </div>
+                        <div class="diagram-request-row hidden" id="diagram-request-row">
+                            <input type="text" class="diagram-request-input" id="diagram-request-input" placeholder="例: 円と接線の位置関係を図にして">
+                            <button type="button" class="tactile-btn diagram-request-btn" id="diagram-request-send-btn">送信</button>
+                        </div>
                     </div>
 
                     <div class="lesson-controls">
+                        <button type="button" class="tactile-btn diagram-request-btn" id="request-diagram-btn">
+                            🖼️ 図で説明してほしい
+                        </button>
                         <button type="button" class="tactile-btn" id="trigger-drill-btn" style="background: rgba(0, 243, 255, 0.12); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); box-shadow: none;">
                             ⚡ 類題で即時アウトプット
                         </button>
@@ -711,16 +736,16 @@
                         <div id="lesson-parts-toc-list" class="parts-toc-container"></div>
                     </div>
 
-                    <!-- パネル2: 授業ノート -->
+                    <!-- パネル2: 授業メモ一覧 -->
                     <div class="sidebar-panel" id="tab-notes">
                         <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.6rem; font-weight: 700;">
-                            ✏️ 授業で気づいたことや要点をメモ（自動保存）
+                            ✏️ 授業で気づいたことをその場でメモ（一覧で残ります）
                         </div>
-                        <textarea class="lesson-note-textarea" id="lesson-note-input" placeholder="例: ベクトルの内積の公式：a・b = a1b1 + a2b2 + a3b3&#10;・垂直条件は a・b = 0"></textarea>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
-                            <span id="note-save-status" style="font-size: 0.75rem; color: var(--text-muted);">クラウド同期中</span>
-                            <button type="button" class="tactile-btn" id="save-lesson-note-btn" style="font-size: 0.75rem; padding: 0.3rem 0.8rem; background: var(--accent-cyan); color:#000; box-shadow: 2px 2px 0px #008b94;">💾 保存</button>
+                        <div class="memo-add-row">
+                            <input type="text" class="memo-add-input" id="memo-add-input" placeholder="気づいたことを入力してEnter">
+                            <button type="button" class="tactile-btn" id="memo-add-btn" style="font-size: 0.75rem; padding: 0.5rem 0.9rem; background: var(--accent-cyan); color:#000; box-shadow: 2px 2px 0px #008b94;">＋追加</button>
                         </div>
+                        <div id="lesson-memo-list" class="lesson-memo-list"></div>
                     </div>
 
                     <!-- パネル3: 原本テキスト -->
@@ -1419,9 +1444,10 @@ ${socraticAddon}
             type: "OBJECT",
             properties: {
                 ai_response: { type: "STRING" },
-                current_step_label: { type: "STRING" }
+                current_step_label: { type: "STRING" },
+                diagram_svg: { type: "STRING" }
             },
-            required: ["ai_response", "current_step_label"]
+            required: ["ai_response", "current_step_label", "diagram_svg"]
         };
 
         function buildTeachSystemInstruction(idxOverride) {
@@ -1488,11 +1514,34 @@ ${parts.map((p, i) => `${i + 1}. ${p.title} - ${p.summary}`).join("\n")}
 
 ${socraticInstructionBlock}
 
+【図解ルール（diagram_svg）】：
+生徒のメッセージが「【図解リクエスト】」で始まっている場合、または生徒が図・イメージでの説明を明確に求めている場合は、diagram_svgに図解を必ず入れること。
+・viewBox="0 0 400 300" 程度のシンプルなSVGコードのみを文字列として入れること（<svg>タグから始め、説明文やMarkdownのコードブロック記法は含めないこと）。
+・背景は透明、線や図形の色は #ffffff, #00f3ff, #ff007f, #fff500 のいずれかを使い、視認性を優先すること。
+・生徒のリクエストが漠然としている場合は、直前の授業内容の中で最も視覚化しやすい部分を判断して図解すること。
+・図解が不要な通常のやり取りでは、diagram_svgは空文字列（""）にすること。
+
 返答は以下のJSONのみ（説明不要）：
 {
   "ai_response": "授業内容、または生徒の質問への回答（数式は $ $ を使用し、手順ごとに改行を入れて読みやすく）",
-  "current_step_label": "このパートの授業状況を一言で（例: 問いかけ中、講評中 など）"
+  "current_step_label": "このパートの授業状況を一言で（例: 問いかけ中、講評中 など）",
+  "diagram_svg": "図解が必要な場合のみSVGコード全体。不要なら空文字列"
 }`;
+        }
+
+        // 🩹 AIが生成したSVGから危険なタグ・属性を除去する簡易サニタイザー
+        function sanitizeDiagramSvg(svg) {
+            if (!svg || typeof svg !== "string") return "";
+            let cleaned = svg.trim();
+            const startIdx = cleaned.indexOf("<svg");
+            if (startIdx === -1) return "";
+            cleaned = cleaned.slice(startIdx);
+            cleaned = cleaned
+                .replace(/<script[\s\S]*?<\/script>/gi, "")
+                .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
+                .replace(/\son\w+\s*=\s*'[^']*'/gi, "")
+                .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "");
+            return cleaned;
         }
 
         // 🩹【修正・強化】AIのLaTeX記法ミス（^ \circ, \perpl 等）を自動修復するサニタイザー
@@ -1544,7 +1593,10 @@ ${socraticInstructionBlock}
                         : "";
                     return `<div class="chat-bubble bubble-user">${imagesHtml}${m.content}</div>`;
                 }
-                return `<div class="chat-bubble bubble-ai ${isSocratic ? 'socratic-bubble' : ''} tex2jax_process">${renderFormattedMarkdown(m.content)}</div>`;
+                const diagramHtml = m.diagramSvg
+                    ? `<div class="ai-diagram-box">${m.diagramSvg}</div>`
+                    : "";
+                return `<div class="chat-bubble bubble-ai ${isSocratic ? 'socratic-bubble' : ''} tex2jax_process">${renderFormattedMarkdown(m.content)}${diagramHtml}</div>`;
             }).join("");
             wrap.scrollTop = wrap.scrollHeight;
         }
@@ -1835,34 +1887,70 @@ ${socraticInstructionBlock}
         })();
 
         function initLessonNotes() {
-            const noteInput = el("lesson-note-input");
-            const saveBtn = el("save-lesson-note-btn");
-            const statusSpan = el("note-save-status");
-            if (!noteInput) return;
+            renderLessonMemos();
 
-            noteInput.value = currentLesson.lessonNote || "";
+            const addInput = el("memo-add-input");
+            const addBtn = el("memo-add-btn");
+            if (!addInput || !addBtn) return;
 
-            let saveTimeout = null;
-            async function triggerSaveNote() {
-                if (!currentLesson || !loginUid) return;
-                if (statusSpan) statusSpan.textContent = "⚙️ 保存中...";
-                currentLesson.lessonNote = noteInput.value;
-                await saveLesson();
-                if (statusSpan) statusSpan.textContent = "クラウド同期完了";
-            }
+            addBtn.addEventListener("click", () => addLessonMemo());
+            addInput.addEventListener("keydown", (e) => { if (e.key === "Enter") addLessonMemo(); });
+        }
 
-            noteInput.addEventListener("input", () => {
-                if (statusSpan) statusSpan.textContent = "未保存の変更あり...";
-                clearTimeout(saveTimeout);
-                saveTimeout = setTimeout(triggerSaveNote, 1200);
+        async function addLessonMemo() {
+            const input = el("memo-add-input");
+            const text = input.value.trim();
+            if (!text || !currentLesson) return;
+
+            if (!Array.isArray(currentLesson.lessonMemos)) currentLesson.lessonMemos = [];
+            currentLesson.lessonMemos.unshift({
+                id: "memo_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+                text,
+                createdAt: new Date().toISOString(),
+                partIndex: currentLesson.currentPartIndex
             });
 
-            if (saveBtn) {
-                saveBtn.addEventListener("click", () => {
-                    clearTimeout(saveTimeout);
-                    triggerSaveNote();
-                });
+            input.value = "";
+            renderLessonMemos();
+            await forceTriggerMathJax();
+            await saveLesson();
+        }
+
+        async function deleteLessonMemo(memoId) {
+            if (!currentLesson || !Array.isArray(currentLesson.lessonMemos)) return;
+            currentLesson.lessonMemos = currentLesson.lessonMemos.filter(m => m.id !== memoId);
+            renderLessonMemos();
+            await saveLesson();
+        }
+
+        function formatMemoDate(iso) {
+            const d = new Date(iso);
+            if (isNaN(d.getTime())) return "";
+            return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+        }
+
+        function renderLessonMemos() {
+            const container = el("lesson-memo-list");
+            if (!container || !currentLesson) return;
+            const memos = Array.isArray(currentLesson.lessonMemos) ? currentLesson.lessonMemos : [];
+
+            if (memos.length === 0) {
+                container.innerHTML = `<div class="lesson-memo-empty">まだメモがありません。<br>授業中に気づいたことを書き留めましょう。</div>`;
+                return;
             }
+
+            container.innerHTML = memos.map(m => {
+                const partLabel = (typeof m.partIndex === "number" && currentLesson.parts && currentLesson.parts[m.partIndex])
+                    ? `第${m.partIndex + 1}回` : "";
+                return `
+                <div class="lesson-memo-item">
+                    <div class="lesson-memo-item-top">
+                        <div class="lesson-memo-text tex2jax_process">${renderFormattedMarkdown(m.text)}</div>
+                        <button type="button" class="lesson-memo-del-btn" onclick="deleteLessonMemo('${m.id}')" title="削除">🗑</button>
+                    </div>
+                    <div class="lesson-memo-meta">${partLabel ? partLabel + " ・ " : ""}🗓️ ${formatMemoDate(m.createdAt)}</div>
+                </div>`;
+            }).join("");
         }
 
         function renderSourceText() {
@@ -1963,7 +2051,10 @@ ${socraticInstructionBlock}
                 }
                 currentLesson.chatHistory.push(userEntry);
             }
-            currentLesson.chatHistory.push({ role: "assistant", content: aiJson.ai_response || "（応答の取得に失敗しました）" });
+            const assistantEntry = { role: "assistant", content: aiJson.ai_response || "（応答の取得に失敗しました）" };
+            const cleanedSvg = sanitizeDiagramSvg(aiJson.diagram_svg);
+            if (cleanedSvg) assistantEntry.diagramSvg = cleanedSvg;
+            currentLesson.chatHistory.push(assistantEntry);
 
             await saveLesson();
             renderChatTranscript();
@@ -1972,6 +2063,39 @@ ${socraticInstructionBlock}
 
         el("send-chat-btn").addEventListener("click", () => submitChatInput());
         el("chat-input").addEventListener("keydown", (e) => { if (e.key === "Enter") submitChatInput(); });
+
+        el("request-diagram-btn").addEventListener("click", () => {
+            const row = el("diagram-request-row");
+            row.classList.toggle("hidden");
+            if (!row.classList.contains("hidden")) el("diagram-request-input").focus();
+        });
+
+        async function submitDiagramRequest() {
+            if (!currentLesson) return;
+            const input = el("diagram-request-input");
+            const req = input.value.trim();
+            if (!req) return;
+
+            input.value = "";
+            el("diagram-request-row").classList.add("hidden");
+
+            const btn = el("diagram-request-send-btn");
+            btn.disabled = true;
+            try {
+                await sendTurn(
+                    `【図解リクエスト】${req}`,
+                    `生徒が「${req}」という内容を図（SVG）で見たいと要求しています。diagram_svgに必ず該当する図を入れて、ai_responseでは図の補足説明を簡潔に添えてください。`
+                );
+            } catch (err) {
+                console.error(err);
+                showToast("図解の生成に失敗しました。原因: " + err.message, "error", 8000);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        el("diagram-request-send-btn").addEventListener("click", () => submitDiagramRequest());
+        el("diagram-request-input").addEventListener("keydown", (e) => { if (e.key === "Enter") submitDiagramRequest(); });
 
         async function submitChatInput() {
             const input = el("chat-input");
