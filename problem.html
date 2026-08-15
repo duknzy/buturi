@@ -565,6 +565,7 @@
                 <a href="#" onclick="openTimerPopout(event)" class="nav-btn" title="別ウィンドウでタイマーを開く">🗔 小窓</a>
                 <a href="#" onclick="openLogPopout(event)" class="nav-btn" title="24hログを小窓で開く">📊 24hログ</a>
                 <a href="#" onclick="openGooglePhotosPopout(event)" class="nav-btn" title="Google Photosを小窓で開く">📷 Photos</a>
+            </div>
         </nav>
         <script src="global-timer-sync.js"></script>
         <script>
@@ -1598,9 +1599,8 @@ ${glossaryBlock}`;
                             name: { type: "STRING" },
                             year: { type: "STRING" },
                             year_sort: { type: "INTEGER" },
-                            region: { type: "STRING", enum: HISTORY_REGIONS }
-                        },
-                        required: ["name", "year", "year_sort", "region"]
+                            region: { type: "STRING" }
+                        }
                     }
                 }
             },
@@ -1619,8 +1619,9 @@ ${glossaryBlock}`;
 
         async function callAnalysisEngine(instructionText, systemInstruction, responseSchema) {
             if (ACTIVE_ENGINE === "deepseek") {
-                if (getProblemImages(currentProblemData).length > 0 && !currentProblemData.title) {
-                    throw new Error("DeepSeekは画像を直接読み取れません。先に✨Geminiで一度解析して問題文を文字起こしするか、問題文を手動で入力してから再度お試しください。");
+                const analysisImages = getProblemImages(currentProblemData);
+                if (analysisImages.length > 0 && !currentProblemData.title) {
+                    throw new Error("DeepSeekは画像を直接読み取れません。右上のトグルで✨Geminiに切り替えて解析してください。");
                 }
                 const deepseekBody = JSON.stringify({
                     "model": MODEL_NAME,
@@ -1632,7 +1633,7 @@ ${glossaryBlock}`;
                     "thinking": { "type": "enabled" },
                     "reasoning_effort": "high",
                     "response_format": { "type": "json_object" },
-                    "max_tokens": 8192 // 💡 未指定だとthinkingで使い切ってcontentが空のまま打ち切られることがあるため明示
+                    "max_tokens": 8192
                 });
 
                 const MAX_DEEPSEEK_ATTEMPTS = 3;
@@ -1665,15 +1666,15 @@ ${glossaryBlock}`;
                     }
 
                     try {
-    return cleanDeepSeekResponse(rawText);
-} catch (parseErr) {
-    console.warn(`⚠️ DeepSeekの応答が不正なJSONでした（${attempt}/${MAX_DEEPSEEK_ATTEMPTS}回目）→ リトライ`, parseErr);
-    deepseekLastError = parseErr;
-    continue;
-}
+                        return cleanDeepSeekResponse(rawText);
+                    } catch (parseErr) {
+                        console.warn(`⚠️ DeepSeekの応答が不正なJSONでした（${attempt}/${MAX_DEEPSEEK_ATTEMPTS}回目）→ リトライ`, parseErr);
+                        deepseekLastError = parseErr;
+                        continue;
+                    }
                 }
 
-                throw new Error(`DeepSeekブレインが${MAX_DEEPSEEK_ATTEMPTS}回連続で空/不正な応答を返しました（DeepSeek側の既知の仕様上の問題です）。もう一度実行するか、✨Geminiに切り替えてみてください。\n最終エラー: ${deepseekLastError?.message || "不明"}`);
+                throw new Error(`DeepSeekブレインの応答取得に失敗しました。✨Geminiに切り替えてお試しください。\n最終エラー: ${deepseekLastError?.message || "不明"}`);
 
             } else {
                 // ✨ Gemini（画像入力対応・複数枚まとめて送信可）
@@ -1682,28 +1683,37 @@ ${glossaryBlock}`;
                 if (analysisImages.length > 0) {
                     try {
                         analysisImages.forEach(imageData => {
-                            let base64Raw = imageData.split(",")[1];
-                            let mimeType = imageData.split(",")[0].split(":")[1].split(";")[0];
-                            parts.push({ "inlineData": { "mimeType": mimeType, "data": base64Raw } });
+                            if (!imageData || typeof imageData !== "string") return;
+                            let base64Raw = "";
+                            let mimeType = "image/jpeg";
+                            if (imageData.startsWith("data:")) {
+                                const partsArr = imageData.split(",");
+                                base64Raw = partsArr[1] || "";
+                                const match = partsArr[0].match(/:(.*?);/);
+                                if (match) mimeType = match[1];
+                            } else {
+                                base64Raw = imageData;
+                            }
+                            if (base64Raw) {
+                                parts.push({ "inlineData": { "mimeType": mimeType, "data": base64Raw } });
+                            }
                         });
-                        // 🖼️【複数枚対応】写真が複数枚ある場合、それらは同じ1つの登録済み問題の
-                        // 異なるページ・カット（問題文ページ＋解答用紙など）であることをAIに明示する
                         if (analysisImages.length > 1) {
-                            parts[0].text += `\n\n【重要】画像は${analysisImages.length}枚提出されていますが、これらは全て同じ1つの問題に関する別々のページ・カット（例：問題文のページと、生徒が実際に解いた解答用紙のページなど）です。複数の異なる問題として分割せず、すべての画像の情報を統合して、この1問についての内容として解析してください。`;
+                            parts[0].text += `\n\n【重要】画像は${analysisImages.length}枚提出されていますが、これらは全て同じ1つの問題に関する別々のページ・カットです。すべての画像の情報を統合して、この1問についての内容として解析してください。`;
                         }
                     } catch (e) {
-                        console.error("画像の読み込みに失敗したため、テキストのみで解析を実行します。");
+                        console.error("画像の読み込みに失敗したため、テキストのみで解析を実行します。", e);
                     }
                 }
 
-                // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
                 return await callGeminiJSON(parts, systemInstruction, { temperature: 0.3, responseSchema: responseSchema || undefined });
             }
         }
 
-        async function runOnDemandAnalysis() {
-            // 画像も問題文テキストも両方ない場合はエラー
-            if (!loginUid || (getProblemImages(currentProblemData).length === 0 && !currentProblemData.title)) {
+       async function runOnDemandAnalysis() {
+            const problemImages = getProblemImages(currentProblemData);
+            const hasData = problemImages.length > 0 || currentProblemData.title || currentProblemData.short_title;
+            if (!loginUid || !hasData) {
                 showToast("解析可能なデータ（画像または手動入力された問題文）が見つかりません。", "error");
                 return;
             }
@@ -1713,15 +1723,12 @@ ${glossaryBlock}`;
             analyzeBtn.textContent = `⚙️ ${getEngineLabel(ACTIVE_ENGINE)}で爆速解析中...`;
             analyzeBtn.disabled = true;
 
-            // 基本の指示文
             let instructionText = "提出されたデータを解析し、最終的な『正しい答え（model_answer）』も含めて指定のJSONで返してください。";
 
-            // 手動登録された問題文があれば、テキストをプロンプトに追加
             if (currentProblemData.title) {
                 instructionText += `\n\n【解析対象の問題文】\n${currentProblemData.title}`;
             }
 
-            // ユーザーが選んだ教科に応じたプロンプトを使用（未選択時は数学扱い）
             const subjectSelectEl = document.getElementById("on-demand-subject-select");
             const chosenSubject = (subjectSelectEl && subjectSelectEl.value) || "数学";
 
@@ -1748,8 +1755,11 @@ ${glossaryBlock}`;
             } catch (error) {
                 console.error(error);
                 showToast("オンデマンド解析に失敗しました。原因: " + error.message, "error", 8000);
-                analyzeBtn.textContent = originalBtnText;
-                analyzeBtn.disabled = false;
+            } finally {
+                if (analyzeBtn) {
+                    analyzeBtn.textContent = originalBtnText;
+                    analyzeBtn.disabled = false;
+                }
             }
         }
 
@@ -1791,8 +1801,11 @@ trap_description（罠）とstrategy_pattern（定石）は、情熱的なオネ
             } catch (error) {
                 console.error(error);
                 showToast("定石・罠の解説の生成に失敗しました。原因: " + error.message, "error", 8000);
-                btn.textContent = originalText;
-                btn.disabled = false;
+            } finally {
+                if (btn) {
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }
             }
         }
 
@@ -1820,13 +1833,13 @@ trap_description（罠）とstrategy_pattern（定石）は、情熱的なオネ
         }
 
         function cleanDeepSeekResponse(rawText) {
-    let text = (rawText || "").trim();
-    if (text.includes("</think>")) {
-        text = text.split("</think>")[1].trim();
-    }
-    const cleanJsonStr = fixJsonEscapes(extractJsonObject(stripCodeFence(text)));
-    return JSON.parse(cleanJsonStr);
-}
+            let text = (rawText || "").trim();
+            if (text.includes("</think>")) {
+                text = text.split("</think>").pop().trim();
+            }
+            const cleanJsonStr = fixJsonEscapes(extractJsonObject(stripCodeFence(text)));
+            return JSON.parse(cleanJsonStr);
+        }
 
         async function sendMessageToTutor(studentMessage) {
             if (currentProblemData.subject === "未分類") {
@@ -2164,7 +2177,9 @@ trap_description（罠）とstrategy_pattern（定石）は、情熱的なオネ
         }
 
         async function runRegenerateAnalysis() {
-            if (!loginUid || (getProblemImages(currentProblemData).length === 0 && !currentProblemData.title)) {
+            const problemImages = getProblemImages(currentProblemData);
+            const hasData = problemImages.length > 0 || currentProblemData.title || currentProblemData.short_title || currentProblemData.answerFormula;
+            if (!loginUid || !hasData) {
                 showToast("再解析可能なデータが見つかりません。", "error");
                 return;
             }
@@ -2205,15 +2220,12 @@ trap_description（罠）とstrategy_pattern（定石）は、情熱的なオネ
                 currentProblemData.trap_description = aiResult.trap_description || currentProblemData.trap_description || "";
                 currentProblemData.strategyPattern = aiResult.strategy_pattern || currentProblemData.strategyPattern || "";
                 currentProblemData.answerFormula = aiResult.model_answer || currentProblemData.answerFormula || "解説データなし";
-                // 💡【修正】undefined にならないよう空文字/空配列を確実にフォールバック
                 currentProblemData.mnemonic = (aiResult.mnemonic !== undefined) ? (aiResult.mnemonic || "") : (currentProblemData.mnemonic || "");
                 currentProblemData.events = Array.isArray(aiResult.events) ? aiResult.events : (Array.isArray(currentProblemData.events) ? currentProblemData.events : []);
                 currentProblemData.lastAnswerEngine = ACTIVE_ENGINE || "gemini";
 
-                // 💡 Firebase保存前にオブジェクト全体の undefined を完全除去して安全化
                 const sanitizedData = JSON.parse(JSON.stringify(currentProblemData));
 
-                // Firebaseのデータを上書き保存して同期
                 const probRef = ref(database, 'users/' + loginUid + '/problems/' + PROBLEM_ID);
                 await set(probRef, sanitizedData);
 
@@ -2225,11 +2237,13 @@ trap_description（罠）とstrategy_pattern（定石）は、情熱的なオネ
             } catch (error) {
                 console.error(error);
                 showToast("再解析の実行中にエラーが発生しました。原因: " + error.message, "error", 8000);
-                regenBtn.innerHTML = originalText;
-                regenBtn.disabled = false;
+            } finally {
+                if (regenBtn) {
+                    regenBtn.innerHTML = originalText;
+                    regenBtn.disabled = false;
+                }
             }
         }
-
         // リスナーバインド
         const regenBtnEl = document.getElementById("regenerate-analysis-btn");
         if (regenBtnEl) {
@@ -2471,12 +2485,11 @@ trap_description（罠）とstrategy_pattern（定石）は、情熱的なオネ
 
             const promptText = `【元の問題文】\n${currentProblemData.title || "（問題文なし）"}\n\n【AIチューターとの質問チャット全文】\n${conversationText}`;
 
-            // 🔒 levelは列挙値なので、enumで選択肢自体をAPI側で強制する
             const stuckTopicResponseSchema = {
                 type: "OBJECT",
                 properties: {
                     topic: { type: "STRING" },
-                    level: { type: "STRING", enum: LEVEL_OPTIONS },
+                    level: { type: "STRING" },
                     note: { type: "STRING" }
                 },
                 required: ["topic", "level", "note"]
