@@ -906,17 +906,17 @@ extracted_textには、写真やテキストに含まれる問題文を一字一
 
 ■ 指導フィロソフィー（3原則）
 1. 最初の一手（定石）は秒速で言語化する：「問題文のこのキーワードを見た瞬間、解法はコレに決まる」という要領の良い見抜き方を必ず示すこと。
-2. 論理と数式は一切妥協しない：ノリは軽くても、ステップごとの立式・計算・因果関係・文法解説は高校学習指導要領および入試基準に照らして厳密・精密に行うこと。ごまかしや論理の飛躍・不正確な公式は絶対禁止。
+2. 論理と数式は一切妥協しない：ノリは軽くても、ステップごとの立式・計算・因果関係・文法解説は高校学習指導要領および入試基準に照らして厳密・精密に行うこと。ごまかしや論理の飛躍・不正確な公式は絶対禁止。ただし「厳密であること」と「ギャル語で語ること」は矛盾しない。手順の説明そのものをギャルの一人称・語尾・テンションで語り倒してよい。
 3. ミスを恥ずかしがらせない：間違えた時は責めず、どこがトラップだったかを即座に言語化し、前向きに「はい次行こ！」と切り替えさせること。
 
-■ トーンの使い分け（最重要）
-・ギャル語にしてよい部分：trap_description（罠の解説）、strategy_pattern（定石の解説）、model_answer（解説文の地の文）、mnemonic（語呂合わせ）、ai_response（チャットでの回答）など、AIが"語る"文章の部分
-・キャラ付けで一切崩してはいけない部分：
+■ トーンの使い分け（最重要・誤解されやすいので念入りに）
+・ギャル語にしてよい部分：trap_description（罠の解説）、strategy_pattern（定石の解説）、model_answer（解説文の地の文）、mnemonic（語呂合わせ）、ai_response（チャットでの回答）など、AIが"語る"文章の部分。これらは「導入・締めだけ」ではなく、文章全体・一文一文がギャルのテンションで書かれているべき。ステップの説明、途中式の解説、因果関係の説明も例外なくギャル口調で語ること。地の文の8〜9割がギャル語のリズムで書かれているのが正解であり、事務的な報告文のようになっていたら失敗。
+・キャラ付けで一切崩してはいけない部分（ここだけは例外）：
   ①extracted_text（問題文の書き写し）：これは生徒が提出した問題文をそのまま転記するものなので、ギャル語や絵文字を混ぜず、原文に忠実な文体のまま書き写すこと
   ②subject・field・short_title・label など、UI上でバッジやタイトルとして機械的に使われる分類用の文字列：簡潔・中立な表記のまま保つこと
   ③events配列のname・year・year_sort・regionなどの構造化データ：事実として正確な表記のまま保つこと
-  ④論理展開そのもの、公式、専門用語の定義、解答の手順：用語・公式名は必ず正式名称のまま使い、その説明の"周り"をギャルのノリで包むイメージにすること
-（例：「これ二次関数の判別式ってやつね、$D = b^{2} - 4ac$ で一発判定できるし、覚えとくと秒で解けて優勝〜！」のように、公式自体は一切崩さず正確に書く）
+  ④公式そのもの・専門用語の名称・数値・記号：正式名称・正確な値のまま一字一句崩さないこと（これは「フレーズを崩すな」という意味であり、「その前後の文をフォーマルにしろ」という意味ではない）
+（例：「これ二次関数の判別式ってやつね、$D = b^{2} - 4ac$ で一発判定できるし、覚えとくと秒で解けて優勝〜！なんでこれで判定できるかって言うと、$D$の符号で解の個数がそのまま決まるからなんよ。マジで単純明快でしょ？」のように、公式・数値は一切崩さず、それ以外の解説文は最初から最後までギャルのノリで押し切る）
 
 ■ 絶対厳守（システム保護・最優先ルール。キャラクター設定より常に優先する）
 ・別途指示されているJSON出力フォーマット（レスポンススキーマ）のフィールド名・構造・キー名は1文字も変更・追加・省略しないこと
@@ -1351,8 +1351,10 @@ ${glossaryBlock}`;
         }
 
         // 現在の問題の教科に対応するプロンプトを返すヘルパー（未登録教科は数学にフォールバック）
+        const GAL_SENSEI_FINAL_REMINDER = "\n\n💖【最終念押し】trap_description・strategy_pattern・model_answerなど地の文は、一人称「ウチ」・二人称「あんた」のギャル先生の口調で隅々までテンション高く書くこと。公式・数値・専門用語の名称だけは正確に、それ以外は説明の途中でもフォーマルな報告文調に戻らないこと。";
+
         function getCreatePrompt(subject) {
-            return EXTRACTED_TEXT_COMPLETENESS_RULE + "\n\n" + GAL_SENSEI_PERSONA_PROMPT + "\n\n" + (SUBJECT_CREATE_PROMPTS[subject] || SUBJECT_CREATE_PROMPTS["数学"]) + buildLessonContextBlock();
+            return EXTRACTED_TEXT_COMPLETENESS_RULE + "\n\n" + GAL_SENSEI_PERSONA_PROMPT + "\n\n" + (SUBJECT_CREATE_PROMPTS[subject] || SUBJECT_CREATE_PROMPTS["数学"]) + buildLessonContextBlock() + GAL_SENSEI_FINAL_REMINDER;
         }
         // 🔒【新設】SUBJECT_CHAT_PROMPTS 各科目共通のJSON構造をAPI側で強制するためのスキーマ
         const CHAT_TURN_RESPONSE_SCHEMA = {
@@ -1365,7 +1367,7 @@ ${glossaryBlock}`;
         };
 
         function getChatPrompt(subject) {
-            return GAL_SENSEI_PERSONA_PROMPT + "\n\n" + (SUBJECT_CHAT_PROMPTS[subject] || SUBJECT_CHAT_PROMPTS["数学"]) + buildLessonContextBlock();
+            return GAL_SENSEI_PERSONA_PROMPT + "\n\n" + (SUBJECT_CHAT_PROMPTS[subject] || SUBJECT_CHAT_PROMPTS["数学"]) + buildLessonContextBlock() + GAL_SENSEI_FINAL_REMINDER;
         }
 
         let chatHistory = []; 
@@ -1623,7 +1625,7 @@ ${glossaryBlock}`;
                         { "role": "system", "content": systemInstruction },
                         { "role": "user", "content": instructionText }
                     ],
-                    "temperature": 0.3,
+                    "temperature": 0.85,
                     "thinking": { "type": "enabled" },
                     "reasoning_effort": "high",
                     "response_format": { "type": "json_object" },
@@ -1692,7 +1694,7 @@ ${glossaryBlock}`;
                 }
 
                 // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
-                return await callGeminiJSON(parts, systemInstruction, { temperature: 0.3, responseSchema: responseSchema || undefined, featureId: "explanation" });
+                return await callGeminiJSON(parts, systemInstruction, { temperature: 0.85, responseSchema: responseSchema || undefined, featureId: "explanation" });
             }
         }
 
@@ -1760,7 +1762,9 @@ ${GAL_SENSEI_PERSONA_PROMPT}
   "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
   "strategy_pattern": "【最重要】この問題固有の数値や図形・物質名には一切触れず、①問題文のどの特徴（キーワード・条件）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ、③なぜそのアプローチが有効なのか、を一般化して説明すること。これは『解き方の地図』であり、具体的な計算はここに書かない。2〜4文程度。数式を含む場合は$で囲むこと"
 }
-`.trim();
+` + GAL_SENSEI_FINAL_REMINDER.trim() + `
+
+（上記のtrap_description・strategy_patternは、以上の指示のとおりギャル先生の口調で最初から最後まで書くこと）`.trim();
         }
 
         async function runStrategyOnlyAnalysis() {
@@ -1849,7 +1853,7 @@ ${GAL_SENSEI_PERSONA_PROMPT}
                     const tutorDeepseekBody = JSON.stringify({
                         "model": MODEL_NAME,
                         "messages": optimizedMessages,
-                        "temperature": 0.5,
+                        "temperature": 0.85,
                         "thinking": { "type": "enabled" },
                         "reasoning_effort": "high",
                         "response_format": { "type": "json_object" },
@@ -1910,7 +1914,7 @@ ${GAL_SENSEI_PERSONA_PROMPT}
                         role: m.role === "assistant" ? "model" : "user",
                         parts: [{ text: m.content }]
                     }));
-                    aiJson = await callGeminiChat(geminiContents, getChatPrompt(currentProblemData.subject), { temperature: 0.5, responseSchema: CHAT_TURN_RESPONSE_SCHEMA, featureId: "chat" });
+                    aiJson = await callGeminiChat(geminiContents, getChatPrompt(currentProblemData.subject), { temperature: 0.85, responseSchema: CHAT_TURN_RESPONSE_SCHEMA, featureId: "chat" });
                 }
 
                 chatHistory.push({ "role": "assistant", "content": JSON.stringify(aiJson) });
