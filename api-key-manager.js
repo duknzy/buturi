@@ -80,7 +80,10 @@ export function clearAllKeys() {
 // 429・認証エラー・通信エラーなど、どんな失敗でも「次のキー」へフォールバックし、
 // 全キーが失敗した時だけ最後のエラーをthrowする。
 // --------------------------------------------------------------------------
-export async function fetchWithKeyRotation(keys, buildRequest) {
+// requestTimeoutMs: 1回のfetchがハングした場合に強制的に諦めて次のキー/モデルへ進むまでの上限(ms)。
+// 過去、Gemini側が過負荷の際に単一リクエストが数十秒〜数分ハングし続け、
+// 登録キー数ぶん直列に待たされて体感の遅さの主因になっていたため追加。
+export async function fetchWithKeyRotation(keys, buildRequest, { requestTimeoutMs = 20000 } = {}) {
     if (!keys || keys.length === 0) {
         throw new Error("APIキーが1件も登録されていません。右下の🔑ボタンから登録してください。");
     }
@@ -88,14 +91,25 @@ export async function fetchWithKeyRotation(keys, buildRequest) {
     let lastError = null;
     for (let i = 0; i < keys.length; i++) {
         const key = keys[i];
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);
         try {
             const { url, options } = buildRequest(key);
-            const response = await fetch(url, options);
+            const response = await fetch(url, { ...options, signal: controller.signal });
+            clearTimeout(timeoutId);
 
             if (response.status === 429) {
                 console.warn(`⚠️ キー#${i + 1} がレート制限（429）に達しました → 次のキーへフォールバック`);
                 lastError = new Error(`レート制限(429): キー#${i + 1}`);
                 continue;
+            }
+            // 🩹 503(モデル過負荷)はキー固有の問題ではなく、どのキーで叩いても結果は同じになりやすい。
+            //    以前は他の全キーを順番に試し尽くしてから次モデルへ進んでいたため、
+            //    キー登録数が多いほど1モデルの見切りに時間がかかっていた → 即座に次モデルへ。
+            if (response.status === 503) {
+                console.warn(`⚠️ モデルが過負荷（503） → 残りのキーは試さず次のモデルへフォールバック`);
+                lastError = new Error(`モデル過負荷(503)`);
+                break;
             }
             if (!response.ok) {
                 const errBody = await response.json().catch(() => ({}));
@@ -105,6 +119,12 @@ export async function fetchWithKeyRotation(keys, buildRequest) {
             }
             return response;
         } catch (networkErr) {
+            clearTimeout(timeoutId);
+            if (networkErr?.name === "AbortError") {
+                console.warn(`⚠️ キー#${i + 1} がタイムアウト(${requestTimeoutMs}ms)しました → 次のキーへフォールバック`);
+                lastError = new Error(`タイムアウト(${requestTimeoutMs}ms): キー#${i + 1}`);
+                continue;
+            }
             console.warn(`⚠️ キー#${i + 1} で通信エラー → 次のキーへフォールバック`, networkErr);
             lastError = networkErr;
             continue;
