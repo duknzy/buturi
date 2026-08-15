@@ -118,7 +118,9 @@ export function setKeyLabel(engine, key, label) {
 // requestTimeoutMs: 1回のfetchがハングした場合に強制的に諦めて次のキー/モデルへ進むまでの上限(ms)。
 // 過去、Gemini側が過負荷の際に単一リクエストが数十秒〜数分ハングし続け、
 // 登録キー数ぶん直列に待たされて体感の遅さの主因になっていたため追加。
-export async function fetchWithKeyRotation(keys, buildRequest, { requestTimeoutMs = 20000 } = {}) {
+// 🩹【調整】実際のNetworkログを見ると正常応答・503確定とも20〜40秒台かかるケースがあり、
+//   20秒だと本来成功するはずのリクエストまでタイムアウト扱いで打ち切ってしまっていたため60秒に延長。
+export async function fetchWithKeyRotation(keys, buildRequest, { requestTimeoutMs = 60000 } = {}) {
     if (!keys || keys.length === 0) {
         throw new Error("APIキーが1件も登録されていません。右下の🔑ボタンから登録してください。");
     }
@@ -355,7 +357,7 @@ export function extractJsonArray(text) {
 //   silentFallback: true にすると notifyModelFallback（画面右下トースト）を出さない
 // --------------------------------------------------------------------------
 async function runGeminiFallbackLoop(contents, systemInstruction, options = {}) {
-    const { temperature = 0.4, arrayMode = false, silentFallback = false, responseSchema = null, featureId = null } = options;
+    const { temperature = 0.4, arrayMode = false, silentFallback = false, responseSchema = null, featureId = null, requestTimeoutMs = 60000 } = options;
     // ⚙️ featureIdが渡されていれば、管理画面で機能ごとに絞り込んだモデル順・キーだけを使う。
     //    未指定/未設定なら従来どおり全モデル・全キーが対象。
     const keys = getEffectiveGeminiKeys(featureId);
