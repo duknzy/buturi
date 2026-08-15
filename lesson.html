@@ -1916,12 +1916,12 @@ ${socraticInstructionBlock}
             await saveLesson();
         }
 
-        async function deleteLessonMemo(memoId) {
+        window.deleteLessonMemo = async function(memoId) {
             if (!currentLesson || !Array.isArray(currentLesson.lessonMemos)) return;
             currentLesson.lessonMemos = currentLesson.lessonMemos.filter(m => m.id !== memoId);
             renderLessonMemos();
             await saveLesson();
-        }
+        };
 
         function formatMemoDate(iso) {
             const d = new Date(iso);
