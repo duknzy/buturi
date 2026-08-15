@@ -79,6 +79,51 @@
         .roadmap-step.rm-locked { opacity: 0.45; }
         .roadmap-arrow { color: var(--text-muted); font-size: 0.8rem; flex-shrink: 0; }
 
+        /* 📚 授業一覧（見やすさ改善版） */
+        .lesson-list-toolbar { display: flex; gap: 0.6rem; margin-bottom: 0.9rem; flex-wrap: wrap; align-items: center; }
+        .lesson-search-input {
+            flex: 1; min-width: 160px; background: #000; border: 1px solid #22222a; color: #fff;
+            padding: 0.6rem 0.9rem; border-radius: 10px; font-size: 0.85rem;
+        }
+        .lesson-subject-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+        .lesson-subject-chip {
+            font-size: 0.75rem; font-weight: 800; padding: 0.4rem 0.8rem; border-radius: 20px;
+            border: 1px solid var(--border-color); color: var(--text-muted); background: rgba(255,255,255,0.03);
+            cursor: pointer; transition: all 0.15s ease; white-space: nowrap;
+        }
+        .lesson-subject-chip:hover { border-color: var(--accent-cyan); color: #fff; }
+        .lesson-subject-chip.active { background: var(--accent-cyan); color: #000; border-color: var(--accent-cyan); }
+
+        .lesson-subject-group { margin-bottom: 1.4rem; }
+        .lesson-subject-group-header {
+            display: flex; align-items: center; gap: 0.5rem; font-weight: 900; font-size: 0.92rem;
+            color: var(--text-bright-muted); margin-bottom: 0.6rem; padding-left: 0.2rem;
+        }
+        .lesson-subject-group-count { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 0.1rem 0.5rem; border-radius: 10px; }
+
+        .lesson-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.7rem; }
+        .lesson-grid-card {
+            display: flex; flex-direction: column; gap: 0.5rem; padding: 1rem;
+            cursor: pointer; position: relative;
+        }
+        .lesson-grid-card:hover { border-color: var(--border-glow); }
+        .lesson-grid-card-top { display: flex; justify-content: space-between; align-items: center; gap: 0.4rem; }
+        .lesson-grid-card-title { font-weight: 800; font-size: 0.92rem; line-height: 1.35; }
+        .lesson-grid-card-meta { font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+        .lesson-grid-card-mini-roadmap { display: flex; align-items: center; gap: 0.2rem; margin-top: 0.1rem; }
+        .lesson-mini-step {
+            flex: 1; text-align: center; padding: 0.2rem 0.1rem; border-radius: 6px; font-size: 0.62rem; font-weight: 800;
+            border: 1px solid var(--border-color); color: var(--text-muted); background: rgba(255,255,255,0.02);
+        }
+        .lesson-mini-step.rm-done { background: rgba(0,243,255,0.12); color: var(--accent-cyan); border-color: var(--accent-cyan); }
+        .lesson-mini-step.rm-teaching { background: rgba(255,245,0,0.12); color: var(--accent-yellow); border-color: var(--accent-yellow); }
+        .lesson-grid-card-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 0.2rem; }
+        .lesson-grid-card-delete {
+            background: transparent; color: #ff4545; border: 1px solid #2a0000; box-shadow: none;
+            padding: 0.3rem 0.55rem; font-size: 0.82rem; border-radius: 10px; cursor: pointer;
+        }
+        .lesson-list-empty-state { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 2rem 0; }
+
         .new-lesson-form { display: flex; flex-direction: column; gap: 1rem; }
         .file-drop-label { border: 1px dashed #3a3a4a; border-radius: 14px; padding: 1.2rem; text-align: center; cursor: pointer; color: var(--text-muted); font-size: 0.9rem; }
         .file-drop-label:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
@@ -648,6 +693,10 @@
 
             <div id="lesson-list-wrap">
                 <div style="font-weight:900; font-size:1rem; margin: 0.5rem 0;">📚 これまでの授業</div>
+                <div class="lesson-list-toolbar">
+                    <input type="text" class="lesson-search-input" id="lesson-search-input" placeholder="🔍 授業名で検索...">
+                    <div class="lesson-subject-chips" id="lesson-subject-chips"></div>
+                </div>
                 <div id="lesson-list"></div>
                 <div id="lesson-list-empty" style="color: var(--text-muted); font-size:0.85rem; display:none;">まだ授業履歴はありません。</div>
             </div>
@@ -819,6 +868,39 @@
 ・参考書の記述と、あなたが一般知識として持っている標準的な説明が食い違う場合は、参考書の記述を優先し、その参考書の流儀で説明すること。ただし参考書側に明らかな誤植・矛盾がある場合は、その旨を明示した上で指摘してよい
 ・参考書に載っていない内容を補足する場合は、「ここから先は参考書に載っていない一般的な補足です」のように、参考書本文と自分の補足を生徒がはっきり区別できるように書くこと`;
 
+        // 💖 ギャル先生ペルソナ（授業・類題の解説に共通で適用するキャラクター設定）
+        const GAL_SENSEI_PERSONA_PROMPT = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💖【キャラクター設定：ギャル先生】（最重要・人格に関する絶対ルール）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+あなたはこれから「ギャル先生」というキャラクターとして生徒に授業・解説を行う。以下を厳守すること。
+
+■ ペルソナ基本情報
+・属性：地頭チート系・バイブス爆上げギャル先生
+・一人称は必ず「ウチ」を使うこと（「私」「僕」「わたし」等は禁止）
+・生徒への二人称は必ず「あんた」を使うこと（親しみとリスペクトを込めた呼び方。見下しや攻撃的な意味合いにはしないこと）
+・スタンス：「勉強はダルい。だからこそ無駄な計算や遠回りは一切せず、要領よく最短で解いて勝つのが一番アガるっしょ！」という価値観で一貫すること
+
+■ 口調・ボキャブラリー（あくまで一例。この通りでなくても自然な範囲で使ってよい）
+・語尾：「〜じゃん！」「〜だし！」「〜っしょ！」「〜だよ」「〜てこと！」
+・相槌・感情表現：「それな！」「マジ神」「天才すぎん？」「ビビる」「秒で終わらせるよ」「はい優勝〜！」「バイブス上がる！」
+・着眼点の提示：「教科書みたいに難しく考えなくてOK」「要はこれってさ、」「まず見るべきはココ一択！」
+・失敗へのリアクション：「あ〜惜しすぎ！でも発想マジで良いとこ突いてる！」「出題者のトラップえぐい草。ウチと一緒に見破ろ？」
+
+■ 指導フィロソフィー（3原則）
+1. 最初の一手（定石）は秒速で言語化する：「問題文のこのキーワードを見た瞬間、解法はコレに決まる」という要領の良い見抜き方を必ず示すこと。
+2. 論理と数式は一切妥協しない：ノリは軽くても、ステップごとの立式・計算・因果関係・文法解説は高校学習指導要領および入試基準に照らして厳密・精密に行うこと。ごまかしや論理の飛躍・不正確な公式は絶対禁止。
+3. ミスを恥ずかしがらせない：間違えた時は責めず、どこがトラップだったかを即座に言語化し、前向きに「はい次行こ！」と切り替えさせること。
+
+■ トーンの使い分け（最重要）
+・ギャル語にしてよい部分：導入の掴み、着眼点の提示、褒め、ツッコミ、まとめ・励ましの言葉
+・キャラ付けで一切崩してはいけない部分：論理展開そのもの、公式、専門用語の定義、解答の手順。用語・公式名は必ず正式名称のまま使い、その説明の"周り"をギャルのノリで包むイメージにすること
+（例：「これ二次関数の判別式ってやつね、$D = b^{2} - 4ac$ で一発判定できるし、覚えとくと秒で解けて優勝〜！」のように、公式自体は一切崩さず正確に書く）
+
+■ 絶対厳守（システム保護・最優先ルール。キャラクター設定より常に優先する）
+・別途指示されているJSON出力フォーマット（レスポンススキーマ）のフィールド名・構造・キー名は1文字も変更・追加・省略しないこと
+・別途指示されているLaTeX数式記法のルール（$ $ / $$ $$ による囲み方、$90^{\\circ}$ のような上付き文字の波括弧、\\perp l のような半角スペースの入れ方など）は、キャラクターの口調とは完全に独立したルールとして絶対に厳守すること。数式そのものの中にギャル語や絵文字を混入させないこと
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
         // --------------------------------------------------------------
         // 状態
         // --------------------------------------------------------------
@@ -880,6 +962,21 @@
             const idx = LEVEL_ORDER.indexOf(levelText);
             if (idx === -1 || idx >= LEVEL_ORDER.length - 1) return null;
             return LEVEL_ORDER[idx + 1];
+        }
+
+        // 📚 授業一覧のグループ化用：タイトル・単元名から教科を推定
+        const LESSON_SUBJECT_ICONS = { "数学": "📐", "物理": "⚛️", "化学": "🧪", "英語": "🔤", "国語": "📖", "世界史": "🌍", "日本史": "🏯", "地歴公民": "🗾", "その他": "📎" };
+        function detectLessonSubject(lesson) {
+            const text = ((lesson.title || "") + " " + (lesson.topicKey || "")).toLowerCase();
+            if (/数学|微分|積分|ベクトル|数列|三角関数|確率/i.test(text)) return "数学";
+            if (/物理|力学|電磁気|波動|運動方程式/i.test(text)) return "物理";
+            if (/化学|mol|酸化|還元|酸|塩基/i.test(text)) return "化学";
+            if (/英語|文法|英文法|長文/i.test(text)) return "英語";
+            if (/現代文|古文|漢文|国語/i.test(text)) return "国語";
+            if (/世界史/i.test(text)) return "世界史";
+            if (/日本史/i.test(text)) return "日本史";
+            if (/地理|公民|政治経済/i.test(text)) return "地歴公民";
+            return "その他";
         }
         let pendingLevelUp = null;
 
@@ -1284,50 +1381,147 @@ ${socraticAddon}
             select.innerHTML = `<option value="">続きではない（新規シリーズとして開始）</option>${optionsHtml}`;
         }
 
+        let lessonListSearchQuery = "";
+        let lessonListSubjectFilter = "すべて";
+
+        function computeTopicSlotsMap(lessonsObj) {
+            const lessons = Object.values(lessonsObj || {});
+            const map = {};
+            lessons.forEach(l => {
+                if (!l.topicKey || !l.level) return;
+                if (!map[l.topicKey]) map[l.topicKey] = [null, null, null, null];
+                const idx = (typeof l.levelIndex === "number" && l.levelIndex >= 0) ? l.levelIndex : LEVEL_ORDER.indexOf(l.level);
+                if (idx < 0 || idx > 3) return;
+                if (!map[l.topicKey][idx] || new Date(l.updatedAt) > new Date(map[l.topicKey][idx].updatedAt)) {
+                    map[l.topicKey][idx] = l;
+                }
+            });
+            return map;
+        }
+
+        function renderLessonSubjectChips(lessonsObj) {
+            const wrap = el("lesson-subject-chips");
+            if (!wrap) return;
+            const lessons = Object.values(lessonsObj || {});
+            const counts = {};
+            lessons.forEach(l => {
+                const s = detectLessonSubject(l);
+                counts[s] = (counts[s] || 0) + 1;
+            });
+            const subjects = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+
+            const allChip = `<button type="button" class="lesson-subject-chip ${lessonListSubjectFilter === 'すべて' ? 'active' : ''}" data-subject-chip="すべて">すべて (${lessons.length})</button>`;
+            const chips = subjects.map(s =>
+                `<button type="button" class="lesson-subject-chip ${lessonListSubjectFilter === s ? 'active' : ''}" data-subject-chip="${s}">${LESSON_SUBJECT_ICONS[s] || "📎"} ${s} (${counts[s]})</button>`
+            ).join("");
+            wrap.innerHTML = allChip + chips;
+
+            wrap.querySelectorAll("[data-subject-chip]").forEach(chip => {
+                chip.addEventListener("click", () => {
+                    lessonListSubjectFilter = chip.getAttribute("data-subject-chip");
+                    renderLessonList(lastLessonsSnapshot);
+                });
+            });
+        }
+
+        function renderLessonCardHtml(l, topicSlotsMap) {
+            const total = (l.parts || []).length;
+            const done = l.status === "completed";
+            const badgeClass = done ? "badge-completed" : "badge-teaching";
+            const badgeText = done ? "完了" : `パート ${((l.currentPartIndex || 0) + 1)}/${total}`;
+            const updated = new Date(l.updatedAt).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
+
+            const isSocratic = l.teachingStyle === "socratic";
+            const styleBadge = `<span class="lesson-style-badge ${isSocratic ? 'badge-style-socratic' : 'badge-style-standard'}">${isSocratic ? '🧠 ソクラテス' : '📖 標準'}</span>`;
+
+            const nxt = l.level ? nextLevelOf(l.level) : null;
+            const showLevelUpBtn = done && nxt && !l.levelUpToLessonId;
+            const levelUpBtnHtml = showLevelUpBtn
+                ? `<button type="button" class="tactile-btn lesson-levelup-btn" data-levelup-id="${l.id}" style="font-size:0.68rem; padding:0.3rem 0.6rem; background:transparent; color:var(--accent-yellow); border:1px solid var(--accent-yellow); box-shadow:none;">🎓 ${LEVEL_SHORT[LEVEL_ORDER.indexOf(nxt)]}へ</button>`
+                : "";
+
+            // 🪜 レベル別4段階のミニ表示（このレッスンが単元ロードマップに属する場合のみ）
+            let miniRoadmapHtml = "";
+            if (l.topicKey && topicSlotsMap[l.topicKey]) {
+                const slots = topicSlotsMap[l.topicKey];
+                const stepsHtml = slots.map((s, i) => {
+                    let cls = "lesson-mini-step";
+                    if (s) cls += (s.status === "completed") ? " rm-done" : " rm-teaching";
+                    return `<div class="${cls}">${LEVEL_SHORT[i].slice(0, 2)}</div>`;
+                }).join("");
+                miniRoadmapHtml = `<div class="lesson-grid-card-mini-roadmap">${stepsHtml}</div>`;
+            }
+
+            return `
+                <div class="squircle-tile lesson-grid-card" data-lesson-id="${l.id}">
+                    <div class="lesson-grid-card-top">
+                        <span class="lesson-progress-badge ${badgeClass}">${badgeText}</span>
+                        ${l.level ? `<span class="lesson-level-badge">🎚️ ${LEVEL_SHORT[l.levelIndex] || l.level}</span>` : ""}
+                    </div>
+                    <div class="lesson-grid-card-title">${(l.title || "無題の授業").replace(/</g, "&lt;")}</div>
+                    ${miniRoadmapHtml}
+                    <div class="lesson-grid-card-meta">
+                        ${styleBadge}
+                        <span>🗓️ ${updated}</span>
+                    </div>
+                    <div class="lesson-grid-card-actions">
+                        ${levelUpBtnHtml || "<span></span>"}
+                        <button type="button" class="lesson-grid-card-delete" data-delete-id="${l.id}" title="この授業を削除">🗑️</button>
+                    </div>
+                </div>
+            `;
+        }
+
         function renderLessonList(lessonsObj) {
-            const lessons = Object.values(lessonsObj || {}).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+            const allLessons = Object.values(lessonsObj || {}).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
             const listEl = el("lesson-list");
-            if (lessons.length === 0) {
+
+            renderLessonSubjectChips(lessonsObj);
+
+            const query = lessonListSearchQuery.trim().toLowerCase();
+            const filtered = allLessons.filter(l => {
+                if (lessonListSubjectFilter !== "すべて" && detectLessonSubject(l) !== lessonListSubjectFilter) return false;
+                if (query && !(l.title || "").toLowerCase().includes(query)) return false;
+                return true;
+            });
+
+            if (allLessons.length === 0) {
                 el("lesson-list-empty").style.display = "block";
+                el("lesson-list-empty").textContent = "まだ授業履歴はありません。";
+                listEl.innerHTML = "";
+                return;
+            }
+            if (filtered.length === 0) {
+                el("lesson-list-empty").style.display = "block";
+                el("lesson-list-empty").textContent = "条件に一致する授業が見つかりませんでした。";
                 listEl.innerHTML = "";
                 return;
             }
             el("lesson-list-empty").style.display = "none";
-            listEl.innerHTML = lessons.map(l => {
-                const total = (l.parts || []).length;
-                const done = l.status === "completed";
-                const badgeClass = done ? "badge-completed" : "badge-teaching";
-                const badgeText = done ? "完了" : `パート ${((l.currentPartIndex || 0) + 1)}/${total}`;
-                const updated = new Date(l.updatedAt).toLocaleString("ja-JP");
 
-                const levelBadge = l.level ? `<span class="lesson-level-badge">🎚️ ${LEVEL_SHORT[l.levelIndex] || l.level}</span>` : "";
-                const isSocratic = l.teachingStyle === "socratic";
-                const styleBadge = `<span class="lesson-style-badge ${isSocratic ? 'badge-style-socratic' : 'badge-style-standard'}">${isSocratic ? '🧠 ソクラテス' : '📖 標準'}</span>`;
+            const topicSlotsMap = computeTopicSlotsMap(lessonsObj);
 
-                const nxt = l.level ? nextLevelOf(l.level) : null;
-                const showLevelUpBtn = done && nxt && !l.levelUpToLessonId;
-                const levelUpBtnHtml = showLevelUpBtn
-                    ? `<button type="button" class="tactile-btn lesson-levelup-btn" data-levelup-id="${l.id}" style="font-size:0.72rem; padding:0.35rem 0.7rem; background:transparent; color:var(--accent-yellow); border:1px solid var(--accent-yellow); box-shadow:none;">🎓 ${LEVEL_SHORT[LEVEL_ORDER.indexOf(nxt)]}へ進む</button>`
-                    : "";
+            // 教科ごとにグループ化（各グループ内は更新日時順）
+            const groups = {};
+            filtered.forEach(l => {
+                const s = detectLessonSubject(l);
+                if (!groups[s]) groups[s] = [];
+                groups[s].push(l);
+            });
+            const subjectKeys = Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length);
 
-                return `
-                    <div class="squircle-tile lesson-card-row" data-lesson-id="${l.id}">
-                        <div>
-                            <div class="lesson-card-title">${l.title || "無題の授業"}</div>
-                            <div class="lesson-card-meta">
-                                <span>最終更新: ${updated}</span>
-                                ${styleBadge}
-                                ${levelBadge}
-                            </div>
-                        </div>
-                        <div style="display:flex; align-items:center; gap:0.5rem;">
-                            ${levelUpBtnHtml}
-                            <span class="lesson-progress-badge ${badgeClass}">${badgeText}</span>
-                            <button type="button" class="tactile-btn lesson-delete-btn" data-delete-id="${l.id}" title="この授業を削除" style="background:transparent; color:#ff4545; border:1px solid #2a0000; box-shadow:none; padding:0.4rem 0.6rem; font-size:0.9rem;">🗑️</button>
-                        </div>
+            listEl.innerHTML = subjectKeys.map(subject => `
+                <div class="lesson-subject-group">
+                    <div class="lesson-subject-group-header">
+                        <span>${LESSON_SUBJECT_ICONS[subject] || "📎"} ${subject}</span>
+                        <span class="lesson-subject-group-count">${groups[subject].length}件</span>
                     </div>
-                `;
-            }).join("");
+                    <div class="lesson-grid">
+                        ${groups[subject].map(l => renderLessonCardHtml(l, topicSlotsMap)).join("")}
+                    </div>
+                </div>
+            `).join("");
+
             listEl.querySelectorAll("[data-lesson-id]").forEach(row => {
                 row.addEventListener("click", () => {
                     window.location.href = `lesson.html?id=${row.getAttribute("data-lesson-id")}`;
@@ -1345,6 +1539,16 @@ ${socraticAddon}
                     e.stopPropagation();
                     deleteLesson(btn.getAttribute("data-delete-id"));
                 });
+            });
+        }
+
+        const lessonSearchInputEl = el("lesson-search-input");
+        if (lessonSearchInputEl) {
+            let searchDebounce = null;
+            lessonSearchInputEl.addEventListener("input", (e) => {
+                lessonListSearchQuery = e.target.value;
+                clearTimeout(searchDebounce);
+                searchDebounce = setTimeout(() => renderLessonList(lastLessonsSnapshot), 200);
             });
         }
 
@@ -1500,6 +1704,8 @@ ${socraticAddon}
 
             return `${customPolicyPrompt}
 
+${GAL_SENSEI_PERSONA_PROMPT}
+
 以下は${isTopicMode ? "参考書の代わりにあなた自身が事前に作成した授業ノート全文です" : "参考書から読み取ったテキスト全文です"}。今回の授業では、このうち指定された「パート」の範囲だけを扱ってください。
 
 【${sourceLabel}】
@@ -1630,6 +1836,8 @@ ${socraticInstructionBlock}
 
             const DRILL_SYSTEM_PROMPT = `${customPolicyPrompt}
 
+${GAL_SENSEI_PERSONA_PROMPT}
+
 あなたは生徒が今学んだ授業内容の定着度を測るテスト作成者です。
 生徒が今終えたばかりの【第${currentLesson.currentPartIndex + 1}回: ${currentPart.title}（${currentPart.summary}）】の急所・罠・別解の活用をピンポイントで試すオリジナル類題を1問作成してください。
 
@@ -1642,6 +1850,8 @@ ${socraticInstructionBlock}
    trap_description に、生徒が最も引っかかりやすい落とし穴を解説すること。
 4. 【LaTeX記法ルール】：
    数式は必ず $ $ または $$ $$ で記述すること。上付き文字（角度の度記号など）は必ず $90^{\\circ}$ のように波括弧 {} をつけること（$90^ \\circ$ や単独の ^ は厳禁）。垂直記号は必ず $\\perp l$ のように半角スペースを空けること。
+5. 【ギャル先生トーンの適用範囲】：
+   problem_statement（問題文そのもの）は入試問題として通用する厳密・中立な文体で書き、ギャル語は一切混ぜないこと。first_step_focus・trap_description・strategy_pattern・model_answer の解説部分にはギャル先生のキャラクター（一人称「ウチ」、二人称「あんた」）を適用してよいが、公式・計算・手順そのものは正確に保つこと。
 
 出力は以下のJSONのみ：
 {
