@@ -384,7 +384,7 @@
                     const aiQuestions = await callGeminiJSON(
                         [{ text: systemPrompt }],
                         "あなたは優秀なAI数学教師です。指定されたJSONフォーマットの配列のみを厳密に返してください。",
-                        { temperature: 0.4, arrayMode: true, responseSchema: DAILY_SPRINT_RESPONSE_SCHEMA }
+                        { temperature: 0.4, arrayMode: true, responseSchema: DAILY_SPRINT_RESPONSE_SCHEMA, featureId: "daily" }
                     );
 
                     if (!Array.isArray(aiQuestions) || aiQuestions.length === 0) {

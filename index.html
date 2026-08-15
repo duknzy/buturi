@@ -1933,7 +1933,7 @@ ${glossaryBlock}`;
                 }
 
                 // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
-                const aiResult = await callGeminiJSON(parts, activeSystemInstruction, { temperature: 0.3, responseSchema: SUBJECT_ANALYSIS_RESPONSE_SCHEMA });
+                const aiResult = await callGeminiJSON(parts, activeSystemInstruction, { temperature: 0.3, responseSchema: SUBJECT_ANALYSIS_RESPONSE_SCHEMA, featureId: "subject_analysis" });
 
                 const newId = "CUSTOM_" + Date.now();
                 const nowIso = new Date().toISOString();

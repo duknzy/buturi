@@ -1654,7 +1654,7 @@ ${glossaryBlock}`;
                 }
 
                 // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
-                return await callGeminiJSON(parts, systemInstruction, { temperature: 0.3, responseSchema: responseSchema || undefined });
+                return await callGeminiJSON(parts, systemInstruction, { temperature: 0.3, responseSchema: responseSchema || undefined, featureId: "explanation" });
             }
         }
 
@@ -1870,7 +1870,7 @@ ${glossaryBlock}`;
                         role: m.role === "assistant" ? "model" : "user",
                         parts: [{ text: m.content }]
                     }));
-                    aiJson = await callGeminiChat(geminiContents, getChatPrompt(currentProblemData.subject), { temperature: 0.5, responseSchema: CHAT_TURN_RESPONSE_SCHEMA });
+                    aiJson = await callGeminiChat(geminiContents, getChatPrompt(currentProblemData.subject), { temperature: 0.5, responseSchema: CHAT_TURN_RESPONSE_SCHEMA, featureId: "chat" });
                 }
 
                 chatHistory.push({ "role": "assistant", "content": JSON.stringify(aiJson) });
@@ -2430,7 +2430,7 @@ ${glossaryBlock}`;
             };
 
             // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
-            const parsed = await callGeminiJSON([{ text: promptText }], systemInstruction, { temperature: 0.3, responseSchema: stuckTopicResponseSchema });
+            const parsed = await callGeminiJSON([{ text: promptText }], systemInstruction, { temperature: 0.3, responseSchema: stuckTopicResponseSchema, featureId: "stuck_topic" });
             if (!LEVEL_OPTIONS.includes(parsed.level)) parsed.level = "入試基礎レベル";
             return parsed;
         }

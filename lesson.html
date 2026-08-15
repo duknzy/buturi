@@ -1112,7 +1112,7 @@ ${socraticAddon}
             }
 
             try {
-                const result = await callGeminiJSON(parts, PLAN_SYSTEM_INSTRUCTION, { responseSchema: LESSON_PLAN_RESPONSE_SCHEMA });
+                const result = await callGeminiJSON(parts, PLAN_SYSTEM_INSTRUCTION, { responseSchema: LESSON_PLAN_RESPONSE_SCHEMA, featureId: "lesson_plan" });
                 if (!Array.isArray(result.parts) || result.parts.length === 0) throw new Error("プランの形式が不正です。");
                 draftPlan = result;
                 draftPlan.sourceMode = creationMode;
@@ -1602,7 +1602,7 @@ ${socraticInstructionBlock}
 
             try {
                 const result = await callGeminiJSON([{ text: "このパートの類題を1問作成してください。" }], DRILL_SYSTEM_PROMPT, {
-                    responseSchema: DRILL_SCHEMA
+                    responseSchema: DRILL_SCHEMA, featureId: "lesson_drill"
                 });
 
                 currentActiveDrill = result;
@@ -1798,7 +1798,7 @@ ${socraticInstructionBlock}
                 });
 
                 const aiJson = await callGeminiChat(contextHistory, buildTeachSystemInstruction(partIndex), {
-                    responseSchema: TEACH_TURN_RESPONSE_SCHEMA
+                    responseSchema: TEACH_TURN_RESPONSE_SCHEMA, featureId: "lesson_teach"
                 });
 
                 currentLesson.chatHistory.splice(range.startIdx + 1, range.endIdx - range.startIdx - 1, {
@@ -1952,7 +1952,7 @@ ${socraticInstructionBlock}
             contentsWithRoles.push({ role: "user", parts: currentTurnParts });
 
             const aiJson = await callGeminiChat(contentsWithRoles, buildTeachSystemInstruction(), {
-                responseSchema: TEACH_TURN_RESPONSE_SCHEMA
+                responseSchema: TEACH_TURN_RESPONSE_SCHEMA, featureId: "lesson_teach"
             });
 
             if (userDisplayText) {

@@ -150,6 +150,80 @@ export const GEMINI_MODEL_FALLBACK_LIST = [
     'gemini-2.5-flash-lite'
 ];
 
+// --------------------------------------------------------------------------
+// ⚙️【新設】機能ごとに「使うモデル」「使うキー」を個別設定できるようにするための定義。
+// 各ページはcallGeminiJSON/callGeminiChatのoptionsに { featureId: "..." } を渡すことで、
+// ここで設定された優先モデル順・使用キーの絞り込みが自動的に反映される。
+// 未設定（該当featureIdの設定が無い、または空配列）の場合は、common全体のデフォルト
+// （GEMINI_MODEL_FALLBACK_LIST全体・登録キー全部）がそのまま使われる。
+// --------------------------------------------------------------------------
+export const GEMINI_FEATURES = [
+    { id: "subject_analysis", label: "問題登録：科目/単元 自動分析", page: "index.html" },
+    { id: "explanation",      label: "問題解説の生成",              page: "problem.html" },
+    { id: "chat",             label: "問題についてのAIチャット",      page: "problem.html" },
+    { id: "stuck_topic",      label: "前提単元の分析→授業引き継ぎ",   page: "problem.html" },
+    { id: "quick_answer",     label: "解答の即時チェック",           page: "answer-check.html" },
+    { id: "custom_sprint",    label: "カスタム演習の問題生成",       page: "custom-sprint.html" },
+    { id: "daily",            label: "デイリー演習の問題生成",       page: "daily.html" },
+    { id: "lesson_plan",      label: "授業プランの生成",             page: "lesson.html" },
+    { id: "lesson_drill",     label: "授業の類題作成",               page: "lesson.html" },
+    { id: "lesson_teach",     label: "授業内AIチャット",             page: "lesson.html" },
+];
+
+const FEATURE_CONFIG_STORAGE = "RE_MIND_FEATURE_CONFIG";
+
+// 保存形式: { [featureId]: { models: string[]|null, keyIndices: number[]|null } }
+// models/keyIndices が null または未設定・空配列の場合は「デフォルト（全部使う）」を意味する。
+function loadFeatureConfig() {
+    try {
+        const raw = localStorage.getItem(FEATURE_CONFIG_STORAGE);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        return (parsed && typeof parsed === "object") ? parsed : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+function saveFeatureConfig(cfg) {
+    localStorage.setItem(FEATURE_CONFIG_STORAGE, JSON.stringify(cfg));
+}
+
+function getFeatureEntry(featureId) {
+    const cfg = loadFeatureConfig();
+    return cfg[featureId] || { models: null, keyIndices: null };
+}
+
+function setFeatureEntry(featureId, entry) {
+    const cfg = loadFeatureConfig();
+    cfg[featureId] = entry;
+    saveFeatureConfig(cfg);
+}
+
+// featureIdに紐づく「有効なモデルだけを、共通フォールバック順のまま」返す。
+// 設定が無い/空なら全モデルを返す（＝今までどおりの挙動）。
+export function getEffectiveModelList(featureId) {
+    if (!featureId) return GEMINI_MODEL_FALLBACK_LIST;
+    const entry = getFeatureEntry(featureId);
+    if (!entry.models || entry.models.length === 0) return GEMINI_MODEL_FALLBACK_LIST;
+    const allowed = new Set(entry.models);
+    const filtered = GEMINI_MODEL_FALLBACK_LIST.filter(m => allowed.has(m));
+    return filtered.length > 0 ? filtered : GEMINI_MODEL_FALLBACK_LIST;
+}
+
+// featureIdに紐づく「有効なキーだけを、登録順のまま」返す。
+// 設定が無い/空なら登録済みキー全部を返す（＝今までどおりの挙動）。
+export function getEffectiveGeminiKeys(featureId) {
+    const allKeys = getGeminiKeys();
+    if (!featureId) return allKeys;
+    const entry = getFeatureEntry(featureId);
+    if (!entry.keyIndices || entry.keyIndices.length === 0) return allKeys;
+    const filtered = entry.keyIndices
+        .filter(i => i >= 0 && i < allKeys.length)
+        .map(i => allKeys[i]);
+    return filtered.length > 0 ? filtered : allKeys;
+}
+
 export function buildGeminiUrl(modelName, apiKey) {
     return `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 }
@@ -233,8 +307,11 @@ export function extractJsonArray(text) {
 //   silentFallback: true にすると notifyModelFallback（画面右下トースト）を出さない
 // --------------------------------------------------------------------------
 async function runGeminiFallbackLoop(contents, systemInstruction, options = {}) {
-    const { temperature = 0.4, arrayMode = false, silentFallback = false, responseSchema = null } = options;
-    const keys = getGeminiKeys();
+    const { temperature = 0.4, arrayMode = false, silentFallback = false, responseSchema = null, featureId = null } = options;
+    // ⚙️ featureIdが渡されていれば、管理画面で機能ごとに絞り込んだモデル順・キーだけを使う。
+    //    未指定/未設定なら従来どおり全モデル・全キーが対象。
+    const keys = getEffectiveGeminiKeys(featureId);
+    const modelList = getEffectiveModelList(featureId);
 
     // ❗JSON厳守の追加指示（responseSchemaを指定できない呼び出し元向けの保険。
     //   responseSchemaがある場合はAPI側で構造そのものが強制されるため、これは主にschema未指定時の保険として働く）
@@ -283,7 +360,7 @@ async function runGeminiFallbackLoop(contents, systemInstruction, options = {}) 
         }
     }
 
-    for (const modelName of GEMINI_MODEL_FALLBACK_LIST) {
+    for (const modelName of modelList) {
         let result = await attemptOnce(modelName, systemInstruction);
 
         // 🔁 JSON形式が崩れていた場合のみ、同じモデル・同じキー群に「JSON厳守」の
@@ -451,6 +528,23 @@ function injectStylesAndModal() {
             background: var(--accent-cyan,#00f3ff); color: #000; border: none; border-radius: 10px;
             padding: 0.6rem 1rem; font-weight: 900; cursor: pointer; flex-shrink: 0;
         }
+        .apikm-feature-select {
+            width: 100%; background: #000; border: 1px solid #22222a; color: #fff;
+            padding: 0.6rem 0.8rem; border-radius: 10px; font-size: 0.85rem; margin-bottom: 0.9rem;
+        }
+        .apikm-feature-sub { font-size: 0.75rem; color: var(--text-muted,#708590); margin-bottom: 0.6rem; }
+        .apikm-check-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
+        .apikm-check-row {
+            display: flex; align-items: center; gap: 0.6rem; background: rgba(255,255,255,0.03);
+            border: 1px solid #22222a; border-radius: 10px; padding: 0.5rem 0.8rem; cursor: pointer;
+        }
+        .apikm-check-row input[type="checkbox"] { flex-shrink: 0; width: 16px; height: 16px; accent-color: var(--accent-cyan,#00f3ff); }
+        .apikm-check-row-text { flex-grow: 1; font-size: 0.82rem; }
+        .apikm-check-row-order { font-size: 0.65rem; font-weight: 800; color: #000; background: var(--accent-cyan,#00f3ff); border-radius: 6px; padding: 0.1rem 0.4rem; flex-shrink:0; }
+        .apikm-feature-reset-btn {
+            background: transparent; border: 1px solid var(--text-muted,#708590); color: var(--text-bright-muted,#a0b5c0);
+            border-radius: 10px; padding: 0.45rem 0.9rem; font-size: 0.78rem; font-weight: 800; cursor: pointer;
+        }
         .apikm-close-row { display: flex; justify-content: flex-end; margin-top: 0.8rem; }
         .apikm-close-btn {
             background: #111; border: 1px solid #333; color: #fff; border-radius: 10px;
@@ -491,6 +585,15 @@ function injectStylesAndModal() {
                     <button type="button" class="apikm-add-btn" data-add="deepseek">＋ 追加</button>
                 </form>
             </div>
+            <div class="apikm-section" data-feature-section>
+                <div class="apikm-section-label">⚙️ 機能ごとのモデル／キー設定</div>
+                <div class="apikm-sub" style="margin-bottom:0.8rem;">
+                    機能を選んで、その機能で使うモデル（優先順位はデフォルトの並びのまま）と、使うAPIキーを個別に絞り込めます。
+                    何もチェックしない（＝全部OFF）場合は、共通のデフォルト（全モデル・全キー）が使われます。
+                </div>
+                <select class="apikm-feature-select" id="apikm-feature-select"></select>
+                <div id="apikm-feature-body"></div>
+            </div>
             <div class="apikm-close-row">
                 <button type="button" class="apikm-close-btn" id="apikm-close-btn">閉じる</button>
             </div>
@@ -519,9 +622,65 @@ function injectStylesAndModal() {
         `).join("");
     }
 
+    const featureSelectEl = overlay.querySelector("#apikm-feature-select");
+    const featureBodyEl = overlay.querySelector("#apikm-feature-body");
+
+    function renderFeatureSelect() {
+        if (featureSelectEl.options.length === 0) {
+            featureSelectEl.innerHTML = GEMINI_FEATURES.map(f =>
+                `<option value="${f.id}">${f.label}（${f.page}）</option>`
+            ).join("");
+        }
+    }
+
+    function renderFeatureBody() {
+        const featureId = featureSelectEl.value || GEMINI_FEATURES[0].id;
+        const entry = getFeatureEntry(featureId);
+        const selectedModels = new Set(entry.models || []);
+        const selectedKeyIdx = new Set(entry.keyIndices || []);
+        const allKeys = loadKeys("gemini");
+
+        const modelsHtml = GEMINI_MODEL_FALLBACK_LIST.map((m, i) => `
+            <label class="apikm-check-row">
+                <input type="checkbox" data-feature-model="${m}" ${selectedModels.has(m) ? "checked" : ""}>
+                <span class="apikm-check-row-text">${m}</span>
+                <span class="apikm-check-row-order">優先度 ${i + 1}</span>
+            </label>
+        `).join("");
+
+        const keysHtml = allKeys.length === 0
+            ? `<div class="apikm-empty">Geminiキーが未登録です。上のセクションで先に登録してください。</div>`
+            : allKeys.map((k, i) => `
+                <label class="apikm-check-row">
+                    <input type="checkbox" data-feature-key="${i}" ${selectedKeyIdx.has(i) ? "checked" : ""}>
+                    <span class="apikm-check-row-text">${maskKey(k)}</span>
+                </label>
+            `).join("");
+
+        featureBodyEl.innerHTML = `
+            <div class="apikm-feature-sub">✨ この機能で使うモデル（未チェック＝全モデル対象がデフォルト）</div>
+            <div class="apikm-check-group" data-feature-model-group>${modelsHtml}</div>
+            <div class="apikm-feature-sub">🔑 この機能で使うAPIキー（未チェック＝全キー対象がデフォルト）</div>
+            <div class="apikm-check-group" data-feature-key-group>${keysHtml}</div>
+            <button type="button" class="apikm-feature-reset-btn" data-feature-reset="${featureId}">この機能の設定をデフォルトに戻す</button>
+        `;
+    }
+
+    function saveCurrentFeatureFromUI() {
+        const featureId = featureSelectEl.value || GEMINI_FEATURES[0].id;
+        const models = Array.from(featureBodyEl.querySelectorAll("[data-feature-model]:checked")).map(el => el.getAttribute("data-feature-model"));
+        const keyIndices = Array.from(featureBodyEl.querySelectorAll("[data-feature-key]:checked")).map(el => parseInt(el.getAttribute("data-feature-key"), 10));
+        setFeatureEntry(featureId, {
+            models: models.length > 0 ? models : null,
+            keyIndices: keyIndices.length > 0 ? keyIndices : null,
+        });
+    }
+
     function renderAll() {
         renderList("gemini");
         renderList("deepseek");
+        renderFeatureSelect();
+        renderFeatureBody();
     }
 
     overlay.addEventListener("click", (e) => {
@@ -547,7 +706,25 @@ function injectStylesAndModal() {
             return;
         }
 
+        const resetTarget = e.target.closest("[data-feature-reset]");
+        if (resetTarget) {
+            const featureId = resetTarget.getAttribute("data-feature-reset");
+            setFeatureEntry(featureId, { models: null, keyIndices: null });
+            renderFeatureBody();
+            return;
+        }
+
         if (e.target.id === "apikm-close-btn") closeModal();
+    });
+
+    overlay.addEventListener("change", (e) => {
+        if (e.target === featureSelectEl) {
+            renderFeatureBody();
+            return;
+        }
+        if (e.target.matches("[data-feature-model]") || e.target.matches("[data-feature-key]")) {
+            saveCurrentFeatureFromUI();
+        }
     });
 
     overlay.querySelectorAll(".apikm-add-input").forEach((input) => {
