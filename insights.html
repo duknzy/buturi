@@ -478,6 +478,7 @@
 
         let rawProblems = {};
         let rawQnaLogs = {};
+        let rawLessons = {};
         let selectedQnaLogId = null;
         let editingProblemId = null; // その場編集中の問題ID
 
@@ -550,6 +551,7 @@
 
             if (activeTab === "insights") {
                 Object.values(rawProblems).forEach(p => { if (p.insight) subjects.add(p.subject || "未分類"); });
+                buildLessonMemoItems().forEach(item => subjects.add(item.subject || "未分類"));
             } else if (activeTab === "qna") {
                 Object.values(rawQnaLogs).forEach(l => { if (l.subject) subjects.add(l.subject); });
             } else {
@@ -567,6 +569,71 @@
             if (!iso) return "";
             return new Date(iso).toLocaleDateString('ja-JP', { year: '2-digit', month: 'numeric', day: 'numeric' });
         }
+
+        // 🎓 授業ノート（lesson.html）の気づきメモを気づき一覧アイテム形式に変換
+        function detectSubjectFromLesson(lesson) {
+            const text = ((lesson.title || "") + " " + (lesson.topicKey || "")).toLowerCase();
+            if (/数学|微分|積分|ベクトル|数列|三角関数|確率/i.test(text)) return "数学";
+            if (/化学|mol|酸化|還元|酸|塩基/i.test(text)) return "化学";
+            if (/世界史|日本史|歴史/i.test(text)) return "世界史";
+            if (/英語|文法/i.test(text)) return "英語";
+            if (/物理|力学|電磁気|波動/i.test(text)) return "物理";
+            return "未分類";
+        }
+
+        function buildLessonMemoItems() {
+            const items = [];
+            Object.entries(rawLessons).forEach(([lessonId, lesson]) => {
+                if (!lesson || !Array.isArray(lesson.lessonMemos)) return;
+                lesson.lessonMemos.forEach(m => {
+                    if (!m || !m.text || !m.text.trim()) return;
+                    items.push({
+                        id: `lessonmemo_${lessonId}_${m.id}`,
+                        lessonId,
+                        memoId: m.id,
+                        insight: m.text,
+                        subject: detectSubjectFromLesson(lesson),
+                        field: lesson.topicKey || lesson.title || "授業メモ",
+                        short_title: lesson.title || "授業メモ",
+                        insightUpdatedAt: m.createdAt,
+                        createdAt: m.createdAt,
+                        isPinned: !!m.pinned,
+                        partIndex: m.partIndex,
+                        partTitle: (lesson.parts && typeof m.partIndex === "number" && lesson.parts[m.partIndex]) ? lesson.parts[m.partIndex].title : "",
+                        sourceType: "lesson"
+                    });
+                });
+            });
+            return items;
+        }
+
+        window.toggleLessonMemoPin = async function(lessonId, memoId, e) {
+            if (e) e.stopPropagation();
+            if (!currentUser) return;
+            const lesson = rawLessons[lessonId];
+            if (!lesson || !Array.isArray(lesson.lessonMemos)) return;
+            const newMemos = lesson.lessonMemos.map(m => m.id === memoId ? { ...m, pinned: !m.pinned } : m);
+            try {
+                await update(ref(database, 'users/' + currentUser.uid + '/lessons/' + lessonId), { lessonMemos: newMemos });
+            } catch (err) {
+                showToast("スターの更新に失敗しました。", "error");
+            }
+        };
+
+        window.deleteLessonMemoFromInsights = async function(lessonId, memoId, e) {
+            if (e) e.stopPropagation();
+            if (!currentUser) return;
+            if (!confirm("この授業メモを削除しますか？")) return;
+            const lesson = rawLessons[lessonId];
+            if (!lesson || !Array.isArray(lesson.lessonMemos)) return;
+            const newMemos = lesson.lessonMemos.filter(m => m.id !== memoId);
+            try {
+                await update(ref(database, 'users/' + currentUser.uid + '/lessons/' + lessonId), { lessonMemos: newMemos });
+                showToast("授業メモを削除しました。", "success", 2000);
+            } catch (err) {
+                showToast("削除に失敗しました。", "error");
+            }
+        };
 
         // ⭐ ピン留め（スター）切り替え
         window.togglePin = async function(problemId, e) {
@@ -702,7 +769,10 @@
             const subject = subjectSelect.value;
             const sort = sortSelect.value;
 
-            let items = Object.values(rawProblems).filter(p => p && p.insight && p.insight.trim() !== "");
+            let items = [
+                ...Object.values(rawProblems).filter(p => p && p.insight && p.insight.trim() !== "").map(p => ({ ...p, sourceType: "problem" })),
+                ...buildLessonMemoItems()
+            ];
 
             if (subject !== "ALL") items = items.filter(p => (p.subject || "未分類") === subject);
             if (filterPinnedOnly) items = items.filter(p => !!p.isPinned);
@@ -786,6 +856,8 @@
 
         // リッチ対比カードのHTML
         function renderCardHtml(p) {
+            if (p.sourceType === "lesson") return renderLessonMemoCardHtml(p);
+
             const isEditing = editingProblemId === p.id;
             const starClass = p.isPinned ? "active" : "";
             const pinnedClass = p.isPinned ? "pinned" : "";
@@ -836,8 +908,48 @@
             `;
         }
 
+        // 授業メモ（lesson.html）カードのHTML
+        function renderLessonMemoCardHtml(p) {
+            const starClass = p.isPinned ? "active" : "";
+            const pinnedClass = p.isPinned ? "pinned" : "";
+            const partLabel = p.partTitle ? `第${p.partIndex + 1}回: ${p.partTitle}` : "";
+
+            return `
+                <div class="insight-card ${pinnedClass}" style="border-left-color: var(--accent-yellow);">
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:0.4rem; margin-bottom:0.6rem;">
+                            <span class="badge badge-physics" style="background: rgba(255,245,0,0.1); border-color: var(--accent-yellow); color: var(--accent-yellow);">📖 授業メモ // ${p.subject || "未分類"}</span>
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <span style="font-size:0.72rem; color:var(--text-muted);">🗓️ ${formatDate(p.insightUpdatedAt || p.createdAt)}</span>
+                                <button type="button" class="star-btn ${starClass}" onclick="toggleLessonMemoPin('${p.lessonId}', '${p.memoId}', event)" title="スター（最上部に固定）">★</button>
+                            </div>
+                        </div>
+
+                        <div class="insight-problem-preview" style="border-color: rgba(255,245,0,0.25); background: rgba(255,245,0,0.03);">
+                            <div class="insight-problem-title">📘 ${p.short_title}</div>
+                            ${partLabel ? `<div style="font-size:0.78rem; color:var(--text-muted);">${partLabel}</div>` : ""}
+                        </div>
+                    </div>
+
+                    <div class="insight-body-box">
+                        <div class="insight-body-label">
+                            <span>✏️ 授業中のメモ</span>
+                            <button type="button" style="background:none; border:none; color:var(--accent-magenta); font-size:0.72rem; font-weight:800; cursor:pointer;" onclick="deleteLessonMemoFromInsights('${p.lessonId}', '${p.memoId}', event)">🗑 削除</button>
+                        </div>
+                        <div class="insight-text tex2jax_process">${normalizeMathSyntax(p.insight)}</div>
+                    </div>
+
+                    <div style="display:flex; justify-content:flex-end; border-top:1px dashed rgba(255,255,255,0.08); padding-top:0.6rem;">
+                        <a href="lesson.html?id=${encodeURIComponent(p.lessonId)}" class="goto-btn">授業を開く ➔</a>
+                    </div>
+                </div>
+            `;
+        }
+
         // 爆速リストのHTML
         function renderCompactRowHtml(p) {
+            if (p.sourceType === "lesson") return renderLessonMemoCompactRowHtml(p);
+
             const starClass = p.isPinned ? "active" : "";
             const pinnedClass = p.isPinned ? "pinned" : "";
 
@@ -850,6 +962,24 @@
                         <div class="compact-sub">📌 ${p.short_title || "問題"} ｜ ${formatDate(p.insightUpdatedAt || p.createdAt)}</div>
                     </div>
                     <a href="problem.html?id=${encodeURIComponent(p.id)}" class="goto-btn" style="flex-shrink:0;">➔</a>
+                </div>
+            `;
+        }
+
+        function renderLessonMemoCompactRowHtml(p) {
+            const starClass = p.isPinned ? "active" : "";
+            const pinnedClass = p.isPinned ? "pinned" : "";
+
+            return `
+                <div class="insight-compact-row ${pinnedClass}">
+                    <button type="button" class="star-btn ${starClass}" onclick="toggleLessonMemoPin('${p.lessonId}', '${p.memoId}', event)" title="スター">★</button>
+                    <span class="badge badge-physics" style="font-size:0.68rem; flex-shrink:0; background: rgba(255,245,0,0.1); border-color: var(--accent-yellow); color: var(--accent-yellow);">📖 ${p.subject || "未分類"}</span>
+                    <div class="compact-main">
+                        <div class="compact-text tex2jax_process">${normalizeMathSyntax(p.insight)}</div>
+                        <div class="compact-sub">📘 ${p.short_title} ｜ ${formatDate(p.insightUpdatedAt || p.createdAt)}</div>
+                    </div>
+                    <button type="button" onclick="deleteLessonMemoFromInsights('${p.lessonId}', '${p.memoId}', event)" style="flex-shrink:0; background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.85rem;" title="削除">🗑</button>
+                    <a href="lesson.html?id=${encodeURIComponent(p.lessonId)}" class="goto-btn" style="flex-shrink:0;">➔</a>
                 </div>
             `;
         }
@@ -1020,7 +1150,8 @@
         }
 
         function updateCounts() {
-            const insightCount = Object.values(rawProblems).filter(p => p && p.insight && p.insight.trim() !== "").length;
+            const insightCount = Object.values(rawProblems).filter(p => p && p.insight && p.insight.trim() !== "").length
+                + buildLessonMemoItems().length;
             const qnaCount = Object.keys(rawQnaLogs).length;
             const mnemonicCount = Object.values(rawProblems).filter(p => p && p.subject === "世界史" && p.mnemonic && p.mnemonic.trim() !== "").length;
 
@@ -1046,6 +1177,13 @@
 
             onValue(ref(database, 'users/' + user.uid + '/qna_logs'), (snapshot) => {
                 rawQnaLogs = snapshot.val() || {};
+                updateCounts();
+                populateSubjectFilter();
+                renderActiveView();
+            });
+
+            onValue(ref(database, 'users/' + user.uid + '/lessons'), (snapshot) => {
+                rawLessons = snapshot.val() || {};
                 updateCounts();
                 populateSubjectFilter();
                 renderActiveView();
