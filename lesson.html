@@ -238,14 +238,19 @@
             border: 1px solid rgba(255, 245, 0, 0.2);
         }
 
-        /* ⚡ 即時アウトプット演習（ドリル）カード */
+        /* ⚡ 即時アウトプット演習（ドリル）カード：スクロール対応強化 */
         .drill-section-box {
             background: rgba(10, 15, 25, 0.95);
             border: 1px solid var(--accent-cyan);
             border-radius: 16px;
             padding: 1.2rem;
-            margin: 1rem 0 0.5rem 0;
+            margin: 0.8rem 0 0.5rem 0;
             box-shadow: 0 0 20px rgba(0, 243, 255, 0.15);
+            max-height: 55vh;              /* 💡 画面高さを圧迫せずカード内でスクロールできるように設定 */
+            overflow-y: auto;              /* 💡 スクロールを有効化 */
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
         }
         .drill-header {
             display: flex;
@@ -254,6 +259,7 @@
             margin-bottom: 0.8rem;
             border-bottom: 1px solid rgba(0, 243, 255, 0.2);
             padding-bottom: 0.5rem;
+            flex-shrink: 0;
         }
         .drill-title {
             font-weight: 900;
@@ -295,18 +301,21 @@
         /* カスタムスクロールバー */
         .chat-transcript::-webkit-scrollbar,
         .parts-toc-container::-webkit-scrollbar,
-        .source-text-box::-webkit-scrollbar {
+        .source-text-box::-webkit-scrollbar,
+        .drill-section-box::-webkit-scrollbar {
             width: 6px;
         }
         .chat-transcript::-webkit-scrollbar-track,
         .parts-toc-container::-webkit-scrollbar-track,
-        .source-text-box::-webkit-scrollbar-track {
+        .source-text-box::-webkit-scrollbar-track,
+        .drill-section-box::-webkit-scrollbar-track {
             background: rgba(0, 0, 0, 0.2);
             border-radius: 3px;
         }
         .chat-transcript::-webkit-scrollbar-thumb,
         .parts-toc-container::-webkit-scrollbar-thumb,
-        .source-text-box::-webkit-scrollbar-thumb {
+        .source-text-box::-webkit-scrollbar-thumb,
+        .drill-section-box::-webkit-scrollbar-thumb {
             background: var(--accent-yellow);
             border-radius: 3px;
         }
@@ -1428,7 +1437,6 @@ ${socraticAddon}
             const isTopicMode = currentLesson.sourceMode === "topic";
             const sourceLabel = isTopicMode ? "この授業のためにAIが事前に作成した授業ノート" : "参考書から読み取った全文";
             
-            // 🧠 改善案①・②・③を反映したソクラテスモード専用の高精度対話プロンプト
             const socraticInstructionBlock = isSocratic ? `
 【最重要：ソクラテス対話ゼミの講義＆問答スタイル】
 あなたはこのパートで一方的に長文を喋り尽くしてはいけません。生徒との「キャッチボール」を成立させるため、以下のルールを厳守してください：
@@ -1522,7 +1530,7 @@ ${socraticInstructionBlock}
         }
 
         // --------------------------------------------------------------
-        // ⚡ 即時アウトプット演習（改善案④反映：着眼点・難易度適正化）
+        // ⚡ 即時アウトプット演習（スクロール・オートフォーカス対応）
         // --------------------------------------------------------------
         const DRILL_SCHEMA = {
             type: "OBJECT",
@@ -1580,7 +1588,7 @@ ${socraticInstructionBlock}
                 currentActiveDrill = result;
                 renderDrillBox();
                 await forceTriggerMathJax();
-                container.scrollIntoView({ behavior: 'smooth' });
+                container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             } catch (err) {
                 console.error(err);
                 showToast("類題の生成に失敗しました: " + err.message, "error", 7000);
@@ -1608,7 +1616,7 @@ ${socraticInstructionBlock}
                     </div>
                     <div class="drill-content-body tex2jax_process">${renderFormattedMarkdown(currentActiveDrill.problem_statement)}</div>
                     
-                    <div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:0.6rem;">
+                    <div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:0.6rem; flex-shrink:0;">
                         <button type="button" class="tactile-btn" id="reveal-drill-answer-btn" style="background:var(--accent-yellow); color:#000; font-size:0.82rem; padding:0.45rem 1rem;">👀 答え合わせをする</button>
                         <button type="button" class="tactile-btn" id="save-drill-to-mistakes-btn" style="background:rgba(255,0,127,0.15); border:1px solid var(--accent-magenta); color:var(--accent-magenta); font-size:0.82rem; padding:0.45rem 1rem; display:none;">📥 この問題を誤答ノートにストック</button>
                     </div>
@@ -1630,9 +1638,17 @@ ${socraticInstructionBlock}
             });
 
             el("reveal-drill-answer-btn").addEventListener("click", () => {
-                el("drill-answer-reveal-box").style.display = "block";
+                const answerBox = el("drill-answer-reveal-box");
+                answerBox.style.display = "block";
                 el("save-drill-to-mistakes-btn").style.display = "inline-flex";
                 forceTriggerMathJax();
+                // 💡 答えを展開したときに自動で最下部までスムーズにスクロール
+                setTimeout(() => {
+                    const drillBox = container.querySelector(".drill-section-box");
+                    if (drillBox) {
+                        drillBox.scrollTo({ top: drillBox.scrollHeight, behavior: 'smooth' });
+                    }
+                }, 100);
             });
 
             el("save-drill-to-mistakes-btn").addEventListener("click", async () => {
