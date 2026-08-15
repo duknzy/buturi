@@ -2149,15 +2149,15 @@ ${glossaryBlock}`;
             try {
                 const aiResult = await callAnalysisEngine(instructionText, getRegenPrompt(currentProblemData.subject || "数学", userNote), SUBJECT_ANALYSIS_RESPONSE_SCHEMA);
 
-                currentProblemData.title = aiResult.extracted_text || currentProblemData.title;
-                currentProblemData.short_title = aiResult.short_title || currentProblemData.short_title;
-                currentProblemData.subject = aiResult.subject || currentProblemData.subject;
-                currentProblemData.field = aiResult.field || currentProblemData.field;
+                currentProblemData.title = aiResult.extracted_text || currentProblemData.title || "";
+                currentProblemData.short_title = aiResult.short_title || currentProblemData.short_title || "";
+                currentProblemData.subject = aiResult.subject || currentProblemData.subject || "";
+                currentProblemData.field = aiResult.field || currentProblemData.field || "";
                 currentProblemData.trap_description = aiResult.trap_description || "";
                 currentProblemData.strategyPattern = aiResult.strategy_pattern || "";
-                currentProblemData.answerFormula = aiResult.model_answer || currentProblemData.answerFormula;
-                currentProblemData.mnemonic = (aiResult.mnemonic !== undefined) ? (aiResult.mnemonic || "") : currentProblemData.mnemonic;
-                currentProblemData.events = Array.isArray(aiResult.events) ? aiResult.events : currentProblemData.events;
+                currentProblemData.answerFormula = aiResult.model_answer || currentProblemData.answerFormula || "";
+                currentProblemData.mnemonic = (aiResult.mnemonic !== undefined) ? (aiResult.mnemonic || "") : (currentProblemData.mnemonic || "");
+                currentProblemData.events = Array.isArray(aiResult.events) ? aiResult.events : (Array.isArray(currentProblemData.events) ? currentProblemData.events : []);
                 currentProblemData.lastAnswerEngine = ACTIVE_ENGINE;
 
                 // Firebaseのデータを上書き保存して同期
