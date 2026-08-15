@@ -363,13 +363,9 @@
         </header>
 
         <!-- メインタブ切り替え -->
-       <!-- メインタブ切り替え -->
         <div class="main-tab-bar">
             <button type="button" class="main-tab-btn active" id="tab-btn-insights">
-                🧠 問題の気づき (<span id="count-insights">0</span>)
-            </button>
-            <button type="button" class="main-tab-btn" id="tab-btn-lesson-notes" style="border-color: rgba(0, 243, 255, 0.4);">
-                📖 授業メモ (<span id="count-lesson-notes">0</span>)
+                🧠 気づき・極意メモ (<span id="count-insights">0</span>)
             </button>
             <button type="button" class="main-tab-btn tab-yellow" id="tab-btn-qna">
                 💬 AI質問ログ (<span id="count-qna">0</span>)
@@ -410,13 +406,9 @@
         </div>
 
         <!-- メイン表示領域 -->
-        <!-- メイン表示領域 -->
         <main>
             <!-- 1. 気づきメモビュー -->
             <div id="view-insights"></div>
-
-            <!-- 1.5 授業メモビュー -->
-            <div id="view-lesson-notes" style="display: none;"></div>
 
             <!-- 2. AI質問ログビュー（2カラム） -->
             <div id="view-qna" class="qna-layout" style="display: none;">
@@ -458,7 +450,7 @@
     </div>
 
     <script type="module">
-       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
         import { getDatabase, ref, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
         import { showToast } from "./api-key-manager.js";
@@ -478,22 +470,19 @@
         const database = getDatabase(app);
 
         let currentUser = null;
-        let activeTab = "insights"; // "insights" | "lesson-notes" | "qna" | "mnemonics"
+        let activeTab = "insights"; // "insights" | "qna" | "mnemonics"
         let insightViewMode = "card"; // "card" | "compact"
         let isGrouped = true; // 単元グループ化 ON/OFF
         let filterPinnedOnly = false; // スター付きのみ ON/OFF
         let expandedGroups = new Set(); // 初期状態は空Set＝すべて折りたたんだ状態で開始
 
         let rawProblems = {};
-        let rawLessons = {}; // 📖 授業データ
         let rawQnaLogs = {};
         let selectedQnaLogId = null;
         let editingProblemId = null; // その場編集中の問題ID
-        let editingLessonId = null; // その場編集中の授業ID
 
         // 🎛 タブ切り替え
         const tabBtnInsights = document.getElementById("tab-btn-insights");
-        const tabBtnLessonNotes = document.getElementById("tab-btn-lesson-notes");
         const tabBtnQna = document.getElementById("tab-btn-qna");
         const tabBtnMnemonics = document.getElementById("tab-btn-mnemonics");
         const insightSubToolbar = document.getElementById("insight-subtoolbar");
@@ -501,22 +490,19 @@
         function switchTab(tab) {
             activeTab = tab;
             tabBtnInsights.classList.toggle("active", tab === "insights");
-            if (tabBtnLessonNotes) tabBtnLessonNotes.classList.toggle("active", tab === "lesson-notes");
             tabBtnQna.classList.toggle("active", tab === "qna");
             tabBtnMnemonics.classList.toggle("active", tab === "mnemonics");
 
             document.getElementById("view-insights").style.display = tab === "insights" ? "block" : "none";
-            document.getElementById("view-lesson-notes").style.display = tab === "lesson-notes" ? "block" : "none";
             document.getElementById("view-qna").style.display = tab === "qna" ? "grid" : "none";
             document.getElementById("view-mnemonics").style.display = tab === "mnemonics" ? "grid" : "none";
-            insightSubToolbar.style.display = (tab === "insights" || tab === "lesson-notes") ? "flex" : "none";
+            insightSubToolbar.style.display = tab === "insights" ? "flex" : "none";
 
             populateSubjectFilter();
             renderActiveView();
         }
 
         tabBtnInsights.addEventListener("click", () => switchTab("insights"));
-        if (tabBtnLessonNotes) tabBtnLessonNotes.addEventListener("click", () => switchTab("lesson-notes"));
         tabBtnQna.addEventListener("click", () => switchTab("qna"));
         tabBtnMnemonics.addEventListener("click", () => switchTab("mnemonics"));
 
@@ -530,27 +516,23 @@
             insightViewMode = "card";
             btnViewCard.classList.add("active");
             btnViewCompact.classList.remove("active");
-            if (activeTab === "lesson-notes") renderLessonNotes();
-            else renderInsights();
+            renderInsights();
         });
         btnViewCompact.addEventListener("click", () => {
             insightViewMode = "compact";
             btnViewCompact.classList.add("active");
             btnViewCard.classList.remove("active");
-            if (activeTab === "lesson-notes") renderLessonNotes();
-            else renderInsights();
+            renderInsights();
         });
         btnToggleGroup.addEventListener("click", () => {
             isGrouped = !isGrouped;
             btnToggleGroup.classList.toggle("active", isGrouped);
-            if (activeTab === "lesson-notes") renderLessonNotes();
-            else renderInsights();
+            renderInsights();
         });
         btnTogglePinned.addEventListener("click", () => {
             filterPinnedOnly = !filterPinnedOnly;
             btnTogglePinned.classList.toggle("active", filterPinnedOnly);
-            if (activeTab === "lesson-notes") renderLessonNotes();
-            else renderInsights();
+            renderInsights();
         });
 
         // フィルター＆検索
@@ -568,8 +550,6 @@
 
             if (activeTab === "insights") {
                 Object.values(rawProblems).forEach(p => { if (p.insight) subjects.add(p.subject || "未分類"); });
-            } else if (activeTab === "lesson-notes") {
-                Object.values(rawLessons).forEach(l => { if (l.lessonNote) subjects.add(l.subject || "物理"); });
             } else if (activeTab === "qna") {
                 Object.values(rawQnaLogs).forEach(l => { if (l.subject) subjects.add(l.subject); });
             } else {
@@ -597,21 +577,6 @@
             const newPinned = !p.isPinned;
             try {
                 await update(ref(database, 'users/' + currentUser.uid + '/problems/' + problemId), {
-                    isPinned: newPinned
-                });
-            } catch (err) {
-                showToast("スターの更新に失敗しました。", "error");
-            }
-        };
-
-        window.toggleLessonPin = async function(lessonId, e) {
-            if (e) e.stopPropagation();
-            if (!currentUser) return;
-            const l = rawLessons[lessonId];
-            if (!l) return;
-            const newPinned = !l.isPinned;
-            try {
-                await update(ref(database, 'users/' + currentUser.uid + '/lessons/' + lessonId), {
                     isPinned: newPinned
                 });
             } catch (err) {
@@ -650,42 +615,12 @@
             }
         };
 
-        window.startEditLessonNote = function(lessonId, e) {
-            if (e) e.stopPropagation();
-            editingLessonId = lessonId;
-            renderLessonNotes();
-        };
-
-        window.cancelEditLessonNote = function(e) {
-            if (e) e.stopPropagation();
-            editingLessonId = null;
-            renderLessonNotes();
-        };
-
-        window.saveInlineLessonNote = async function(lessonId, e) {
-            if (e) e.stopPropagation();
-            const textarea = document.getElementById(`inline-lesson-textarea-${lessonId}`);
-            if (!textarea || !currentUser) return;
-            const newText = textarea.value.trim();
-            try {
-                const nowIso = new Date().toISOString();
-                await update(ref(database, 'users/' + currentUser.uid + '/lessons/' + lessonId), {
-                    lessonNote: newText,
-                    lessonNoteUpdatedAt: nowIso,
-                    updatedAt: nowIso
-                });
-                editingLessonId = null;
-                showToast("授業メモを更新しました！", "success", 2000);
-            } catch (err) {
-                showToast("保存に失敗しました。", "error");
-            }
-        };
-
         // 🧠 数式正規化＆穴埋め枠の修復処理
         function normalizeMathSyntax(str) {
             if (!str) return "";
             let s = String(str);
 
+            // 1. \bbox[...] または \bbox[...]{...} の波括弧抜け・表記ゆれを完全正規化
             s = s.replace(/\\bbox\s*\[[^\]]*\]\s*\{([^}]*)\}/g, (_, content) => {
                 let c = content.trim();
                 if (!c) c = "\\quad";
@@ -699,22 +634,35 @@
 
             s = s.replace(/\\bbox\s*\[[^\]]*\]/g, `\\bbox[2px,border:1px solid]{\\text{\\quad}}`);
 
+            // 2. \fbox, \boxed, \framebox の正規化
             s = s.replace(/\\(?:fbox|boxed|framebox)(?:\s*\[[^\]]*\])?\s*\{([^}]*)\}/g, (_, content) => {
                 let c = content.trim();
                 if (!c) c = "\\quad";
                 else c = c.replace(/^\\text\{([\s\S]*)\}$/, "$1").trim();
                 return `\\bbox[2px,border:1px solid]{\\text{${c}}}`;
             });
+            s = s.replace(/\\(?:fbox|boxed|framebox)(?:\s*\[[^\]]*\])?\s+([0-9A-Za-zぁ-んァ-ヶー一-龠々]+)/g, (_, content) => {
+                return `\\bbox[2px,border:1px solid]{\\text{${content.trim()}}}`;
+            });
 
+            // 3. $...$ の外にある \bbox や孤立した TeX 記号を $...$ で保護
             const parts = s.split(/(\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g);
             for (let i = 0; i < parts.length; i += 2) {
                 let chunk = parts[i];
                 if (!chunk) continue;
+
+                // \bbox が $ の外にある場合、$ で包む
                 chunk = chunk.replace(/(\\bbox\[2px,border:1px solid\]\{\\text\{[^}]*\}\}(?:\^[0-9A-Za-z^\circ]+)?)/g, '$$$1$$');
+
+                // 孤立した TeX 記号・数式コマンドを $...$ で包む
                 chunk = chunk.replace(/(\\(?:triangle|angle|sqrt|frac|vec|alpha|beta|gamma|theta|pi|pm|mp|le|ge|leqq|geqq|neq|approx|sim|equiv|subset|supset|cap|cup|times|div|cdot|int|sum|lim|log|ln|sin|cos|tan)\b[^\s$、。,.)）]*)/g, '$$$1$$');
+
+                // 不正な連続 $$ や 空の $$ を整理
                 chunk = chunk.replace(/\$\s*\$/g, '');
+
                 parts[i] = chunk;
             }
+
             return parts.join("");
         }
 
@@ -728,6 +676,7 @@
             return t.replace(/\n{3,}/g, "\n\n").replace(/^\n+/, "").trim().replace(/\n/g, "<br>");
         }
 
+        // Markdown＆数式フォーマット関数
         function renderFormattedMarkdown(text) {
             if (!text) return "";
             let trimmed = normalizeMathSyntax(text).trim();
@@ -746,7 +695,7 @@
             return formatted.replace(/\n/g, '<br>');
         }
 
-        // 🧠 1. 問題の気づきメモ描画
+        // 🧠 1. 気づきメモ描画
         function renderInsights() {
             const container = document.getElementById("view-insights");
             const query = searchInput.value.trim().toLowerCase();
@@ -766,6 +715,7 @@
                 );
             }
 
+            // ソート（スター付きは常に最優先）
             items.sort((a, b) => {
                 if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
                 if (sort === "oldest") return new Date(a.insightUpdatedAt || a.createdAt || 0) - new Date(b.insightUpdatedAt || b.createdAt || 0);
@@ -779,11 +729,12 @@
 
             if (items.length === 0) {
                 container.innerHTML = "";
-                showEmptyNotice("該当する「問題の気づきメモ」が見つかりませんでした。");
+                showEmptyNotice("該当する「気づき・極意メモ」が見つかりませんでした。");
                 return;
             }
             hideEmptyNotice();
 
+            // 単元グループ化の処理
             if (isGrouped) {
                 const groups = {};
                 items.forEach(p => {
@@ -811,6 +762,7 @@
                     `;
                 }).join("");
 
+                // アコーディオン開閉
                 container.querySelectorAll(".group-header").forEach(header => {
                     header.addEventListener("click", () => {
                         const key = header.getAttribute("data-group");
@@ -821,6 +773,7 @@
                 });
 
             } else {
+                // フラット表示
                 container.innerHTML = insightViewMode === "card"
                     ? `<div class="insight-grid">${items.map(p => renderCardHtml(p)).join("")}</div>`
                     : `<div class="insight-compact-list">${items.map(p => renderCompactRowHtml(p)).join("")}</div>`;
@@ -831,6 +784,7 @@
             }
         }
 
+        // リッチ対比カードのHTML
         function renderCardHtml(p) {
             const isEditing = editingProblemId === p.id;
             const starClass = p.isPinned ? "active" : "";
@@ -859,12 +813,14 @@
                             </div>
                         </div>
 
+                        <!-- 上半分：問題の型プレビュー -->
                         <div class="insight-problem-preview">
                             <div class="insight-problem-title">📌 ${p.short_title || "問題"}</div>
                             <div class="insight-problem-snippet tex2jax_process">${formatQuestionText(p.title || "（問題文なし）")}</div>
                         </div>
                     </div>
 
+                    <!-- 下半分：掴んだ極意 -->
                     <div class="insight-body-box">
                         <div class="insight-body-label">
                             <span>🧠 掴んだ極意・解法の地図</span>
@@ -880,6 +836,7 @@
             `;
         }
 
+        // 爆速リストのHTML
         function renderCompactRowHtml(p) {
             const starClass = p.isPinned ? "active" : "";
             const pinnedClass = p.isPinned ? "pinned" : "";
@@ -893,167 +850,6 @@
                         <div class="compact-sub">📌 ${p.short_title || "問題"} ｜ ${formatDate(p.insightUpdatedAt || p.createdAt)}</div>
                     </div>
                     <a href="problem.html?id=${encodeURIComponent(p.id)}" class="goto-btn" style="flex-shrink:0;">➔</a>
-                </div>
-            `;
-        }
-
-        // ==========================================================================
-        // 📖 1.5 授業メモビュー（新設）
-        // ==========================================================================
-        function renderLessonNotes() {
-            const container = document.getElementById("view-lesson-notes");
-            const query = searchInput.value.trim().toLowerCase();
-            const subject = subjectSelect.value;
-            const sort = sortSelect.value;
-
-            let items = Object.values(rawLessons).filter(l => l && l.lessonNote && l.lessonNote.trim() !== "");
-
-            if (subject !== "ALL") items = items.filter(l => (l.subject || "物理") === subject);
-            if (filterPinnedOnly) items = items.filter(l => !!l.isPinned);
-            if (query) {
-                items = items.filter(l =>
-                    (l.lessonNote || "").toLowerCase().includes(query) ||
-                    (l.title || "").toLowerCase().includes(query) ||
-                    (l.topicKey || "").toLowerCase().includes(query) ||
-                    (l.extractedText || "").toLowerCase().includes(query)
-                );
-            }
-
-            items.sort((a, b) => {
-                if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
-                if (sort === "oldest") return new Date(a.lessonNoteUpdatedAt || a.updatedAt || 0) - new Date(b.lessonNoteUpdatedAt || b.updatedAt || 0);
-                if (sort === "subject") {
-                    const subA = (a.subject || "") + (a.topicKey || a.title || "");
-                    const subB = (b.subject || "") + (b.topicKey || b.title || "");
-                    return subA.localeCompare(subB, "ja");
-                }
-                return new Date(b.lessonNoteUpdatedAt || b.updatedAt || 0) - new Date(a.lessonNoteUpdatedAt || a.updatedAt || 0);
-            });
-
-            if (items.length === 0) {
-                container.innerHTML = "";
-                showEmptyNotice("該当する「授業メモ」が見つかりませんでした。<br>授業ページの右サイドバー「📝 授業ノート」に入力すると自動でここに集約されます。");
-                return;
-            }
-            hideEmptyNotice();
-
-            if (isGrouped) {
-                const groups = {};
-                items.forEach(l => {
-                    const groupKey = `${l.subject || "物理"} ＞ ${l.topicKey || "一般講義"}`;
-                    if (!groups[groupKey]) groups[groupKey] = [];
-                    groups[groupKey].push(l);
-                });
-
-                container.innerHTML = Object.entries(groups).map(([groupKey, groupItems]) => {
-                    const isExpanded = expandedGroups.has(groupKey);
-                    const rowsHtml = insightViewMode === "card"
-                        ? `<div class="insight-grid">${groupItems.map(l => renderLessonCardHtml(l)).join("")}</div>`
-                        : `<div class="insight-compact-list">${groupItems.map(l => renderLessonCompactRowHtml(l)).join("")}</div>`;
-
-                    return `
-                        <div class="group-section">
-                            <div class="group-header ${isExpanded ? '' : 'collapsed'}" data-group="${groupKey}">
-                                <span>📁 ${groupKey} (${groupItems.length}件)</span>
-                                <span class="group-chevron">▼</span>
-                            </div>
-                            <div class="group-content ${isExpanded ? '' : 'collapsed'}" data-content="${groupKey}">
-                                ${rowsHtml}
-                            </div>
-                        </div>
-                    `;
-                }).join("");
-
-                container.querySelectorAll(".group-header").forEach(header => {
-                    header.addEventListener("click", () => {
-                        const key = header.getAttribute("data-group");
-                        if (expandedGroups.has(key)) expandedGroups.delete(key);
-                        else expandedGroups.add(key);
-                        renderLessonNotes();
-                    });
-                });
-
-            } else {
-                container.innerHTML = insightViewMode === "card"
-                    ? `<div class="insight-grid">${items.map(l => renderLessonCardHtml(l)).join("")}</div>`
-                    : `<div class="insight-compact-list">${items.map(l => renderLessonCompactRowHtml(l)).join("")}</div>`;
-            }
-
-            if (window.MathJax && MathJax.typesetPromise) {
-                MathJax.typesetPromise([container]).catch(err => console.log('MathJax typeset error:', err));
-            }
-        }
-
-        function renderLessonCardHtml(l) {
-            const isEditing = editingLessonId === l.id;
-            const starClass = l.isPinned ? "active" : "";
-            const pinnedClass = l.isPinned ? "pinned" : "";
-            const isDone = l.status === "completed";
-            const badgeClass = isDone ? "badge-safe" : "badge-overdue";
-            const badgeText = isDone ? "✓ 講義完了" : `パート ${(l.currentPartIndex || 0) + 1}/${(l.parts || []).length}`;
-
-            const bodyContent = isEditing
-                ? `
-                    <div style="display:flex; flex-direction:column; gap:0.4rem;">
-                        <textarea class="inline-edit-textarea" id="inline-lesson-textarea-${l.id}">${l.lessonNote || ""}</textarea>
-                        <div style="display:flex; justify-content:flex-end; gap:0.4rem;">
-                            <button type="button" class="tactile-btn tactile-btn-secondary" style="font-size:0.75rem; padding:0.25rem 0.6rem;" onclick="cancelEditLessonNote(event)">キャンセル</button>
-                            <button type="button" class="tactile-btn" style="font-size:0.75rem; padding:0.25rem 0.6rem; background:var(--accent-cyan); color:#000;" onclick="saveInlineLessonNote('${l.id}', event)">💾 保存</button>
-                        </div>
-                    </div>
-                `
-                : `<div class="insight-text tex2jax_process" onclick="startEditLessonNote('${l.id}', event)" title="クリックしてその場で編集">${normalizeMathSyntax(l.lessonNote)}</div>`;
-
-            return `
-                <div class="insight-card ${pinnedClass}" style="border-left-color: var(--accent-yellow);">
-                    <div>
-                        <div style="display:flex; justify-content:space-between; align-items:center; gap:0.4rem; margin-bottom:0.6rem;">
-                            <div style="display:flex; align-items:center; gap:0.4rem;">
-                                <span class="badge badge-physics">${l.subject || "物理"}</span>
-                                <span class="badge ${badgeClass}">${badgeText}</span>
-                            </div>
-                            <div style="display:flex; align-items:center; gap:0.5rem;">
-                                <span style="font-size:0.72rem; color:var(--text-muted);">🗓️ ${formatDate(l.lessonNoteUpdatedAt || l.updatedAt)}</span>
-                                <button type="button" class="star-btn ${starClass}" onclick="toggleLessonPin('${l.id}', event)" title="スター（最上部に固定）">★</button>
-                            </div>
-                        </div>
-
-                        <!-- 上半分：授業概要・原本抜粋プレビュー -->
-                        <div class="insight-problem-preview" style="background: rgba(255,245,0,0.03); border-color: rgba(255,245,0,0.25);">
-                            <div class="insight-problem-title" style="color:var(--accent-yellow);">📖 ${l.title || "授業"}</div>
-                            <div class="insight-problem-snippet tex2jax_process">${formatQuestionText(l.extractedText || "（原本テキストなし）")}</div>
-                        </div>
-                    </div>
-
-                    <!-- 下半分：生徒の授業ノート・要点メモ -->
-                    <div class="insight-body-box">
-                        <div class="insight-body-label" style="color:var(--accent-yellow);">
-                            <span>📝 授業で取ったノート・要点メモ</span>
-                            ${!isEditing ? `<button type="button" style="background:none; border:none; color:var(--accent-yellow); font-size:0.72rem; font-weight:800; cursor:pointer;" onclick="startEditLessonNote('${l.id}', event)">✏️ 編集</button>` : ''}
-                        </div>
-                        ${bodyContent}
-                    </div>
-
-                    <div style="display:flex; justify-content:flex-end; border-top:1px dashed rgba(255,255,255,0.08); padding-top:0.6rem;">
-                        <a href="lesson.html?id=${encodeURIComponent(l.id)}" class="goto-btn" style="border-color:var(--accent-yellow); color:var(--accent-yellow);">授業を開く ➔</a>
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderLessonCompactRowHtml(l) {
-            const starClass = l.isPinned ? "active" : "";
-            const pinnedClass = l.isPinned ? "pinned" : "";
-
-            return `
-                <div class="insight-compact-row ${pinnedClass}" style="border-left: 3px solid var(--accent-yellow);">
-                    <button type="button" class="star-btn ${starClass}" onclick="toggleLessonPin('${l.id}', event)" title="スター">★</button>
-                    <span class="badge badge-physics" style="font-size:0.68rem; flex-shrink:0;">${l.subject || "物理"}</span>
-                    <div class="compact-main">
-                        <div class="compact-text tex2jax_process">${normalizeMathSyntax(l.lessonNote)}</div>
-                        <div class="compact-sub">📖 ${l.title || "授業"} ｜ ${formatDate(l.lessonNoteUpdatedAt || l.updatedAt)}</div>
-                    </div>
-                    <a href="lesson.html?id=${encodeURIComponent(l.id)}" class="goto-btn" style="flex-shrink:0; border-color:var(--accent-yellow); color:var(--accent-yellow);">➔</a>
                 </div>
             `;
         }
@@ -1210,14 +1006,13 @@
 
         function renderActiveView() {
             if (activeTab === "insights") renderInsights();
-            else if (activeTab === "lesson-notes") renderLessonNotes();
             else if (activeTab === "qna") renderQna();
             else if (activeTab === "mnemonics") renderMnemonics();
         }
 
         function showEmptyNotice(msg) {
             const el = document.getElementById("empty-notice");
-            el.innerHTML = msg;
+            el.textContent = msg;
             el.style.display = "block";
         }
         function hideEmptyNotice() {
@@ -1226,16 +1021,13 @@
 
         function updateCounts() {
             const insightCount = Object.values(rawProblems).filter(p => p && p.insight && p.insight.trim() !== "").length;
-            const lessonNoteCount = Object.values(rawLessons).filter(l => l && l.lessonNote && l.lessonNote.trim() !== "").length;
             const qnaCount = Object.keys(rawQnaLogs).length;
             const mnemonicCount = Object.values(rawProblems).filter(p => p && p.subject === "世界史" && p.mnemonic && p.mnemonic.trim() !== "").length;
 
             document.getElementById("count-insights").textContent = insightCount;
-            const lessonCountEl = document.getElementById("count-lesson-notes");
-            if (lessonCountEl) lessonCountEl.textContent = lessonNoteCount;
             document.getElementById("count-qna").textContent = qnaCount;
             document.getElementById("count-mnemonics").textContent = mnemonicCount;
-            document.getElementById("stat-summary-text").textContent = `総蓄積ナレッジ: ${insightCount + lessonNoteCount + qnaCount + mnemonicCount} 件`;
+            document.getElementById("stat-summary-text").textContent = `総蓄積ナレッジ: ${insightCount + qnaCount + mnemonicCount} 件`;
         }
 
         onAuthStateChanged(auth, (user) => {
@@ -1245,7 +1037,6 @@
             }
             currentUser = user;
 
-            // 1. 誤答問題の購読
             onValue(ref(database, 'users/' + user.uid + '/problems'), (snapshot) => {
                 rawProblems = snapshot.val() || {};
                 updateCounts();
@@ -1253,15 +1044,6 @@
                 renderActiveView();
             });
 
-            // 2. 授業データの購読（新設）
-            onValue(ref(database, 'users/' + user.uid + '/lessons'), (snapshot) => {
-                rawLessons = snapshot.val() || {};
-                updateCounts();
-                populateSubjectFilter();
-                renderActiveView();
-            });
-
-            // 3. AI質問ログの購読
             onValue(ref(database, 'users/' + user.uid + '/qna_logs'), (snapshot) => {
                 rawQnaLogs = snapshot.val() || {};
                 updateCounts();
@@ -1269,7 +1051,6 @@
                 renderActiveView();
             });
         });
-        
     </script>
     <script>
         if ('serviceWorker' in navigator) {
