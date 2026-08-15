@@ -19,8 +19,6 @@
         window.MathJax = {
             tex: {
                 inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']],
-                // 🩹【修正】\fbox{...} は数式モードの標準TeXマクロではなく未定義コマンドとして
-                // そのまま表示されてしまうため、ams標準の \boxed{...} の別名として登録する
                 macros: { fbox: ["\\bbox[2px,border:1px solid]{#1}", 1] }
             },
             chtml: { displayAlign: 'left' }
@@ -61,11 +59,14 @@
         .lesson-card-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem; margin-bottom: 0.7rem; cursor: pointer; }
         .lesson-card-row:hover { border-color: var(--border-glow); }
         .lesson-card-title { font-weight: 800; font-size: 1rem; margin-bottom: 0.3rem; }
-        .lesson-card-meta { font-size: 0.75rem; color: var(--text-muted); }
+        .lesson-card-meta { font-size: 0.75rem; color: var(--text-muted); display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; }
         .lesson-progress-badge { font-size: 0.7rem; font-weight: 800; padding: 0.25rem 0.6rem; border-radius: 20px; flex-shrink: 0; }
         .badge-teaching { background: rgba(0,243,255,0.1); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
         .badge-completed { background: rgba(255,245,0,0.1); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); }
-        .lesson-level-badge { display:inline-block; margin-left:0.4rem; padding:0.1rem 0.5rem; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid var(--border-color); color:var(--text-bright-muted); font-size:0.7rem; }
+        .lesson-level-badge { display:inline-block; padding:0.1rem 0.5rem; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid var(--border-color); color:var(--text-bright-muted); font-size:0.7rem; }
+        .lesson-style-badge { display:inline-block; padding:0.1rem 0.5rem; border-radius:8px; font-size:0.7rem; font-weight:800; }
+        .badge-style-socratic { background: rgba(255,0,127,0.12); border: 1px solid var(--accent-magenta); color: var(--accent-magenta); }
+        .badge-style-standard { background: rgba(0,243,255,0.08); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); }
 
         /* 🪜 単元別レベルロードマップ */
         .roadmap-tile { margin-bottom: 0.8rem; cursor: default; }
@@ -86,6 +87,52 @@
         .note-textarea { width: 100%; min-height: 80px; background: #000; border: 1px solid #22222a; color: #fff; padding: 0.8rem; border-radius: 10px; font-family: inherit; resize: vertical; }
         .settings-link { font-size: 0.8rem; color: var(--text-muted); background: none; border: none; cursor: pointer; text-decoration: underline; align-self: flex-start; }
         .settings-link:hover { color: var(--accent-cyan); }
+
+        /* ── スタイル選択スイッチ ── */
+        .style-selector-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
+            margin-bottom: 0.4rem;
+        }
+        .style-card-btn {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid #222233;
+            border-radius: 14px;
+            padding: 0.9rem 1rem;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--text-bright-muted);
+        }
+        .style-card-btn:hover {
+            border-color: var(--border-glow);
+            background: rgba(0,243,255,0.04);
+        }
+        .style-card-btn.active {
+            border-color: var(--accent-cyan);
+            background: rgba(0,243,255,0.08);
+            box-shadow: 0 0 15px rgba(0,243,255,0.2);
+            color: #fff;
+        }
+        .style-card-btn.active.socratic-style {
+            border-color: var(--accent-magenta);
+            background: rgba(255,0,127,0.08);
+            box-shadow: 0 0 15px rgba(255,0,127,0.2);
+        }
+        .style-card-title {
+            font-size: 0.95rem;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-bottom: 0.3rem;
+        }
+        .style-card-desc {
+            font-size: 0.76rem;
+            color: var(--text-muted);
+            line-height: 1.45;
+        }
 
         /* ── プランプレビュー ── */
         .plan-part-item { border-left: 3px solid var(--accent-yellow); padding: 0.6rem 1rem; margin-bottom: 0.6rem; background: rgba(255,245,0,0.03); border-radius: 0 10px 10px 0; }
@@ -133,10 +180,13 @@
             .chat-transcript {
                 max-height: 55vh;
             }
+            .style-selector-container {
+                grid-template-columns: 1fr;
+            }
         }
 
         /* ── 授業（チャット）画面 ── */
-        .progress-strip { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.8rem; }
+        .progress-strip { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem; }
         .progress-strip b { color: var(--accent-cyan); }
         .chat-transcript { 
             display: flex; 
@@ -165,6 +215,10 @@
             color: #f0f4f8; 
             align-self: flex-start; 
         }
+        .bubble-ai.socratic-bubble {
+            border-left: 4px solid var(--accent-magenta);
+            background: rgba(22, 16, 28, 0.9);
+        }
         .bubble-user { 
             background: rgba(255, 0, 127, 0.15); 
             border-right: 4px solid var(--accent-magenta); 
@@ -184,15 +238,53 @@
             border: 1px solid rgba(255, 245, 0, 0.2);
         }
 
+        /* ⚡ 即時アウトプット演習（ドリル）カード */
+        .drill-section-box {
+            background: rgba(10, 15, 25, 0.95);
+            border: 1px solid var(--accent-cyan);
+            border-radius: 16px;
+            padding: 1.2rem;
+            margin: 1rem 0 0.5rem 0;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.15);
+        }
+        .drill-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.8rem;
+            border-bottom: 1px solid rgba(0, 243, 255, 0.2);
+            padding-bottom: 0.5rem;
+        }
+        .drill-title {
+            font-weight: 900;
+            color: var(--accent-cyan);
+            font-size: 0.98rem;
+        }
+        .drill-content-body {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+            white-space: pre-wrap;
+        }
+        .drill-answer-box {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px dashed rgba(255, 245, 0, 0.4);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 0.8rem;
+            display: none;
+        }
+
         /* MathJax溢れ防止 */
-        .chat-bubble mjx-container {
+        .chat-bubble mjx-container, .drill-section-box mjx-container {
             max-width: 100% !important;
             overflow-x: auto !important;
             overflow-y: hidden !important;
             vertical-align: middle;
             padding: 0.2em 0;
         }
-        .chat-bubble mjx-container[jax="CHTML"][display="true"] {
+        .chat-bubble mjx-container[jax="CHTML"][display="true"],
+        .drill-section-box mjx-container[jax="CHTML"][display="true"] {
             display: block !important;
             margin: 0.6em 0 !important;
             background: rgba(0, 0, 0, 0.3);
@@ -215,13 +307,8 @@
         .chat-transcript::-webkit-scrollbar-thumb,
         .parts-toc-container::-webkit-scrollbar-thumb,
         .source-text-box::-webkit-scrollbar-thumb {
-            background: rgba(255, 245, 0, 0.3);
-            border-radius: 3px;
-        }
-        .chat-transcript::-webkit-scrollbar-thumb:hover,
-        .parts-toc-container::-webkit-scrollbar-thumb:hover,
-        .source-text-box::-webkit-scrollbar-thumb:hover {
             background: var(--accent-yellow);
+            border-radius: 3px;
         }
 
         /* ── サイドバー（タブ＆コンテンツ） ── */
@@ -235,7 +322,7 @@
         .sidebar-tab-btn {
             flex: 1;
             text-align: center;
-            white-space: nowrap; /* 💡 改行を完全防御 */
+            white-space: nowrap;
             background: transparent;
             border: 1px solid #22222a;
             color: var(--text-muted);
@@ -263,7 +350,6 @@
             display: flex;
         }
 
-        /* パート目次アイテム */
         .parts-toc-container {
             overflow-y: auto;
             flex-grow: 1;
@@ -304,8 +390,8 @@
             font-weight: 800;
             padding: 0.2rem 0.55rem;
             border-radius: 12px;
-            white-space: nowrap; /* 💡 バッジ文字の改行を完全防御 */
-            flex-shrink: 0;     /* 💡 潰れ防止 */
+            white-space: nowrap;
+            flex-shrink: 0;
             line-height: 1.2;
         }
         .toc-regen-btn {
@@ -345,7 +431,6 @@
             line-height: 1.45;
         }
 
-        /* 授業ノートテキストエリア */
         .lesson-note-textarea {
             width: 100%;
             flex-grow: 1;
@@ -365,7 +450,6 @@
             border-color: var(--accent-cyan);
         }
 
-        /* 原本テキスト表示エリア */
         .source-text-box {
             background: #000;
             border: 1px solid #1a2a35;
@@ -465,7 +549,24 @@
             <div class="squircle-card new-lesson-form">
                 <div style="font-weight:900; font-size:1.05rem;">🆕 新しい授業を始める</div>
 
-                <div style="display:flex; gap:0.5rem; margin: 0.8rem 0 1rem 0;">
+                <!-- 🌟 授業スタイル選択スイッチ -->
+                <div>
+                    <label style="font-size:0.82rem; font-weight:800; color:var(--text-muted); display:block; margin-bottom:0.4rem;">
+                        🎓 授業スタイルを選択：
+                    </label>
+                    <div class="style-selector-container">
+                        <button type="button" class="style-card-btn active" id="style-btn-standard">
+                            <div class="style-card-title">📖 標準講義モード</div>
+                            <div class="style-card-desc">参考書に沿って順序立てて解説し、疑問を質問するインプット重視スタイル</div>
+                        </button>
+                        <button type="button" class="style-card-btn socratic-style" id="style-btn-socratic">
+                            <div class="style-card-title" style="color:var(--accent-magenta);">🧠 ソクラテス対話ゼミ</div>
+                            <div class="style-card-desc">多角的アプローチ（別解比較）＋ 罠見破り ＋ 問答式で能動的に鍛える実践スタイル</div>
+                        </button>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:0.5rem; margin: 0.4rem 0 0.8rem 0;">
                     <button type="button" class="tactile-btn mode-tab-btn active" id="mode-tab-photo" style="flex:1; background: var(--accent-cyan); color:#000; box-shadow: 3px 3px 0px #008b94;">📷 参考書から</button>
                     <button type="button" class="tactile-btn mode-tab-btn" id="mode-tab-topic" style="flex:1; background:#111; color:var(--text-bright-muted); border:1px solid #333; box-shadow:none;">✏️ 単元名だけで</button>
                 </div>
@@ -526,7 +627,10 @@
 
         <!-- ============ プランプレビュー（未保存） ============ -->
         <div id="view-plan-preview" class="squircle-card hidden">
-            <div style="font-weight:900; font-size:1.1rem; color: var(--accent-yellow); margin-bottom: 0.3rem;" id="plan-preview-title">授業プラン</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.3rem;">
+                <div style="font-weight:900; font-size:1.1rem; color: var(--accent-yellow);" id="plan-preview-title">授業プラン</div>
+                <span id="plan-preview-style-badge" class="lesson-style-badge"></span>
+            </div>
             <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1rem;">この内容で進めてよければ「授業を始める」を押してください。分割が気に入らなければ作り直せます。</div>
             <div id="plan-preview-parts"></div>
             <div class="lesson-controls">
@@ -543,14 +647,18 @@
                 <div class="squircle-card lesson-main-card">
                     <div class="progress-strip">
                         <span id="lesson-title-display" style="font-weight: 800; color: var(--accent-yellow); font-size: 1.05rem;">---</span>
+                        <span id="lesson-style-display-badge" class="lesson-style-badge"></span>
                         <span id="continuation-source-badge" style="display:none; font-size: 0.78rem; color: var(--accent-cyan); font-weight:700;"></span>
                         <span style="font-size: 0.85rem; color: var(--text-muted);">パート <b id="part-progress-display" style="color: var(--accent-cyan); font-weight: 900;">-/-</b></span>
                         <button type="button" class="tactile-btn" id="solve-related-problem-btn" style="background: var(--accent-magenta); box-shadow: 3px 3px 0px #8a004f; font-size: 0.8rem; padding: 0.5rem 0.9rem; margin-left: auto;">
-                            🎯 この授業の続きとして問題を解く
+                            🎯 誤答ノートに連携
                         </button>
                     </div>
 
                     <div class="chat-transcript" id="chat-transcript"></div>
+
+                    <!-- ⚡ 即時アウトプット演習エリア -->
+                    <div id="drill-container-area"></div>
 
                     <div id="completed-banner" class="completed-banner hidden">
                         🎉 この授業はすべてのパートが終了しました！お疲れさまでした。
@@ -570,13 +678,15 @@
                     </div>
 
                     <div class="lesson-controls">
+                        <button type="button" class="tactile-btn" id="trigger-drill-btn" style="background: rgba(0, 243, 255, 0.12); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); box-shadow: none;">
+                            ⚡ 類題で即時アウトプット
+                        </button>
                         <button type="button" class="tactile-btn" id="next-part-btn" style="background: var(--accent-yellow); color:#000; box-shadow: 3px 3px 0px #a89f00;">▶ 次のパートへ進む</button>
                     </div>
                 </div>
 
                 <!-- 右サイドバー：目次・ノート・原本参照 -->
                 <div class="squircle-card lesson-sidebar-card">
-                    <!-- サイドバータブ切り替え -->
                     <div class="sidebar-tab-group">
                         <button type="button" class="sidebar-tab-btn active" data-tab="tab-parts">📚 パート目次</button>
                         <button type="button" class="sidebar-tab-btn" data-tab="tab-notes">📝 授業ノート</button>
@@ -658,7 +768,6 @@
         const database = getDatabase(app);
 
         initApiKeyManager({ needGemini: true });
-        // ✨ callGeminiJSON / callGeminiChat / normalizeImageFile は api-key-manager.js から共通インポート済み
 
         const DEFAULT_POLICY_PROMPT = `あなたは大学受験生専属の家庭教師です。生徒が持ち込んだ「特定の参考書」の内容をもとに、わかりやすく解説授業を行ってください。
 
@@ -667,7 +776,7 @@
 ・必要に応じて具体的な「例」を使って説明すること
 ・大学受験において「暗記でよい部分」か「しっかり理解すべき部分」かの判断は、あなた自身が行うこと
 ・生徒からの質問には、今扱っているパートの文脈に沿って丁寧に答えること
-・数式や変数は必ず $ または $$ で囲むLaTeX形式で書くこと
+・数学・物理・化学基礎の数式や変数は必ず $ または $$ で囲むLaTeX形式で書くこと
 
 【参考書の流儀を最優先すること（最重要）】
 ・この授業は「一般的な物理の教科書」ではなく、生徒が持ち込んだ「その参考書」をベースに行うものです
@@ -675,15 +784,28 @@
 ・参考書の記述と、あなたが一般知識として持っている標準的な説明が食い違う場合は、参考書の記述を優先し、その参考書の流儀で説明すること。ただし参考書側に明らかな誤植・矛盾がある場合は、その旨を明示した上で指摘してよい
 ・参考書に載っていない内容を補足する場合は、「ここから先は参考書に載っていない一般的な補足です」のように、参考書本文と自分の補足を生徒がはっきり区別できるように書くこと`;
 
-        // ✨ callGeminiJSON / callGeminiChat / normalizeImageFile は api-key-manager.js から共通インポート
-        //    （モデル×キーの二重フォールバックループ・画像正規化ロジックはそちらに一本化）
-
         // --------------------------------------------------------------
         // 状態
         // --------------------------------------------------------------
         let loginUid = null;
-        let selectedImages = []; // [{mimeType, data}] （新規授業作成フォーム用）
-        let creationMode = "photo"; // "photo" | "topic"
+        let selectedImages = [];
+        let creationMode = "photo";
+        let selectedTeachingStyle = "standard";
+
+        function setTeachingStyle(style) {
+            selectedTeachingStyle = style;
+            const stdBtn = el("style-btn-standard");
+            const socBtn = el("style-btn-socratic");
+            if (style === "socratic") {
+                stdBtn.classList.remove("active");
+                socBtn.classList.add("active");
+            } else {
+                socBtn.classList.remove("active");
+                stdBtn.classList.add("active");
+            }
+        }
+        el("style-btn-standard").addEventListener("click", () => setTeachingStyle("standard"));
+        el("style-btn-socratic").addEventListener("click", () => setTeachingStyle("socratic"));
 
         function setCreationMode(mode) {
             creationMode = mode;
@@ -705,19 +827,18 @@
         }
         el("mode-tab-photo").addEventListener("click", () => setCreationMode("photo"));
         el("mode-tab-topic").addEventListener("click", () => setCreationMode("topic"));
-        let chatSelectedImages = []; // [{mimeType, data, previewUrl}] （授業チャット中の追加質問用）
-        let draftPlan = null;    // { extracted_text, lesson_title, parts }
-        let lastLessonsSnapshot = {}; // 🔗 続きの授業選択プルダウンの元データ
+
+        let chatSelectedImages = [];
+        let draftPlan = null;
+        let lastLessonsSnapshot = {};
         let customPolicyPrompt = DEFAULT_POLICY_PROMPT;
         let currentLesson = null;
         let currentLessonId = null;
 
         const urlParams = new URLSearchParams(window.location.search);
         const REQUESTED_ID = urlParams.get('id');
-        const FROM_PROBLEM = urlParams.get('fromProblem'); // 🎓【新設】問題タブからの授業ハンドオフ
-        let pendingSourceProblem = null; // { id, title } ハンドオフ元の問題（プラン確定時に授業へ紐付ける）
+        let pendingSourceProblem = null;
 
-        // 🪜【新設】単元レベル・アップ機構：教科書→定期テスト→入試基礎→入試標準〜応用 の順で難度を上げていく
         const LEVEL_ORDER = ["教科書レベル（基礎の基礎から）", "定期テストレベル", "入試基礎レベル", "入試標準〜応用レベル"];
         const LEVEL_SHORT = ["教科書", "定期テスト", "入試基礎", "入試標準〜応用"];
         function nextLevelOf(levelText) {
@@ -725,7 +846,7 @@
             if (idx === -1 || idx >= LEVEL_ORDER.length - 1) return null;
             return LEVEL_ORDER[idx + 1];
         }
-        let pendingLevelUp = null; // { fromLessonId, fromLevel, fromNote, fromKeyTerms } プラン確定時に前レベルの授業へ紐付ける
+        let pendingLevelUp = null;
 
         function el(id) { return document.getElementById(id); }
 
@@ -769,10 +890,8 @@
         });
 
         // --------------------------------------------------------------
-        // 画像アップロード（新規授業フォーム）
+        // 画像アップロード
         // --------------------------------------------------------------
-        // ✨ normalizeImageFile（HEIC変換等）は api-key-manager.js から共通インポート
-
         el("image-input").addEventListener("change", async (e) => {
             const files = Array.from(e.target.files || []);
             for (const file of files) {
@@ -785,15 +904,10 @@
             renderThumbs();
         });
 
-
-
         function renderThumbs() {
             el("thumb-row").innerHTML = selectedImages.map(img => `<img src="${img.previewUrl}">`).join("");
         }
 
-        // --------------------------------------------------------------
-        // 画像アップロード（授業チャット中の追加質問用）
-        // --------------------------------------------------------------
         el("chat-attach-btn").addEventListener("click", () => el("chat-image-input").click());
         el("chat-image-input").addEventListener("change", async (e) => {
             const files = Array.from(e.target.files || []);
@@ -838,9 +952,6 @@
             el("view-list").classList.remove("hidden");
         });
 
-        // 🔒【新設】PLAN_SYSTEM_INSTRUCTION（写真モード／単元名モード共通）のJSON構造をAPI側で強制するためのスキーマ
-        // 🌍【新設】世界史の年表ビュー用：出来事の地域を固定カテゴリに揃えることで、
-        //    複数の授業・問題をまたいでも同じ地域名でレーン分けできるようにする
         const HISTORY_REGIONS = ["東アジア", "東南アジア", "南アジア", "西アジア・中央アジア", "ヨーロッパ", "アメリカ大陸", "アフリカ", "地域をまたぐ／世界全体"];
 
         const LESSON_PLAN_RESPONSE_SCHEMA = {
@@ -906,10 +1017,17 @@
 
             let PLAN_SYSTEM_INSTRUCTION, promptText, parts, topicTextForSave, levelTextForSave;
 
+            const isSocratic = selectedTeachingStyle === "socratic";
+            const socraticAddon = isSocratic ? `
+【特記事項：ソクラテス対話ゼミ】
+この授業は「多角的アプローチ（別解比較）」「あえて間違える落とし穴の見破り」「対話式問答」を重視するスタイルです。
+各パートの要約(summary)には、単なる解説範囲だけでなく「生徒に投げかけるべき核心の問いや、比較検討すべき別解の視点」を盛り込んで計画してください。` : "";
+
             if (creationMode === "photo") {
                 const noteText = el("note-input").value.trim();
 
                 PLAN_SYSTEM_INSTRUCTION = `${customPolicyPrompt}
+${socraticAddon}
 
 今回はまだ授業本編ではなく、授業の準備をしてください。
 1. 添付された参考書ページの内容を正確に読み取り、全文を書き出すこと（数式は $ $ で囲むこと）。【厳守】要約・省略は絶対禁止。ページ数が多くても、最後のページの内容まで一字一句省略せず全文を書き出すこと。1文でも省いたら失格とみなす。
@@ -939,7 +1057,6 @@
                 selectedImages.forEach(img => parts.push({ inlineData: { mimeType: img.mimeType, data: img.data } }));
 
             } else {
-                // ✏️【単元名だけモード】参考書がないので、AI自身の知識でカリキュラムと解説ノートを新規作成する
                 const topicText = el("topic-input").value.trim();
                 const levelText = el("topic-level-select").value;
                 const topicNoteText = el("topic-note-input").value.trim();
@@ -947,16 +1064,14 @@
                 levelTextForSave = levelText;
 
                 PLAN_SYSTEM_INSTRUCTION = `${customPolicyPrompt}
+${socraticAddon}
 
 今回は生徒の手元に参考書がありません。指定された単元について、あなた自身の知識だけを使って、ゼロから授業を設計してください。
 1. 指定された単元・レベル感に沿って、生徒が体系的に理解できるように内容を組み立て、「授業ノート」として全文を書き出すこと（数式は $ $ で囲むこと）。このノートは後の授業本編で「教える内容の正解」として毎回参照されるので、公式・定義・成り立ち・典型的な考え方の流れを、正確かつ網羅的に、ただし冗長になりすぎない密度で書くこと
 2. 内容量を踏まえて、区切りの良い単位で「大まかな授業プラン」を作成すること（目安は2〜6パート程度。多すぎず少なすぎないように。基礎概念→典型パターン→応用、のように学習の階段になるよう並べること）
 3. この単元特有の重要用語・公式・定理（一般的すぎるものは除く）があれば、名称と定義を簡潔に抽出すること
-4. もしプロンプト中に【重要：レベルアップ授業です】という指示がある場合は、そこに書かれている「前回の授業ノート」を熟読した上で、以下の方針で授業を組み立てること：
-   ・前回学んだ内容を「存在しないもの」として無視したり、逆に体系的に教え直したりしない
-   ・授業の冒頭（目安として最初のパートの導入部分）で、前回の内容を軽く復習として触れる。ただし分量はあくまで「軽め」にとどめ、単なる繰り返しにしないこと。「前回は〜だったが、今回はこれを土台にして〜を見ていく」のように、今回のレベルへの橋渡しとして位置づけること
-   ・授業本編の大部分は、既習事項を道具・土台として自然に参照しながら（例：「前回学んだ○○を使うと」）、そこにはなかった発展的な内容・そのレベルならではの着眼点に重点を置くこと
-5. もし指定された単元が世界史・日本史など歴史科目である場合に限り、授業ノート中に登場する年号つきの出来事をすべてhistorical_eventsとして抽出すること。歴史科目でない場合（数学・物理・英語など）は historical_events は空配列（[]）にすること
+4. もしプロンプト中に【重要：レベルアップ授業です】という指示がある場合は、そこに書かれている「前回の授業ノート」を熟読した上で、前回の復習を軽く触れつつ今回の発展的内容に重点を置くこと
+5. もし指定された単元が歴史科目である場合に限り、授業ノート中に登場する年号つきの出来事をすべてhistorical_eventsとして抽出すること。歴史科目でない場合は空配列（[]）にすること
 
 出力は必ず以下のJSON形式のみで返してください。他のテキストは一切含めないこと。
 {
@@ -971,18 +1086,17 @@
   "historical_events": [
     { "name": "出来事の名前", "year": "表示用の年（例：1789年、前3世紀 など）", "year_sort": "並べ替え用の年（西暦の整数。紀元前は負の数）", "region": "東アジア／東南アジア／南アジア／西アジア・中央アジア／ヨーロッパ／アメリカ大陸／アフリカ／地域をまたぐ／世界全体 のいずれか1つ" }
   ]
-}`;
+}
+`;
 
                 promptText = `以下の単元について、指定のJSONで授業プランと授業ノートを作成してください。\n\n【単元名】\n${topicText}\n\n【レベル感】\n${levelText}`;
                 if (topicNoteText) promptText += `\n\n【生徒からの要望・前提】\n${topicNoteText}`;
 
-                // 🪜【新設】レベルアップ授業の場合、前レベルの授業ノート＆既習キーワードを渡し、
-                // 「同じことをだらだら教える」事態を避けるよう明示的に指示する
                 if (pendingLevelUp) {
                     const termsLine = (pendingLevelUp.fromKeyTerms && pendingLevelUp.fromKeyTerms.length > 0)
                         ? pendingLevelUp.fromKeyTerms.join("、")
                         : "（特になし）";
-                    promptText += `\n\n【重要：レベルアップ授業です】\nこの生徒は同じ単元をすでに「${pendingLevelUp.fromLevel}」で学習済みです。以下はその時に作成した授業ノート全文と、登場した重要キーワードの一覧です。この内容を「存在しないもの」として無視するのではなく、授業の土台として積極的に活用してください。具体的には、授業の冒頭で軽く復習として触れつつ（分量は軽めに、単なる繰り返しにはしないこと）、「前回学んだ○○を使うと〜」のように本編でも道具として自然に参照しながら、授業本編の大部分は前回にはなかった発展的な内容・「${levelText}」ならではの着眼点に重点を置いてください。前回と同じ内容をゼロから体系的に教え直すことは避けてください。\n\n【前回（${pendingLevelUp.fromLevel}）の授業ノート】\n${pendingLevelUp.fromNote || "（記録なし）"}\n\n【前回までの既習キーワード】\n${termsLine}`;
+                    promptText += `\n\n【重要：レベルアップ授業です】\nこの生徒は同じ単元をすでに「${pendingLevelUp.fromLevel}」で学習済みです。\n\n【前回（${pendingLevelUp.fromLevel}）の授業ノート】\n${pendingLevelUp.fromNote || "（記録なし）"}\n\n【前回までの既習キーワード】\n${termsLine}`;
                 }
 
                 parts = [{ text: promptText }];
@@ -993,6 +1107,7 @@
                 if (!Array.isArray(result.parts) || result.parts.length === 0) throw new Error("プランの形式が不正です。");
                 draftPlan = result;
                 draftPlan.sourceMode = creationMode;
+                draftPlan.teachingStyle = selectedTeachingStyle;
                 if (creationMode === "topic") {
                     draftPlan.topicKey = topicTextForSave;
                     draftPlan.level = levelTextForSave;
@@ -1013,6 +1128,10 @@
 
         function renderPlanPreview() {
             el("plan-preview-title").textContent = `📘 ${draftPlan.lesson_title}（全${draftPlan.parts.length}回）`;
+            const styleBadge = el("plan-preview-style-badge");
+            const isSocratic = draftPlan.teachingStyle === "socratic";
+            styleBadge.textContent = isSocratic ? "🧠 ソクラテス対話ゼミ" : "📖 標準講義";
+            styleBadge.className = `lesson-style-badge ${isSocratic ? 'badge-style-socratic' : 'badge-style-standard'}`;
 
             const sourceNoticeId = "plan-preview-source-problem-notice";
             let sourceNoticeEl = document.getElementById(sourceNoticeId);
@@ -1023,7 +1142,7 @@
                     sourceNoticeEl.style.cssText = "font-size:0.8rem; color:var(--accent-yellow); background:rgba(255,245,0,0.06); border:1px solid rgba(255,245,0,0.25); border-radius:10px; padding:0.6rem 0.9rem; margin-bottom:0.8rem;";
                     el("plan-preview-title").insertAdjacentElement("afterend", sourceNoticeEl);
                 }
-                sourceNoticeEl.textContent = `🔗 問題「${pendingSourceProblem.title}」でのつまずきから作成された授業プランです。内容が合っていなければ、単元名やメモを書き換えて「作り直す」を押してください。`;
+                sourceNoticeEl.textContent = `🔗 問題「${pendingSourceProblem.title}」でのつまずきから作成された授業プランです。`;
                 sourceNoticeEl.style.display = "block";
             } else if (sourceNoticeEl) {
                 sourceNoticeEl.style.display = "none";
@@ -1046,7 +1165,6 @@
             btn.textContent = "⚙️ 準備中...";
             btn.disabled = true;
             try {
-                // 🔗【続きの授業】選択されていれば、前回までの用語集（accumulatedKeyTerms）を引き継ぐ
                 const continuationId = el("continuation-select") ? el("continuation-select").value : "";
                 let inheritedKeyTerms = [];
                 let previousLessonTitle = null;
@@ -1064,7 +1182,6 @@
                 }
 
                 const thisLessonKeyTerms = Array.isArray(draftPlan.key_terms) ? draftPlan.key_terms : [];
-                // 名前の重複は除外（先に登場した定義を優先）
                 const existingNames = new Set(inheritedKeyTerms.map(t => t.name));
                 const mergedKeyTerms = [
                     ...inheritedKeyTerms,
@@ -1079,27 +1196,25 @@
                     title: draftPlan.lesson_title,
                     extractedText: draftPlan.extracted_text,
                     sourceMode: draftPlan.sourceMode || "photo",
+                    teachingStyle: draftPlan.teachingStyle || "standard",
                     parts: draftPlan.parts,
                     currentPartIndex: 0,
                     status: "teaching",
                     chatHistory: [],
                     createdAt: now,
                     updatedAt: now,
-                    keyTerms: thisLessonKeyTerms,           // この授業で新しく登場した用語
-                    inheritedKeyTerms: inheritedKeyTerms,    // 前回までに教わった用語（そのまま）
-                    accumulatedKeyTerms: mergedKeyTerms,      // 次の続き授業へ引き継ぐ累積用語集
-                    historicalEvents: Array.isArray(draftPlan.historical_events) ? draftPlan.historical_events : [], // 🌍 年表ビュー用（歴史科目以外は空配列）
+                    keyTerms: thisLessonKeyTerms,
+                    inheritedKeyTerms: inheritedKeyTerms,
+                    accumulatedKeyTerms: mergedKeyTerms,
+                    historicalEvents: Array.isArray(draftPlan.historical_events) ? draftPlan.historical_events : [],
                     ...(continuationId ? { previousLessonId: continuationId, previousLessonTitle } : {}),
-                    // 🎓【新設】問題タブの「前提から授業でやり直す」から作られた授業なら、元の問題を紐付ける
                     ...(pendingSourceProblem ? { sourceProblemId: pendingSourceProblem.id, sourceProblemTitle: pendingSourceProblem.title } : {}),
-                    // 🪜【新設】単元名モードの授業には、レベル・単元識別キーを保存（レベルアップ機構・ロードマップ表示用）
                     ...(draftPlan.level ? { level: draftPlan.level, levelIndex } : {}),
                     ...(draftPlan.topicKey ? { topicKey: draftPlan.topicKey } : {}),
                     ...(pendingLevelUp ? { levelUpFromLessonId: pendingLevelUp.fromLessonId } : {})
                 };
                 await set(ref(database, 'users/' + loginUid + '/lessons/' + newId), lessonObj);
 
-                // 🪜 レベルアップ元の授業がある場合、その授業側にも「次のレベルへ進んだ」リンクを書き戻す
                 if (pendingLevelUp && pendingLevelUp.fromLessonId) {
                     try {
                         await update(ref(database, 'users/' + loginUid + '/lessons/' + pendingLevelUp.fromLessonId), {
@@ -1122,7 +1237,7 @@
         });
 
         // --------------------------------------------------------------
-        // 🔗 続きの授業選択プルダウン
+        // 授業一覧・ロードマップ
         // --------------------------------------------------------------
         function renderContinuationOptions(lessonsObj) {
             const select = el("continuation-select");
@@ -1134,9 +1249,6 @@
             select.innerHTML = `<option value="">続きではない（新規シリーズとして開始）</option>${optionsHtml}`;
         }
 
-        // --------------------------------------------------------------
-        // 授業一覧
-        // --------------------------------------------------------------
         function renderLessonList(lessonsObj) {
             const lessons = Object.values(lessonsObj || {}).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
             const listEl = el("lesson-list");
@@ -1153,8 +1265,10 @@
                 const badgeText = done ? "完了" : `パート ${((l.currentPartIndex || 0) + 1)}/${total}`;
                 const updated = new Date(l.updatedAt).toLocaleString("ja-JP");
 
-                // 🪜 レベル表示＋「次のレベルへ」控えめボタン（完了済み・単元名モード・まだ次のレベルに進んでいない場合のみ）
                 const levelBadge = l.level ? `<span class="lesson-level-badge">🎚️ ${LEVEL_SHORT[l.levelIndex] || l.level}</span>` : "";
+                const isSocratic = l.teachingStyle === "socratic";
+                const styleBadge = `<span class="lesson-style-badge ${isSocratic ? 'badge-style-socratic' : 'badge-style-standard'}">${isSocratic ? '🧠 ソクラテス' : '📖 標準'}</span>`;
+
                 const nxt = l.level ? nextLevelOf(l.level) : null;
                 const showLevelUpBtn = done && nxt && !l.levelUpToLessonId;
                 const levelUpBtnHtml = showLevelUpBtn
@@ -1165,7 +1279,11 @@
                     <div class="squircle-tile lesson-card-row" data-lesson-id="${l.id}">
                         <div>
                             <div class="lesson-card-title">${l.title || "無題の授業"}</div>
-                            <div class="lesson-card-meta">最終更新: ${updated} ${levelBadge}</div>
+                            <div class="lesson-card-meta">
+                                <span>最終更新: ${updated}</span>
+                                ${styleBadge}
+                                ${levelBadge}
+                            </div>
                         </div>
                         <div style="display:flex; align-items:center; gap:0.5rem;">
                             ${levelUpBtnHtml}
@@ -1189,13 +1307,12 @@
             });
             listEl.querySelectorAll("[data-delete-id]").forEach(btn => {
                 btn.addEventListener("click", (e) => {
-                    e.stopPropagation(); // カードクリック（授業を開く）が発火しないようにする
+                    e.stopPropagation();
                     deleteLesson(btn.getAttribute("data-delete-id"));
                 });
             });
         }
 
-        // 🗑️【新設】授業一覧から授業を削除する
         async function deleteLesson(lessonId) {
             if (!loginUid) return;
             const lesson = (lastLessonsSnapshot || {})[lessonId];
@@ -1212,9 +1329,6 @@
             }
         }
 
-        // --------------------------------------------------------------
-        // 🪜 単元別レベルアップ・ロードマップ
-        // --------------------------------------------------------------
         function renderTopicRoadmap(lessonsObj) {
             const wrap = el("roadmap-wrap");
             const listEl = el("roadmap-list");
@@ -1239,7 +1353,6 @@
                 group.forEach(l => {
                     const idx = (typeof l.levelIndex === "number" && l.levelIndex >= 0) ? l.levelIndex : LEVEL_ORDER.indexOf(l.level);
                     if (idx < 0 || idx > 3) return;
-                    // 同じレベルの授業が複数あれば、最終更新が新しい方を採用
                     if (!slots[idx] || new Date(l.updatedAt) > new Date(slots[idx].updatedAt)) slots[idx] = l;
                 });
                 const latestUpdate = group.reduce((max, l) => Math.max(max, new Date(l.updatedAt).getTime()), 0);
@@ -1292,8 +1405,6 @@
         // --------------------------------------------------------------
         // 授業（チャット）画面
         // --------------------------------------------------------------
-        // 🔒【新設】sendTurn() の応答フォーマットをAPI側で強制するためのスキーマ。
-        //   buildTeachSystemInstruction() 内の「返答は以下のJSONのみ」の説明と構造を一致させること。
         const TEACH_TURN_RESPONSE_SCHEMA = {
             type: "OBJECT",
             properties: {
@@ -1306,30 +1417,50 @@
         function buildTeachSystemInstruction(idxOverride) {
             const parts = currentLesson.parts;
             const idx = (idxOverride !== undefined && idxOverride !== null) ? idxOverride : currentLesson.currentPartIndex;
+            const isSocratic = currentLesson.teachingStyle === "socratic";
 
-            // 🔗【続きの授業】前回までに教わった、この参考書オリジナルの用語・法則の定義集
             const inheritedTerms = currentLesson.inheritedKeyTerms || [];
             const glossaryBlock = inheritedTerms.length > 0
                 ? `\n\n【生徒が以前の授業ですでに習った用語集（正確にこの定義で使うこと）】\n` +
-                  inheritedTerms.map(t => `・${t.name}：${t.definition}`).join("\n") +
-                  `\n※本文中で「第◯講で習った」のようにこれらの用語に言及する場合、上記の定義を正確に使って説明を補うこと。名前だけ引用して説明を省略しないこと。上記にない用語への言及は、無理に説明せず「これは別の回で扱う内容なので、気になったら質問してね」と一言添えること。`
+                  inheritedTerms.map(t => `・${t.name}：${t.definition}`).join("\n")
                 : "";
 
             const isTopicMode = currentLesson.sourceMode === "topic";
             const sourceLabel = isTopicMode ? "この授業のためにAIが事前に作成した授業ノート" : "参考書から読み取った全文";
-            const photoHandlingBlock = isTopicMode
-                ? `【生徒が問題の写真を添付してきた場合】
-・生徒が会話の中で問題や自分の解答の写真を添付した場合、その内容を最優先の一次情報として扱い、写っている問題文・条件・生徒の解答をそのまま使って説明・回答すること
-・写真に写っている図（力の図示、グラフ、回路図など）について説明する際は、図のどの部分の話をしているか生徒に分かるように具体的に言及すること`
-                : `【生徒が参考書のページ写真を添付してきた場合】
-・生徒が会話の中で参考書のページ写真を添付した場合、それはこの授業の元になっている参考書そのもの（またはその関連ページ）です
-・添付された写真に写っている図・表・独自の記号や用語・説明の展開は、上記「${sourceLabel}」よりも一次情報として優先し、そこに書かれている表現・概念・解法をそのまま使って説明・回答すること
-・「${sourceLabel}」はOCR的に文字起こししたものなので、数式や図が正しく読み取れていない可能性があります。添付された写真の内容と「${sourceLabel}」が食い違う場合は、写真の内容を正としてください
-・写真に写っている図（力の図示、グラフ、回路図など）について説明する際は、図のどの部分の話をしているか生徒に分かるように具体的に言及すること`;
+            
+            // 🧠 改善案①・②・③を反映したソクラテスモード専用の高精度対話プロンプト
+            const socraticInstructionBlock = isSocratic ? `
+【最重要：ソクラテス対話ゼミの講義＆問答スタイル】
+あなたはこのパートで一方的に長文を喋り尽くしてはいけません。生徒との「キャッチボール」を成立させるため、以下のルールを厳守してください：
+
+1. 【パート初回（1通目）の対応ルール】：
+   ・初回は「核心の短い状況設定（2〜3行）」と「あえて間違える典型的な落とし穴の提示」に絞り、最後に必ず【ソクラテス式の問いかけ】を1つだけ投げかけて、生徒の返答を待つこと。
+   ・初回から王道解法や別解を長々とすべてネタバレしてはいけません。
+   ・例：「実はこれ、$○○$ だから代入して終わり！とやって大減点される人が多発します。この考え方のどこが致命的に間違っているか見破れる？」のように、生徒に考えさせてください。
+
+2. 【生徒の回答に対するリアクション・講評の3原則（2通目以降）】：
+   生徒が回答してきたら、以下の基準で指導を展開してください：
+   ①【正解・鋭い着眼点】：
+      ・どこが本質的で素晴らしかったかを具体的に褒める。
+      ・その上で、「正解の体系的解説」に加え、「王道解法（教科書通り） vs 別解（最速・図形や対称性の利用）」を対比して提示し、解法の引き出しを広げてあげる。
+   ②【惜しい・間違えた場合】：
+      ・絶対に頭ごなしに否定せず、「その発想になる理由はすごくよくわかる！」と共感する。
+      ・どの前提条件（摩擦の有無、向きの符号、定義の適用範囲など）を見落としたか、生徒自身が気づけるヒントを出して再度考えさせる。
+   ③【「わからない」「ヒント」と言われた場合】：
+      ・すぐに答えを言わず、考えるための補助線（極端な数値の例や、直感的な図のイメージ）を1つ渡す。
+
+3. 【スコープの厳守（先回り解説の完全禁止）】：
+   ・このパート（第${idx + 1}回）で扱うべき範囲外の内容（後のパートで扱う公式・概念など）は、生徒から質問されない限り、絶対に先回りして教えないこと（「それは第○回で扱うよ」と触れる程度にとどめる）。
+` : `
+【講義スタイル】：
+教科書・参考書に忠実に、初学者にもわかりやすく丁寧に概念をステップ形式で解説してください。
+【スコープの厳守】：
+第${idx + 1}回の範囲の内容に集中し、後続パートの内容を先回りして解説しないこと。
+`;
 
             return `${customPolicyPrompt}
 
-以下は${isTopicMode ? "参考書の代わりにあなた自身が事前に作成した授業ノート全文です" : "参考書から読み取ったテキスト全文です"}。今回の授業では、このうち指定された「パート」の範囲だけを扱ってください（生徒から質問されない限り、他のパートの内容には深入りしないこと）。
+以下は${isTopicMode ? "参考書の代わりにあなた自身が事前に作成した授業ノート全文です" : "参考書から読み取ったテキスト全文です"}。今回の授業では、このうち指定された「パート」の範囲だけを扱ってください。
 
 【${sourceLabel}】
 ${currentLesson.extractedText}
@@ -1341,42 +1472,42 @@ ${parts.map((p, i) => `${i + 1}. ${p.title} - ${p.summary}`).join("\n")}
 【今回実際に授業するパート】
 第${idx + 1}回: ${parts[idx].title}（${parts[idx].summary}）
 
-${photoHandlingBlock}
+${socraticInstructionBlock}
 
 返答は以下のJSONのみ（説明不要）：
 {
   "ai_response": "授業内容、または生徒の質問への回答（数式は $ $ を使用し、手順ごとに改行を入れて読みやすく）",
-  "current_step_label": "このパートの授業状況を一言で（例: 授業中、質問対応中 など）"
+  "current_step_label": "このパートの授業状況を一言で（例: 問いかけ中、講評中 など）"
 }`;
         }
 
         function renderFormattedMarkdown(text) {
-    if (!text) return "";
+            if (!text) return "";
 
-    const mathBlocks = [];
-    let placeholderText = text.replace(/(\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g, (match) => {
-        mathBlocks.push(match);
-        return `%%%MATH_${mathBlocks.length - 1}%%%`;
-    });
+            const mathBlocks = [];
+            let placeholderText = text.replace(/(\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g, (match) => {
+                mathBlocks.push(match);
+                return `%%%MATH_${mathBlocks.length - 1}%%%`;
+            });
 
-    let formatted = placeholderText
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+            let formatted = placeholderText
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
 
-    formatted = formatted.replace(/^#{3,4}\s*(.+)$/gm, '<h4 style="font-size:0.98rem; font-weight:800; color:var(--accent-yellow); margin:0.7rem 0 0.4rem 0; border-bottom:1px solid rgba(255,245,0,0.2); padding-bottom:0.2rem;">$1</h4>');
-    formatted = formatted.replace(/^---\s*$/gm, '<hr style="border:none; border-top:1px dashed rgba(255,255,255,0.15); margin:0.7rem 0;">');
-    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff; font-weight:700;">$1</strong>');
-    formatted = formatted.replace(/^(\d+\.)\s*/gm, '<span style="color:var(--accent-cyan); font-weight:800; margin-right:0.3rem;">$1</span>');
-    formatted = formatted.replace(/^-\s+(.+)$/gm, '<div style="margin-left:0.6rem; text-indent:-0.6rem;">• $1</div>');
+            formatted = formatted.replace(/^#{3,4}\s*(.+)$/gm, '<h4 style="font-size:0.98rem; font-weight:800; color:var(--accent-yellow); margin:0.7rem 0 0.4rem 0; border-bottom:1px solid rgba(255,245,0,0.2); padding-bottom:0.2rem;">$1</h4>');
+            formatted = formatted.replace(/^---\s*$/gm, '<hr style="border:none; border-top:1px dashed rgba(255,255,255,0.15); margin:0.7rem 0;">');
+            formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff; font-weight:700;">$1</strong>');
+            formatted = formatted.replace(/^(\d+\.)\s*/gm, '<span style="color:var(--accent-cyan); font-weight:800; margin-right:0.3rem;">$1</span>');
+            formatted = formatted.replace(/^-\s+(.+)$/gm, '<div style="margin-left:0.6rem; text-indent:-0.6rem;">• $1</div>');
 
-    // 数式ブロックを元に戻す
-    formatted = formatted.replace(/%%%MATH_(\d+)%%%/g, (_, idx) => mathBlocks[idx]);
-    return formatted;
-}
+            formatted = formatted.replace(/%%%MATH_(\d+)%%%/g, (_, idx) => mathBlocks[idx]);
+            return formatted;
+        }
 
         function renderChatTranscript() {
             const wrap = el("chat-transcript");
+            const isSocratic = currentLesson && currentLesson.teachingStyle === "socratic";
             wrap.innerHTML = (currentLesson.chatHistory || []).map(m => {
                 if (m.role === "divider") return `<div class="bubble-divider">──── ${m.content} ────</div>`;
                 if (m.role === "user") {
@@ -1385,12 +1516,180 @@ ${photoHandlingBlock}
                         : "";
                     return `<div class="chat-bubble bubble-user">${imagesHtml}${m.content}</div>`;
                 }
-                return `<div class="chat-bubble bubble-ai">${renderFormattedMarkdown(m.content)}</div>`;
+                return `<div class="chat-bubble bubble-ai ${isSocratic ? 'socratic-bubble' : ''}">${renderFormattedMarkdown(m.content)}</div>`;
             }).join("");
             wrap.scrollTop = wrap.scrollHeight;
         }
 
-        // 💡 【サイドバー機能 1】パート目次リストの描画
+        // --------------------------------------------------------------
+        // ⚡ 即時アウトプット演習（改善案④反映：着眼点・難易度適正化）
+        // --------------------------------------------------------------
+        const DRILL_SCHEMA = {
+            type: "OBJECT",
+            properties: {
+                drill_title: { type: "STRING" },
+                problem_statement: { type: "STRING" },
+                trap_description: { type: "STRING" },
+                strategy_pattern: { type: "STRING" },
+                first_step_focus: { type: "STRING" },
+                model_answer: { type: "STRING" }
+            },
+            required: ["drill_title", "problem_statement", "trap_description", "strategy_pattern", "first_step_focus", "model_answer"]
+        };
+
+        let currentActiveDrill = null;
+
+        async function triggerInstantDrill() {
+            if (!currentLesson) return;
+            const btn = el("trigger-drill-btn");
+            const container = el("drill-container-area");
+            btn.disabled = true;
+            btn.textContent = "⚡ 類題を生成中...";
+
+            const currentPart = currentLesson.parts[currentLesson.currentPartIndex] || { title: currentLesson.title, summary: "" };
+
+            const DRILL_SYSTEM_PROMPT = `${customPolicyPrompt}
+
+あなたは生徒が今学んだ授業内容の定着度を測るテスト作成者です。
+生徒が今終えたばかりの【第${currentLesson.currentPartIndex + 1}回: ${currentPart.title}（${currentPart.summary}）】の急所・罠・別解の活用をピンポイントで試すオリジナル類題を1問作成してください。
+
+【厳守事項】
+1. 【難易度の適正化】：
+   難問奇問や計算が煩雑な問題は禁止。このパートで教えた「定石・罠・別解の視点」を100%理解していれば、計算用紙を使わず3〜5行で解ける、思考力重視のショート良問にすること。
+2. 【最初の一手（着眼点）の明記】：
+   first_step_focus に、「問題文のどのキーワード・条件を見て解法や公式を判断するか」を一言で書くこと（例：「問題文の『静止した』を見て力のつり合いと判断する」など）。
+3. 【罠の明示】：
+   trap_description に、生徒が最も引っかかりやすい落とし穴を解説すること。
+4. 数式は必ず $ $ または $$ $$ で記述すること。
+
+出力は以下のJSONのみ：
+{
+  "drill_title": "演習問題の短いタイトル",
+  "problem_statement": "問題文の全文（数式は $ $ で記述）",
+  "first_step_focus": "【最初の一手】：問題文の○○を見て△△を使うと判断する",
+  "trap_description": "この問題で最も間違えやすい落とし穴",
+  "strategy_pattern": "この問題を解くための定石・思考パターン",
+  "model_answer": "ステップごとの完全な模範解答と解説（改行を入れ箇条書きで分かりやすく）"
+}`;
+
+            try {
+                const result = await callGeminiJSON([{ text: "このパートの類題を1問作成してください。" }], DRILL_SYSTEM_PROMPT, {
+                    responseSchema: DRILL_SCHEMA
+                });
+
+                currentActiveDrill = result;
+                renderDrillBox();
+                await forceTriggerMathJax();
+                container.scrollIntoView({ behavior: 'smooth' });
+            } catch (err) {
+                console.error(err);
+                showToast("類題の生成に失敗しました: " + err.message, "error", 7000);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "⚡ 類題で即時アウトプット";
+            }
+        }
+
+        function renderDrillBox() {
+            const container = el("drill-container-area");
+            if (!container || !currentActiveDrill) return;
+
+            const firstStepHtml = currentActiveDrill.first_step_focus ? `
+                <div style="background:rgba(0,243,255,0.06); border:1px solid rgba(0,243,255,0.25); border-radius:10px; padding:0.6rem 0.8rem; margin-bottom:0.8rem; font-size:0.85rem; color:var(--accent-cyan);">
+                    🎯 <b>判断のポイント:</b> ${currentActiveDrill.first_step_focus}
+                </div>
+            ` : "";
+
+            container.innerHTML = `
+                <div class="drill-section-box">
+                    <div class="drill-header">
+                        <div class="drill-title">⚡ 即時確認テスト：${currentActiveDrill.drill_title}</div>
+                        <button type="button" class="tactile-btn" id="close-drill-box-btn" style="padding:0.2rem 0.5rem; font-size:0.75rem; background:transparent; border:1px solid #333; color:var(--text-muted);">✕ 閉じる</button>
+                    </div>
+                    <div class="drill-content-body tex2jax_process">${renderFormattedMarkdown(currentActiveDrill.problem_statement)}</div>
+                    
+                    <div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:0.6rem;">
+                        <button type="button" class="tactile-btn" id="reveal-drill-answer-btn" style="background:var(--accent-yellow); color:#000; font-size:0.82rem; padding:0.45rem 1rem;">👀 答え合わせをする</button>
+                        <button type="button" class="tactile-btn" id="save-drill-to-mistakes-btn" style="background:rgba(255,0,127,0.15); border:1px solid var(--accent-magenta); color:var(--accent-magenta); font-size:0.82rem; padding:0.45rem 1rem; display:none;">📥 この問題を誤答ノートにストック</button>
+                    </div>
+
+                    <div class="drill-answer-box" id="drill-answer-reveal-box">
+                        ${firstStepHtml}
+                        <div style="font-weight:900; color:var(--accent-yellow); margin-bottom:0.4rem;">💡 模範解答＆解説</div>
+                        <div class="tex2jax_process" style="font-size:0.9rem; line-height:1.6;">${renderFormattedMarkdown(currentActiveDrill.model_answer)}</div>
+                        <div style="margin-top:0.8rem; padding-top:0.6rem; border-top:1px dashed #333; font-size:0.82rem; color:var(--accent-magenta);">
+                            ⚠️ <b>罠のポイント:</b> ${currentActiveDrill.trap_description}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            el("close-drill-box-btn").addEventListener("click", () => {
+                container.innerHTML = "";
+                currentActiveDrill = null;
+            });
+
+            el("reveal-drill-answer-btn").addEventListener("click", () => {
+                el("drill-answer-reveal-box").style.display = "block";
+                el("save-drill-to-mistakes-btn").style.display = "inline-flex";
+                forceTriggerMathJax();
+            });
+
+            el("save-drill-to-mistakes-btn").addEventListener("click", async () => {
+                await saveDrillToMistakeBook();
+            });
+        }
+
+        async function saveDrillToMistakeBook() {
+            if (!loginUid || !currentActiveDrill || !currentLesson) return;
+            const btn = el("save-drill-to-mistakes-btn");
+            btn.disabled = true;
+            btn.textContent = "⏳ 登録中...";
+
+            try {
+                const newId = "CUSTOM_" + Date.now();
+                const nowIso = new Date().toISOString();
+
+                let detectedSubject = "物理";
+                const checkText = ((currentLesson.title || "") + " " + (currentLesson.topicKey || "")).toLowerCase();
+                if (/数学|微分|積分|ベクトル|数列|三角関数|確率/i.test(checkText)) detectedSubject = "数学";
+                else if (/化学|mol|酸化|還元|酸|塩基/i.test(checkText)) detectedSubject = "化学";
+                else if (/世界史|日本史|歴史/i.test(checkText)) detectedSubject = "世界史";
+                else if (/英語|文法/i.test(checkText)) detectedSubject = "英語";
+
+                const newProblem = {
+                    id: newId,
+                    title: currentActiveDrill.problem_statement,
+                    short_title: currentActiveDrill.drill_title || "授業演習類題",
+                    subject: detectedSubject,
+                    field: currentLesson.topicKey || currentLesson.title || "授業演習",
+                    trap_description: currentActiveDrill.trap_description || "",
+                    strategyPattern: (currentActiveDrill.first_step_focus ? currentActiveDrill.first_step_focus + "\n" : "") + (currentActiveDrill.strategy_pattern || ""),
+                    errorCount: 1,
+                    lastAttemptAt: nowIso,
+                    lastResult: false,
+                    answerFormula: currentActiveDrill.model_answer || "解説データ",
+                    createdAt: nowIso,
+                    sourceLessonId: currentLesson.id,
+                    sourceLessonTitle: currentLesson.title,
+                    sourceLessonText: currentLesson.extractedText || "",
+                    sourceLessonKeyTerms: currentLesson.accumulatedKeyTerms || currentLesson.keyTerms || []
+                };
+
+                await set(ref(database, 'users/' + loginUid + '/problems/' + newId), newProblem);
+                showToast("🎉 誤答ノートに登録しました！ダッシュボードからいつでも復習スプリントできます。", "success", 4000);
+                btn.textContent = "✓ 登録済み";
+            } catch (err) {
+                console.error(err);
+                showToast("登録に失敗しました: " + err.message, "error", 7000);
+                btn.disabled = false;
+                btn.textContent = "📥 この問題を誤答ノートにストック";
+            }
+        }
+
+        el("trigger-drill-btn").addEventListener("click", () => triggerInstantDrill());
+
+        // 💡 パート目次リストの描画
         function renderPartsTOC() {
             const container = el("lesson-parts-toc-list");
             if (!container || !currentLesson || !currentLesson.parts) return;
@@ -1398,7 +1697,7 @@ ${photoHandlingBlock}
             container.innerHTML = currentLesson.parts.map((p, i) => {
                 const isActive = i === currentIdx;
                 const isDone = i < currentIdx || currentLesson.status === "completed";
-                const isTaught = i <= currentIdx; // すでに授業データが存在する回（再生成の対象になり得る）
+                const isTaught = i <= currentIdx;
 
                 let badgeClass = isActive ? "badge-toc-active" : (isDone ? "badge-toc-done" : "badge-toc-upcoming");
                 let badgeText = isActive ? "▶ 授業中" : (isDone ? "✓ 完了" : "未講義");
@@ -1420,8 +1719,6 @@ ${photoHandlingBlock}
             }).join("");
         }
 
-        // 💡 特定の回だけ「区切り線から次の区切り線まで」の範囲をchatHistory内で特定する
-        // （区切りは必ず第1回から順番に1つずつ追加されるため、divider出現順＝パート番号と一致する）
         function findPartDividerRange(partIndex) {
             const history = currentLesson.chatHistory || [];
             const dividerIndices = [];
@@ -1432,7 +1729,6 @@ ${photoHandlingBlock}
             return { startIdx, endIdx };
         }
 
-        // 💡 特定の回だけを、別の切り口の説明で作り直す
         async function regeneratePart(partIndex) {
             if (!currentLesson) return;
             const part = currentLesson.parts[partIndex];
@@ -1451,7 +1747,6 @@ ${photoHandlingBlock}
             if (btn) { btn.disabled = true; btn.textContent = "⚙️ 作り直し中..."; }
 
             try {
-                // この回より前のやり取りだけを文脈として渡す（今の回の古い説明は含めない）
                 const contextHistory = currentLesson.chatHistory
                     .slice(0, range.startIdx)
                     .filter(m => m.role !== "divider")
@@ -1466,7 +1761,6 @@ ${photoHandlingBlock}
                     responseSchema: TEACH_TURN_RESPONSE_SCHEMA
                 });
 
-                // この回の区切り線の直後〜次の区切り線の直前までを、新しい説明1件に丸ごと置き換える
                 currentLesson.chatHistory.splice(range.startIdx + 1, range.endIdx - range.startIdx - 1, {
                     role: "assistant",
                     content: aiJson.ai_response || "（応答の取得に失敗しました）"
@@ -1488,7 +1782,6 @@ ${photoHandlingBlock}
             return c ? c.querySelector(`[data-regenerate-part="${partIndex}"]`) : null;
         }
 
-        // TOCリストへのクリック委任（動的に再描画されるため、コンテナ側で拾う）
         (function bindTocRegenDelegation() {
             const container = el("lesson-parts-toc-list");
             if (!container) return;
@@ -1500,7 +1793,6 @@ ${photoHandlingBlock}
             });
         })();
 
-        // 💡 【サイドバー機能 2】授業ノートの初期化＆自動同期
         function initLessonNotes() {
             const noteInput = el("lesson-note-input");
             const saveBtn = el("save-lesson-note-btn");
@@ -1532,7 +1824,6 @@ ${photoHandlingBlock}
             }
         }
 
-        // 💡 【サイドバー機能 3】原本テキストの表示
         function renderSourceText() {
             const container = el("lesson-extracted-source-text");
             const label = el("source-panel-label");
@@ -1542,7 +1833,6 @@ ${photoHandlingBlock}
             container.textContent = currentLesson.extractedText || (isTopicMode ? "（授業ノートが見つかりません）" : "（原本テキストが見つかりません）");
         }
 
-        // 💡 【サイドバータブ切り替えの初期化】
         document.querySelectorAll(".sidebar-tab-btn").forEach(btn => {
             btn.addEventListener("click", () => {
                 document.querySelectorAll(".sidebar-tab-btn").forEach(b => b.classList.remove("active"));
@@ -1557,6 +1847,11 @@ ${photoHandlingBlock}
 
         function updateProgressStrip() {
             el("lesson-title-display").textContent = `📘 ${currentLesson.title}`;
+            const styleBadge = el("lesson-style-display-badge");
+            const isSocratic = currentLesson.teachingStyle === "socratic";
+            styleBadge.textContent = isSocratic ? "🧠 ソクラテス対話ゼミ" : "📖 標準講義";
+            styleBadge.className = `lesson-style-badge ${isSocratic ? 'badge-style-socratic' : 'badge-style-standard'}`;
+
             const contBadge = el("continuation-source-badge");
             if (contBadge) {
                 if (currentLesson.previousLessonTitle) {
@@ -1579,7 +1874,6 @@ ${photoHandlingBlock}
             const isLastPart = currentLesson.currentPartIndex >= currentLesson.parts.length - 1;
             el("next-part-btn").textContent = isLastPart ? "🏁 この授業を完了する" : "▶ 次のパートへ進む";
 
-            // 🪜 レベルアップCTA：単元名モードで、まだ次のレベルに進んでいなければ大きめに提案する
             const ctaWrap = el("level-up-cta-wrap");
             const ctaBtn = el("level-up-cta-btn");
             const nxt = isCompleted && currentLesson.level ? nextLevelOf(currentLesson.level) : null;
@@ -1598,8 +1892,6 @@ ${photoHandlingBlock}
             currentLesson.updatedAt = new Date().toISOString();
             await set(ref(database, 'users/' + loginUid + '/lessons/' + currentLessonId), currentLesson);
         }
-
-        // ✨ callGeminiChat（会話履歴をrole付きで送る版）は api-key-manager.js から共通インポート
 
         async function sendTurn(userDisplayText, hiddenInstructionOverride, turnImages) {
             const contentsWithRoles = (currentLesson.chatHistory || [])
@@ -1673,8 +1965,6 @@ ${photoHandlingBlock}
                 currentLesson.status = "completed";
                 await saveLesson();
 
-                // 🎓【新設】この授業が「前提から授業でやり直す」経由(=sourceProblemIdあり)なら、
-                //    元の問題の復習優先度を引き上げる（誤答ノートのFSRS的な復習判定に反映される）
                 if (currentLesson.sourceProblemId) {
                     try {
                         await set(
@@ -1697,6 +1987,10 @@ ${photoHandlingBlock}
             currentLesson.chatHistory.push({ role: "divider", content: `第${currentLesson.currentPartIndex + 1}回: ${part.title}` });
             renderChatTranscript();
             updateProgressStrip();
+
+            const drillContainer = el("drill-container-area");
+            if (drillContainer) drillContainer.innerHTML = "";
+            currentActiveDrill = null;
 
             btn.textContent = "⚙️ 準備中...";
             try {
@@ -1732,13 +2026,11 @@ ${photoHandlingBlock}
             updateProgressStrip();
             updateCompletionUI();
 
-            // 💡 サイドバー関連データの描画＆初期化
             renderPartsTOC();
             initLessonNotes();
             renderSourceText();
 
             if (currentLesson.chatHistory.length === 0) {
-                // 初回：第1回の授業をその場で生成
                 currentLesson.chatHistory.push({ role: "divider", content: `第1回: ${currentLesson.parts[0].title}` });
                 renderChatTranscript();
                 try {
@@ -1771,16 +2063,11 @@ ${photoHandlingBlock}
                     renderContinuationOptions(lastLessonsSnapshot);
                     renderTopicRoadmap(lastLessonsSnapshot);
                 });
-                // fromProblem引き継ぎ・レベルアップ引き継ぎのどちらもsessionStorageの有無で判定するため常に呼ぶ
                 await handleLessonHandoff();
             }
         });
 
-        // ==========================================================================
-        // 🎓【新設】問題タブからの引き継ぎ、および🪜レベルアップの引き継ぎを共通で受け取る
-        // ==========================================================================
         async function handleLessonHandoff() {
-            // URLをきれいにして、再読み込み・再遷移時に誤って再実行されないようにする
             if (window.location.search.includes("fromProblem")) {
                 const cleanUrl = new URL(window.location.href);
                 cleanUrl.searchParams.delete("fromProblem");
@@ -1799,7 +2086,6 @@ ${photoHandlingBlock}
                 ? { id: handoff.sourceProblemId, title: handoff.sourceProblemTitle || "無題の問題" }
                 : null;
 
-            // 🪜【新設】レベルアップ経由の場合、前レベルの授業ノート・キーワードをプラン生成に使う
             pendingLevelUp = handoff.levelUp
                 ? {
                     fromLessonId: handoff.levelUpFromLessonId,
@@ -1822,7 +2108,6 @@ ${photoHandlingBlock}
             await generatePlan();
         }
 
-        // 🪜【新設】完了済みの授業から、次のレベルの授業へワンタップで引き継ぐ
         function startLevelUp(lesson) {
             const nxt = nextLevelOf(lesson.level);
             if (!nxt) return;
@@ -1837,7 +2122,6 @@ ${photoHandlingBlock}
                 levelUpFromKeyTerms: (lesson.accumulatedKeyTerms || lesson.keyTerms || []).map(t => t && t.name).filter(Boolean)
             }));
             if (REQUESTED_ID) {
-                // 授業詳細画面から呼ばれた場合は、まず一覧画面（授業作成フォームがある画面）へ遷移する
                 window.location.href = "lesson.html";
             } else {
                 handleLessonHandoff();
