@@ -228,6 +228,61 @@ function saveFeatureConfig(cfg) {
     localStorage.setItem(FEATURE_CONFIG_STORAGE, JSON.stringify(cfg));
 }
 
+// --------------------------------------------------------------------------
+// 📤📥【新設】このアプリのAI設定（APIキー・ニックネーム・機能ごとの割り当て）を
+//    まとめてJSONファイルにエクスポート／インポートする。
+//    あくまでこのアプリ内で完結する機能で、他サービスとの連携やクラウド送信は行わない。
+//    ※APIキーの本文がそのまま含まれるファイルになるため、扱いには注意（他人と共有しない）。
+// --------------------------------------------------------------------------
+const AI_SETTINGS_EXPORT_TYPE = "lolz-ai-settings-export";
+const AI_SETTINGS_EXPORT_VERSION = 1;
+
+export function exportAISettings() {
+    return {
+        app: "LOLZ",
+        type: AI_SETTINGS_EXPORT_TYPE,
+        version: AI_SETTINGS_EXPORT_VERSION,
+        exportedAt: new Date().toISOString(),
+        geminiKeys: loadKeys("gemini"),
+        deepseekKeys: loadKeys("deepseek"),
+        keyLabels: loadKeyLabels(),
+        featureConfig: loadFeatureConfig(),
+    };
+}
+
+// data: exportAISettingsが返す形式のオブジェクト（JSON.parse済み）
+// 戻り値: 取り込んだ項目数の内訳（トーストの文言用）
+export function importAISettings(data) {
+    if (!data || typeof data !== "object") {
+        throw new Error("ファイルの中身を読み取れませんでした。");
+    }
+    if (data.type !== AI_SETTINGS_EXPORT_TYPE) {
+        throw new Error("このアプリのエクスポートファイルではないようです。");
+    }
+
+    const summary = { geminiKeys: 0, deepseekKeys: 0, featureConfig: 0 };
+
+    if (Array.isArray(data.geminiKeys)) {
+        const keys = data.geminiKeys.filter(k => typeof k === "string" && k.trim());
+        saveKeys("gemini", keys);
+        summary.geminiKeys = keys.length;
+    }
+    if (Array.isArray(data.deepseekKeys)) {
+        const keys = data.deepseekKeys.filter(k => typeof k === "string" && k.trim());
+        saveKeys("deepseek", keys);
+        summary.deepseekKeys = keys.length;
+    }
+    if (data.keyLabels && typeof data.keyLabels === "object" && !Array.isArray(data.keyLabels)) {
+        saveKeyLabels(data.keyLabels);
+    }
+    if (data.featureConfig && typeof data.featureConfig === "object" && !Array.isArray(data.featureConfig)) {
+        saveFeatureConfig(data.featureConfig);
+        summary.featureConfig = Object.keys(data.featureConfig).length;
+    }
+
+    return summary;
+}
+
 function getFeatureEntry(featureId) {
     const cfg = loadFeatureConfig();
     return cfg[featureId] || { models: null, keys: null };
@@ -389,7 +444,7 @@ async function runGeminiFallbackLoop(contents, systemInstruction, options = {}) 
             response = await fetchWithKeyRotation(keys, (key) => ({
                 url: buildGeminiUrl(modelName, key),
                 options: { method: "POST", headers: { "Content-Type": "application/json" }, body: requestBody }
-            }));
+            }), { requestTimeoutMs });
         } catch (err) {
             return { ok: false, isFormatError: false, reason: err?.message || "不明な通信エラー", error: err };
         }
@@ -585,6 +640,13 @@ function injectStylesAndModal() {
             border-radius: 12px; padding: 0.7rem 1rem; font-weight: 900; font-size: 0.85rem;
         }
         .apikm-settings-link-btn:hover { background: rgba(0,243,255,0.16); }
+        .apikm-io-row { display: flex; gap: 0.5rem; margin: 0 0 0.4rem; }
+        .apikm-io-btn {
+            flex: 1; background: rgba(255,255,255,0.04); border: 1px solid #333; color: #fff;
+            border-radius: 10px; padding: 0.6rem 0.6rem; font-weight: 800; font-size: 0.78rem; cursor: pointer;
+        }
+        .apikm-io-btn:hover { background: rgba(255,255,255,0.09); border-color: #555; }
+        .apikm-io-note { font-size: 0.68rem; color: var(--text-muted,#708590); margin-bottom: 1rem; line-height: 1.5; }
         .apikm-close-row { display: flex; justify-content: flex-end; margin-top: 0.8rem; }
         .apikm-close-btn {
             background: #111; border: 1px solid #333; color: #fff; border-radius: 10px;
@@ -628,6 +690,12 @@ function injectStylesAndModal() {
             <div class="apikm-settings-link-row">
                 <a class="apikm-settings-link-btn" href="ai-settings.html">⚙️ 機能ごとのモデル／キー割り当てを管理画面で設定 →</a>
             </div>
+            <div class="apikm-io-row">
+                <button type="button" class="apikm-io-btn" id="apikm-export-btn">📤 設定をエクスポート</button>
+                <button type="button" class="apikm-io-btn" id="apikm-import-btn">📥 設定をインポート</button>
+                <input type="file" id="apikm-import-file" accept="application/json,.json" style="display:none;">
+            </div>
+            <div class="apikm-io-note">APIキー・キーのニックネーム・機能ごとの割り当てをこの端末内でJSONファイルに書き出し／読み込みします（他サービスへの送信はありません）。</div>
             <div class="apikm-close-row">
                 <button type="button" class="apikm-close-btn" id="apikm-close-btn">閉じる</button>
             </div>
@@ -685,6 +753,43 @@ function injectStylesAndModal() {
         }
 
         if (e.target.id === "apikm-close-btn") closeModal();
+
+        if (e.target.id === "apikm-export-btn") {
+            const data = exportAISettings();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `lolz-ai-settings-${dateStr}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            showToast("⚙️ AI設定をエクスポートしました", "success");
+        }
+
+        if (e.target.id === "apikm-import-btn") {
+            overlay.querySelector("#apikm-import-file").click();
+        }
+    });
+
+    overlay.querySelector("#apikm-import-file").addEventListener("change", async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            const before = `既存のAPIキー・割り当て設定は上書きされます。\n「${file.name}」の内容をインポートしますか？`;
+            if (!window.confirm(before)) { e.target.value = ""; return; }
+            const summary = importAISettings(data);
+            renderAll();
+            showToast(`📥 インポートしました（Gemini:${summary.geminiKeys}件 / DeepSeek:${summary.deepseekKeys}件 / 機能割り当て:${summary.featureConfig}件）`, "success", 8000);
+        } catch (err) {
+            showToast(`⚠️ インポートに失敗しました：${err.message || err}`, "error", 8000);
+        } finally {
+            e.target.value = "";
+        }
     });
 
     overlay.querySelectorAll(".apikm-add-input").forEach((input) => {

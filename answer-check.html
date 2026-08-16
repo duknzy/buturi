@@ -433,11 +433,52 @@ ${MULTI_QUESTION_INSTRUCTION}
 
         // ✨ fixJsonEscapes / stripCodeFence / extractJsonObject は api-key-manager.js から共通インポート
 
+        // 🧠【移植】insights.html/problem.htmlと共通の数式正規化＆穴埋め枠の修復処理。
+        //    AI生成の問題文で $...$ の外に \fbox{ア} 等が取り残されて生テキスト表示に
+        //    なってしまう不具合の対策。
+        function normalizeMathSyntax(str) {
+            if (!str) return "";
+            let s = String(str);
+
+            s = s.replace(/\\bbox\s*\[[^\]]*\]\s*\{([^}]*)\}/g, (_, content) => {
+                let c = content.trim();
+                if (!c) c = "\\quad";
+                else c = c.replace(/^\\text\{([\s\S]*)\}$/, "$1").trim();
+                return `\\bbox[2px,border:1px solid]{\\text{${c}}}`;
+            });
+            s = s.replace(/\\bbox\s*\[[^\]]*\]\s*([0-9A-Za-zぁ-んァ-ヶー一-龠々]+)/g, (_, content) => {
+                return `\\bbox[2px,border:1px solid]{\\text{${content.trim()}}}`;
+            });
+            s = s.replace(/\\bbox\s*\[[^\]]*\]/g, `\\bbox[2px,border:1px solid]{\\text{\\quad}}`);
+
+            s = s.replace(/\\(?:fbox|boxed|framebox)(?:\s*\[[^\]]*\])?\s*\{([^}]*)\}/g, (_, content) => {
+                let c = content.trim();
+                if (!c) c = "\\quad";
+                else c = c.replace(/^\\text\{([\s\S]*)\}$/, "$1").trim();
+                return `\\bbox[2px,border:1px solid]{\\text{${c}}}`;
+            });
+            s = s.replace(/\\(?:fbox|boxed|framebox)(?:\s*\[[^\]]*\])?\s+([0-9A-Za-zぁ-んァ-ヶー一-龠々]+)/g, (_, content) => {
+                return `\\bbox[2px,border:1px solid]{\\text{${content.trim()}}}`;
+            });
+
+            const parts = s.split(/(\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g);
+            for (let i = 0; i < parts.length; i += 2) {
+                let chunk = parts[i];
+                if (!chunk) continue;
+                chunk = chunk.replace(/(\\bbox\[2px,border:1px solid\]\{\\text\{[^}]*\}\}(?:\^[0-9A-Za-z^\circ]+)?)/g, '$$$1$$');
+                chunk = chunk.replace(/(\\(?:triangle|angle|sqrt|frac|vec|alpha|beta|gamma|theta|pi|pm|mp|le|ge|leqq|geqq|neq|approx|sim|equiv|subset|supset|cap|cup|times|div|cdot|int|sum|lim|log|ln|sin|cos|tan)\b[^\s$、。,.)）]*)/g, '$$$1$$');
+                chunk = chunk.replace(/\$\s*\$/g, '');
+                parts[i] = chunk;
+            }
+            return parts.join("");
+        }
+
         // 📝【問題文の可読性改善】AI文字起こしで改行が入らず長文が1塊になるのを防ぐ。
         // problem.htmlの同名関数と同じロジック（小問番号(1)(2)や(i)(ii)の前で改行）。
         function formatQuestionText(raw) {
             if (!raw) return "";
-            let t = String(raw)
+            let t = normalizeMathSyntax(raw);
+            t = t
                 .replace(/\\n/g, '\n')
                 .replace(/\r\n?/g, '\n')
                 .trim();
@@ -587,7 +628,7 @@ ${MULTI_QUESTION_INSTRUCTION}
                     <div class="result-item-label">🎯 ${labelText}</div>
                     <div class="result-note tex2jax_process">${formatQuestionText(item.extracted_text)}</div>
                     <div style="font-size:0.8rem; color:var(--text-muted); font-weight:800; margin-bottom:0.4rem;">MODEL ANSWER</div>
-                    <div class="model-answer-text tex2jax_process">${(item.model_answer || "").replace(/\\n/g, '<br>').replace(/\n/g, '<br>')}</div>
+                    <div class="model-answer-text tex2jax_process">${normalizeMathSyntax(item.model_answer || "").replace(/\\n/g, '<br>').replace(/\n/g, '<br>')}</div>
                     <div class="judgment-buttons" id="judgment-row-${idx}">
                         <button type="button" class="tactile-btn btn-correct" id="btn-correct-${idx}">✅ 合ってた</button>
                         <button type="button" class="tactile-btn btn-incorrect" id="btn-wrong-${idx}">❌ 間違えた（登録する）</button>

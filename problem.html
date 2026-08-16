@@ -1130,8 +1130,59 @@ extracted_textには、写真やテキストに含まれる問題文を一字一
 
         // 📝 模範解答（answerFormula）をチャット欄と同じルールでHTML整形する共通関数。
         // 初回表示時に呼ばれる。
+        // 🧠【移植】insights.htmlで先に実装済みだった数式正規化＆穴埋め枠の修復処理。
+        //    AI生成の問題文で $...$ の外に \fbox{ア} 等が取り残されて生テキスト表示に
+        //    なってしまう不具合の根本原因はここ（MathJaxのfboxマクロ定義だけでは、
+        //    そもそも数式モードに入っていない箇所には効かないため）。
+        function normalizeMathSyntax(str) {
+            if (!str) return "";
+            let s = String(str);
+
+            // 1. \bbox[...] または \bbox[...]{...} の波括弧抜け・表記ゆれを完全正規化
+            s = s.replace(/\\bbox\s*\[[^\]]*\]\s*\{([^}]*)\}/g, (_, content) => {
+                let c = content.trim();
+                if (!c) c = "\\quad";
+                else c = c.replace(/^\\text\{([\s\S]*)\}$/, "$1").trim();
+                return `\\bbox[2px,border:1px solid]{\\text{${c}}}`;
+            });
+
+            s = s.replace(/\\bbox\s*\[[^\]]*\]\s*([0-9A-Za-zぁ-んァ-ヶー一-龠々]+)/g, (_, content) => {
+                return `\\bbox[2px,border:1px solid]{\\text{${content.trim()}}}`;
+            });
+
+            s = s.replace(/\\bbox\s*\[[^\]]*\]/g, `\\bbox[2px,border:1px solid]{\\text{\\quad}}`);
+
+            // 2. \fbox, \boxed, \framebox の正規化
+            s = s.replace(/\\(?:fbox|boxed|framebox)(?:\s*\[[^\]]*\])?\s*\{([^}]*)\}/g, (_, content) => {
+                let c = content.trim();
+                if (!c) c = "\\quad";
+                else c = c.replace(/^\\text\{([\s\S]*)\}$/, "$1").trim();
+                return `\\bbox[2px,border:1px solid]{\\text{${c}}}`;
+            });
+            s = s.replace(/\\(?:fbox|boxed|framebox)(?:\s*\[[^\]]*\])?\s+([0-9A-Za-zぁ-んァ-ヶー一-龠々]+)/g, (_, content) => {
+                return `\\bbox[2px,border:1px solid]{\\text{${content.trim()}}}`;
+            });
+
+            // 3. $...$ の外にある \bbox や孤立した TeX 記号を $...$ で保護
+            const parts = s.split(/(\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g);
+            for (let i = 0; i < parts.length; i += 2) {
+                let chunk = parts[i];
+                if (!chunk) continue;
+
+                chunk = chunk.replace(/(\\bbox\[2px,border:1px solid\]\{\\text\{[^}]*\}\}(?:\^[0-9A-Za-z^\circ]+)?)/g, '$$$1$$');
+
+                chunk = chunk.replace(/(\\(?:triangle|angle|sqrt|frac|vec|alpha|beta|gamma|theta|pi|pm|mp|le|ge|leqq|geqq|neq|approx|sim|equiv|subset|supset|cap|cup|times|div|cdot|int|sum|lim|log|ln|sin|cos|tan)\b[^\s$、。,.)）]*)/g, '$$$1$$');
+
+                chunk = chunk.replace(/\$\s*\$/g, '');
+
+                parts[i] = chunk;
+            }
+
+            return parts.join("");
+        }
+
         function formatModelAnswerHtml(rawAnswer) {
-            return String(rawAnswer || "解答データなし")
+            return normalizeMathSyntax(String(rawAnswer || "解答データなし"))
                 .replace(/\\n/g, '<br>')
                 .replace(/\n/g, '<br>')
                 .replace(/(\d+\.\s*\*\*)/g, '<br><br>$1')
@@ -1149,7 +1200,8 @@ extracted_textには、写真やテキストに含まれる問題文を一字一
         // ・f(x) や g(t) のような関数表記の "(" は、直前が英数字・かな漢字なので誤爆しない
         function formatQuestionText(raw) {
             if (!raw) return "";
-            let t = String(raw)
+            let t = normalizeMathSyntax(raw);
+            t = t
                 .replace(/\\n/g, '\n')
                 .replace(/\r\n?/g, '\n')
                 .trim();
@@ -1924,6 +1976,7 @@ ${GAL_SENSEI_PERSONA_PROMPT}
 
         function renderFormattedMarkdown(text) {
     if (!text) return "";
+    text = normalizeMathSyntax(text);
 
     const mathBlocks = [];
     let placeholderText = text.replace(/(\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g, (match) => {

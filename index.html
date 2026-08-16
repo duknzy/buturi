@@ -2428,9 +2428,47 @@ ${glossaryBlock}`;
         const closeQnaArchiveDetailBtn = document.getElementById("close-qna-archive-detail-btn");
         let currentOpenQnaArchiveLogId = null;
 
+        // 🧠【移植】insights.html/problem.htmlと共通の数式正規化＆穴埋め枠の修復処理。
+        function normalizeMathSyntax(str) {
+            if (!str) return "";
+            let s = String(str);
+
+            s = s.replace(/\\bbox\s*\[[^\]]*\]\s*\{([^}]*)\}/g, (_, content) => {
+                let c = content.trim();
+                if (!c) c = "\\quad";
+                else c = c.replace(/^\\text\{([\s\S]*)\}$/, "$1").trim();
+                return `\\bbox[2px,border:1px solid]{\\text{${c}}}`;
+            });
+            s = s.replace(/\\bbox\s*\[[^\]]*\]\s*([0-9A-Za-zぁ-んァ-ヶー一-龠々]+)/g, (_, content) => {
+                return `\\bbox[2px,border:1px solid]{\\text{${content.trim()}}}`;
+            });
+            s = s.replace(/\\bbox\s*\[[^\]]*\]/g, `\\bbox[2px,border:1px solid]{\\text{\\quad}}`);
+
+            s = s.replace(/\\(?:fbox|boxed|framebox)(?:\s*\[[^\]]*\])?\s*\{([^}]*)\}/g, (_, content) => {
+                let c = content.trim();
+                if (!c) c = "\\quad";
+                else c = c.replace(/^\\text\{([\s\S]*)\}$/, "$1").trim();
+                return `\\bbox[2px,border:1px solid]{\\text{${c}}}`;
+            });
+            s = s.replace(/\\(?:fbox|boxed|framebox)(?:\s*\[[^\]]*\])?\s+([0-9A-Za-zぁ-んァ-ヶー一-龠々]+)/g, (_, content) => {
+                return `\\bbox[2px,border:1px solid]{\\text{${content.trim()}}}`;
+            });
+
+            const parts = s.split(/(\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g);
+            for (let i = 0; i < parts.length; i += 2) {
+                let chunk = parts[i];
+                if (!chunk) continue;
+                chunk = chunk.replace(/(\\bbox\[2px,border:1px solid\]\{\\text\{[^}]*\}\}(?:\^[0-9A-Za-z^\circ]+)?)/g, '$$$1$$');
+                chunk = chunk.replace(/(\\(?:triangle|angle|sqrt|frac|vec|alpha|beta|gamma|theta|pi|pm|mp|le|ge|leqq|geqq|neq|approx|sim|equiv|subset|supset|cap|cup|times|div|cdot|int|sum|lim|log|ln|sin|cos|tan)\b[^\s$、。,.)）]*)/g, '$$$1$$');
+                chunk = chunk.replace(/\$\s*\$/g, '');
+                parts[i] = chunk;
+            }
+            return parts.join("");
+        }
+
         function renderQnaArchiveFormattedText(text) {
             if (!text) return "";
-            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            return normalizeMathSyntax(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
 
         function openQnaArchiveDetail(logId) {
