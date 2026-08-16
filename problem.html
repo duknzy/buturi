@@ -1664,7 +1664,8 @@ ${glossaryBlock}`;
             required: ["trap_description", "strategy_pattern"]
         };
 
-        async function callAnalysisEngine(instructionText, systemInstruction, responseSchema) {
+        async function callAnalysisEngine(instructionText, systemInstruction, responseSchema, featureId) {
+            featureId = featureId || "explanation";
             if (ACTIVE_ENGINE === "deepseek") {
                 if (getProblemImages(currentProblemData).length > 0 && !currentProblemData.title) {
                     throw new Error("DeepSeekは画像を直接読み取れません。先に✨Geminiで一度解析して問題文を文字起こしするか、問題文を手動で入力してから再度お試しください。");
@@ -1744,7 +1745,7 @@ ${glossaryBlock}`;
                 }
 
                 // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
-                return await callGeminiJSON(parts, systemInstruction, { temperature: 0.3, responseSchema: responseSchema || undefined, featureId: "explanation" });
+                return await callGeminiJSON(parts, systemInstruction, { temperature: 0.3, responseSchema: responseSchema || undefined, featureId: featureId });
             }
         }
 
@@ -2240,7 +2241,7 @@ ${GAL_SENSEI_PERSONA_PROMPT}
             }
 
             try {
-                const aiResult = await callAnalysisEngine(instructionText, getRegenPrompt(currentProblemData.subject || "数学", userNote), SUBJECT_ANALYSIS_RESPONSE_SCHEMA);
+                const aiResult = await callAnalysisEngine(instructionText, getRegenPrompt(currentProblemData.subject || "数学", userNote), SUBJECT_ANALYSIS_RESPONSE_SCHEMA, "regenerate");
 
                 currentProblemData.title = aiResult.extracted_text || currentProblemData.title || "";
                 currentProblemData.short_title = aiResult.short_title || currentProblemData.short_title || "";
