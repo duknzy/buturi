@@ -896,6 +896,8 @@ extracted_textには、写真やテキストに含まれる問題文を一字一
 - ギリシャ文字は \\alpha \\beta \\theta \\pi のように正式なスペル通りに書くこと（省略・当て字は禁止）
 - 化学式の下付き文字も同様に、$H_2O$ のように _{} で正しく囲むこと
 - 迷った場合は、その記号を使わずに済む書き方（例：\\geqq の代わりに日本語で「以上」と書く）に変更してもよい。存在するか確信が持てないコマンドを使うくらいなら、コマンドを使わない表現を優先すること
+- 【最重要】$ ... $ や $$ ... $$ で開いたら必ず同じ種類の記号で閉じること。1箇所でも閉じ忘れがあると、それ以降の数式が軒並みレンダリング崩壊し生のソースコードのまま表示されてしまう。書き終えたら $ の数が偶数個になっているか必ずセルフチェックすること
+- キャラクターのテンション・語尾・ノリは地の文（日本語の説明文）にだけ乗せること。$ $ で囲んだ数式の中身（コマンド名・変数名・記号）は、キャラクターのノリとは完全に無関係に、常に一字一句正確・機械的に生成すること。数式部分ではギャルのノリを一切意識せず、普通の数学の先生のように淡々と正確さだけを優先すること
 `.trim();
 
         // 💖 ギャル先生ペルソナ（授業・問題解説・質問対応に共通で適用するキャラクター設定）
@@ -1644,7 +1646,7 @@ ${glossaryBlock}`;
                         { "role": "system", "content": systemInstruction },
                         { "role": "user", "content": instructionText }
                     ],
-                    "temperature": 0.85,
+                    "temperature": 0.5,
                     "thinking": { "type": "enabled" },
                     "reasoning_effort": "high",
                     "response_format": { "type": "json_object" },
@@ -1713,7 +1715,7 @@ ${glossaryBlock}`;
                 }
 
                 // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
-                return await callGeminiJSON(parts, systemInstruction, { temperature: 0.85, responseSchema: responseSchema || undefined, featureId: "explanation" });
+                return await callGeminiJSON(parts, systemInstruction, { temperature: 0.5, responseSchema: responseSchema || undefined, featureId: "explanation" });
             }
         }
 
@@ -1875,7 +1877,7 @@ trap_description・strategy_pattern・model_answer・mnemonicは、直前のペ�
                     const tutorDeepseekBody = JSON.stringify({
                         "model": MODEL_NAME,
                         "messages": optimizedMessages,
-                        "temperature": 0.85,
+                        "temperature": 0.5,
                         "thinking": { "type": "enabled" },
                         "reasoning_effort": "high",
                         "response_format": { "type": "json_object" },
@@ -1936,7 +1938,7 @@ trap_description・strategy_pattern・model_answer・mnemonicは、直前のペ�
                         role: m.role === "assistant" ? "model" : "user",
                         parts: [{ text: m.content }]
                     }));
-                    aiJson = await callGeminiChat(geminiContents, getChatPrompt(currentProblemData.subject), { temperature: 0.85, responseSchema: CHAT_TURN_RESPONSE_SCHEMA, featureId: "chat" });
+                    aiJson = await callGeminiChat(geminiContents, getChatPrompt(currentProblemData.subject), { temperature: 0.5, responseSchema: CHAT_TURN_RESPONSE_SCHEMA, featureId: "chat" });
                 }
 
                 chatHistory.push({ "role": "assistant", "content": JSON.stringify(aiJson) });

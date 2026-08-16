@@ -935,6 +935,8 @@
 - 分数は \\frac{分子}{分母}、根号は \\sqrt{中身}、べき乗・添字は ^{} と _{} を使うこと
 - ギリシャ文字は \\alpha \\beta \\theta \\pi のように正式なスペル通りに書くこと（省略・当て字は禁止）
 - 迷った場合は、その記号を使わずに済む書き方（例：\\geqq の代わりに日本語で「以上」と書く）に変更してもよい。存在するか確信が持てないコマンドを使うくらいなら、コマンドを使わない表現を優先すること
+- 【最重要】$ ... $ や $$ ... $$ で開いたら必ず同じ種類の記号で閉じること。1箇所でも閉じ忘れがあると、それ以降の数式が軒並みレンダリング崩壊し生のソースコードのまま表示されてしまう。書き終えたら $ の数が偶数個になっているか必ずセルフチェックすること
+- キャラクターのテンション・語尾・ノリは地の文（日本語の説明文）にだけ乗せること。$ $ で囲んだ数式の中身（コマンド名・変数名・記号）は、キャラクターのノリとは完全に無関係に、常に一字一句正確・機械的に生成すること。数式部分ではギャルのノリを一切意識せず、普通の数学の先生のように淡々と正確さだけを優先すること
 `.trim();
 
         // --------------------------------------------------------------
@@ -1942,7 +1944,7 @@ ${GAL_SENSEI_PERSONA_PROMPT}
 
             try {
                 const result = await callGeminiJSON([{ text: "このパートの類題を1問作成してください。" }], DRILL_SYSTEM_PROMPT, {
-                    temperature: 0.85, responseSchema: DRILL_SCHEMA, featureId: "lesson_drill"
+                    temperature: 0.5, responseSchema: DRILL_SCHEMA, featureId: "lesson_drill"
                 });
 
                 currentActiveDrill = result;
@@ -2138,7 +2140,7 @@ ${GAL_SENSEI_PERSONA_PROMPT}
                 });
 
                 const aiJson = await callGeminiChat(contextHistory, buildTeachSystemInstruction(partIndex), {
-                    temperature: 0.85, responseSchema: TEACH_TURN_RESPONSE_SCHEMA, featureId: "lesson_teach"
+                    temperature: 0.5, responseSchema: TEACH_TURN_RESPONSE_SCHEMA, featureId: "lesson_teach"
                 });
 
                 currentLesson.chatHistory.splice(range.startIdx + 1, range.endIdx - range.startIdx - 1, {
@@ -2328,7 +2330,7 @@ ${GAL_SENSEI_PERSONA_PROMPT}
             contentsWithRoles.push({ role: "user", parts: currentTurnParts });
 
             const aiJson = await callGeminiChat(contentsWithRoles, buildTeachSystemInstruction(), {
-                temperature: 0.85, responseSchema: TEACH_TURN_RESPONSE_SCHEMA, featureId: "lesson_teach"
+                temperature: 0.5, responseSchema: TEACH_TURN_RESPONSE_SCHEMA, featureId: "lesson_teach"
             });
 
             if (userDisplayText) {
