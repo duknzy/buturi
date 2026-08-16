@@ -1056,6 +1056,18 @@
 ・別途指示されているLaTeX数式記法のルール（$ $ / $$ $$ による囲み方、上付き・下付き文字の波括弧、化学式の下付き文字など）は、キャラクターの口調とは完全に独立したルールとして絶対に厳守すること。数式・化学式そのものの中にギャル語や絵文字を混入させないこと
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
+        // 🔢【新設】LaTeX/MathJaxの安全な記法ルール（存在しないコマンドの捏造によるレンダリングエラーを防止）
+        const LATEX_SAFETY_RULE = `
+【最重要・絶対厳守：LaTeX記法の安全ルール】
+数式は必ずMathJax（標準LaTeXコマンドのみ対応）で正しくレンダリングできる、実在するコマンドだけを使うこと。存在しないコマンドを勝手に作ってはならない（例：\\reg のような独自コマンドは絶対禁止。過去に \\geqq と書くべき箇所で \\reg という架空のコマンドを生成してレンダリングエラーになった事例がある）。
+- 「≧」「≦」は必ず \\geqq / \\leqq を使うこと（\\ge や \\geq でも構わないが、独自の省略形は禁止）
+- 「≠」は \\neq、「±」は \\pm、「×」は \\times、「÷」は \\div、「・」（内積やmol計算の中点）は \\cdot を使うこと
+- 分数は \\frac{分子}{分母}、根号は \\sqrt{中身}、べき乗・添字は ^{} と _{} を使うこと
+- ギリシャ文字は \\alpha \\beta \\theta \\pi のように正式なスペル通りに書くこと（省略・当て字は禁止）
+- 化学式の下付き文字も同様に、$H_2O$ のように _{} で正しく囲むこと
+- 迷った場合は、その記号を使わずに済む書き方（例：\\geqq の代わりに日本語で「以上」と書く）に変更してもよい。存在するか確信が持てないコマンドを使うくらいなら、コマンドを使わない表現を優先すること
+`.trim();
+
         // 🔒【新設】SUBJECT_CREATE_PROMPTS 各科目共通のJSON構造をAPI側で強制するためのスキーマ
         // 🌍【新設】世界史の年表ビュー用：出来事の地域を固定カテゴリに揃えることで、
         //    複数の問題・授業をまたいでも同じ地域名でレーン分けできるようにする
@@ -1956,7 +1968,7 @@ thumbHtml = `<div class="row-thumb row-thumb-icon ${glowClass} tex2jax_process">
             }
 
             try {
-                let activeSystemInstruction = GAL_SENSEI_PERSONA_PROMPT + "\n\n" + (SUBJECT_CREATE_PROMPTS[selectedSubject] || SUBJECT_CREATE_PROMPTS["数学"]);
+                let activeSystemInstruction = LATEX_SAFETY_RULE + "\n\n" + GAL_SENSEI_PERSONA_PROMPT + "\n\n" + (SUBJECT_CREATE_PROMPTS[selectedSubject] || SUBJECT_CREATE_PROMPTS["数学"]);
 
                 // 🎓【授業からの継続問題】直前に受けた授業の参考書全文をAIに渡し、
                 //   その授業固有の用語・法則名・手順番号をそのまま使って解説させる

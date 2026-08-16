@@ -886,6 +886,18 @@ extracted_textには、写真やテキストに含まれる問題文を一字一
 - 問題文が長い場合でも、要約したり「以下同様」のように途中を省略したりしないこと。
 `.trim();
 
+        // 🔢【新設】LaTeX/MathJaxの安全な記法ルール（存在しないコマンドの捏造によるレンダリングエラーを防止）
+        const LATEX_SAFETY_RULE = `
+【最重要・絶対厳守：LaTeX記法の安全ルール】
+数式は必ずMathJax（標準LaTeXコマンドのみ対応）で正しくレンダリングできる、実在するコマンドだけを使うこと。存在しないコマンドを勝手に作ってはならない（例：\\reg のような独自コマンドは絶対禁止。過去に \\geqq と書くべき箇所で \\reg という架空のコマンドを生成してレンダリングエラーになった事例がある）。
+- 「≧」「≦」は必ず \\geqq / \\leqq を使うこと（\\ge や \\geq でも構わないが、独自の省略形は禁止）
+- 「≠」は \\neq、「±」は \\pm、「×」は \\times、「÷」は \\div、「・」（内積やmol計算の中点）は \\cdot を使うこと
+- 分数は \\frac{分子}{分母}、根号は \\sqrt{中身}、べき乗・添字は ^{} と _{} を使うこと
+- ギリシャ文字は \\alpha \\beta \\theta \\pi のように正式なスペル通りに書くこと（省略・当て字は禁止）
+- 化学式の下付き文字も同様に、$H_2O$ のように _{} で正しく囲むこと
+- 迷った場合は、その記号を使わずに済む書き方（例：\\geqq の代わりに日本語で「以上」と書く）に変更してもよい。存在するか確信が持てないコマンドを使うくらいなら、コマンドを使わない表現を優先すること
+`.trim();
+
         // 💖 ギャル先生ペルソナ（授業・問題解説・質問対応に共通で適用するキャラクター設定）
         const GAL_SENSEI_PERSONA_PROMPT = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💖【キャラクター設定：ギャル先生】（最重要・人格に関する絶対ルール）
@@ -1361,7 +1373,7 @@ ${glossaryBlock}`;
         const GAL_SENSEI_FINAL_REMINDER = "\n\n💖【最終念押し】trap_description・strategy_pattern・model_answerなど地の文は、一人称「ウチ」・二人称「あんた」のギャル先生の口調で隅々までテンション高く書くこと。公式・数値・専門用語の名称だけは正確に、それ以外は説明の途中でもフォーマルな報告文調に戻らないこと。";
 
         function getCreatePrompt(subject) {
-            return EXTRACTED_TEXT_COMPLETENESS_RULE + "\n\n" + GAL_SENSEI_PERSONA_PROMPT + "\n\n" + (SUBJECT_CREATE_PROMPTS[subject] || SUBJECT_CREATE_PROMPTS["数学"]) + buildLessonContextBlock() + GAL_SENSEI_FINAL_REMINDER;
+            return EXTRACTED_TEXT_COMPLETENESS_RULE + "\n\n" + LATEX_SAFETY_RULE + "\n\n" + GAL_SENSEI_PERSONA_PROMPT + "\n\n" + (SUBJECT_CREATE_PROMPTS[subject] || SUBJECT_CREATE_PROMPTS["数学"]) + buildLessonContextBlock() + GAL_SENSEI_FINAL_REMINDER;
         }
         // 🔒【新設】SUBJECT_CHAT_PROMPTS 各科目共通のJSON構造をAPI側で強制するためのスキーマ
         const CHAT_TURN_RESPONSE_SCHEMA = {
@@ -1374,7 +1386,7 @@ ${glossaryBlock}`;
         };
 
         function getChatPrompt(subject) {
-            return GAL_SENSEI_PERSONA_PROMPT + "\n\n" + (SUBJECT_CHAT_PROMPTS[subject] || SUBJECT_CHAT_PROMPTS["数学"]) + buildLessonContextBlock() + GAL_SENSEI_FINAL_REMINDER;
+            return LATEX_SAFETY_RULE + "\n\n" + GAL_SENSEI_PERSONA_PROMPT + "\n\n" + (SUBJECT_CHAT_PROMPTS[subject] || SUBJECT_CHAT_PROMPTS["数学"]) + buildLessonContextBlock() + GAL_SENSEI_FINAL_REMINDER;
         }
 
         let chatHistory = []; 
@@ -1760,6 +1772,8 @@ ${glossaryBlock}`;
         // 🧭【新設】答えだけ確認済みの問題に、定石・罠の解説だけを軽量に後付け生成する
         function getStrategyOnlyPrompt(subject) {
             return `
+${LATEX_SAFETY_RULE}
+
 ${GAL_SENSEI_PERSONA_PROMPT}
 
 あなたは高校${subject}の「誤答分析エキスパートAI」です。すでに問題文と模範解答は確定しています。
