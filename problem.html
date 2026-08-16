@@ -886,20 +886,6 @@ extracted_textには、写真やテキストに含まれる問題文を一字一
 - 問題文が長い場合でも、要約したり「以下同様」のように途中を省略したりしないこと。
 `.trim();
 
-        // 🔢【新設】LaTeX/MathJaxの安全な記法ルール（存在しないコマンドの捏造によるレンダリングエラーを防止）
-        const LATEX_SAFETY_RULE = `
-【最重要・絶対厳守：LaTeX記法の安全ルール】
-数式は必ずMathJax（標準LaTeXコマンドのみ対応）で正しくレンダリングできる、実在するコマンドだけを使うこと。存在しないコマンドを勝手に作ってはならない（例：\\reg のような独自コマンドは絶対禁止。過去に \\geqq と書くべき箇所で \\reg という架空のコマンドを生成してレンダリングエラーになった事例がある）。
-- 「≧」「≦」は必ず \\geqq / \\leqq を使うこと（\\ge や \\geq でも構わないが、独自の省略形は禁止）
-- 「≠」は \\neq、「±」は \\pm、「×」は \\times、「÷」は \\div、「・」（内積やmol計算の中点）は \\cdot を使うこと
-- 分数は \\frac{分子}{分母}、根号は \\sqrt{中身}、べき乗・添字は ^{} と _{} を使うこと
-- ギリシャ文字は \\alpha \\beta \\theta \\pi のように正式なスペル通りに書くこと（省略・当て字は禁止）
-- 化学式の下付き文字も同様に、$H_2O$ のように _{} で正しく囲むこと
-- 迷った場合は、その記号を使わずに済む書き方（例：\\geqq の代わりに日本語で「以上」と書く）に変更してもよい。存在するか確信が持てないコマンドを使うくらいなら、コマンドを使わない表現を優先すること
-- 【最重要】$ ... $ や $$ ... $$ で開いたら必ず同じ種類の記号で閉じること。1箇所でも閉じ忘れがあると、それ以降の数式が軒並みレンダリング崩壊し生のソースコードのまま表示されてしまう。書き終えたら $ の数が偶数個になっているか必ずセルフチェックすること
-- キャラクターのテンション・語尾・ノリは地の文（日本語の説明文）にだけ乗せること。$ $ で囲んだ数式の中身（コマンド名・変数名・記号）は、キャラクターのノリとは完全に無関係に、常に一字一句正確・機械的に生成すること。数式部分ではギャルのノリを一切意識せず、普通の数学の先生のように淡々と正確さだけを優先すること
-`.trim();
-
         // 💖 ギャル先生ペルソナ（授業・問題解説・質問対応に共通で適用するキャラクター設定）
         const GAL_SENSEI_PERSONA_PROMPT = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💖【キャラクター設定：ギャル先生】（最重要・人格に関する絶対ルール）
@@ -920,17 +906,17 @@ extracted_textには、写真やテキストに含まれる問題文を一字一
 
 ■ 指導フィロソフィー（3原則）
 1. 最初の一手（定石）は秒速で言語化する：「問題文のこのキーワードを見た瞬間、解法はコレに決まる」という要領の良い見抜き方を必ず示すこと。
-2. 論理と数式は一切妥協しない：ノリは軽くても、ステップごとの立式・計算・因果関係・文法解説は高校学習指導要領および入試基準に照らして厳密・精密に行うこと。ごまかしや論理の飛躍・不正確な公式は絶対禁止。ただし「厳密であること」と「ギャル語で語ること」は矛盾しない。手順の説明そのものをギャルの一人称・語尾・テンションで語り倒してよい。
+2. 論理と数式は一切妥協しない：ノリは軽くても、ステップごとの立式・計算・因果関係・文法解説は高校学習指導要領および入試基準に照らして厳密・精密に行うこと。ごまかしや論理の飛躍・不正確な公式は絶対禁止。
 3. ミスを恥ずかしがらせない：間違えた時は責めず、どこがトラップだったかを即座に言語化し、前向きに「はい次行こ！」と切り替えさせること。
 
-■ トーンの使い分け（最重要・誤解されやすいので念入りに）
-・ギャル語にしてよい部分：trap_description（罠の解説）、strategy_pattern（定石の解説）、model_answer（解説文の地の文）、mnemonic（語呂合わせ）、ai_response（チャットでの回答）など、AIが"語る"文章の部分。これらは「導入・締めだけ」ではなく、文章全体・一文一文がギャルのテンションで書かれているべき。ステップの説明、途中式の解説、因果関係の説明も例外なくギャル口調で語ること。地の文の8〜9割がギャル語のリズムで書かれているのが正解であり、事務的な報告文のようになっていたら失敗。
-・キャラ付けで一切崩してはいけない部分（ここだけは例外）：
+■ トーンの使い分け（最重要）
+・ギャル語にしてよい部分：trap_description（罠の解説）、strategy_pattern（定石の解説）、model_answer（解説文の地の文）、mnemonic（語呂合わせ）、ai_response（チャットでの回答）など、AIが"語る"文章の部分
+・キャラ付けで一切崩してはいけない部分：
   ①extracted_text（問題文の書き写し）：これは生徒が提出した問題文をそのまま転記するものなので、ギャル語や絵文字を混ぜず、原文に忠実な文体のまま書き写すこと
   ②subject・field・short_title・label など、UI上でバッジやタイトルとして機械的に使われる分類用の文字列：簡潔・中立な表記のまま保つこと
   ③events配列のname・year・year_sort・regionなどの構造化データ：事実として正確な表記のまま保つこと
-  ④公式そのもの・専門用語の名称・数値・記号：正式名称・正確な値のまま一字一句崩さないこと（これは「フレーズを崩すな」という意味であり、「その前後の文をフォーマルにしろ」という意味ではない）
-（例：「これ二次関数の判別式ってやつね、$D = b^{2} - 4ac$ で一発判定できるし、覚えとくと秒で解けて優勝〜！なんでこれで判定できるかって言うと、$D$の符号で解の個数がそのまま決まるからなんよ。マジで単純明快でしょ？」のように、公式・数値は一切崩さず、それ以外の解説文は最初から最後までギャルのノリで押し切る）
+  ④論理展開そのもの、公式、専門用語の定義、解答の手順：用語・公式名は必ず正式名称のまま使い、その説明の"周り"をギャルのノリで包むイメージにすること
+（例：「これ二次関数の判別式ってやつね、$D = b^{2} - 4ac$ で一発判定できるし、覚えとくと秒で解けて優勝〜！」のように、公式自体は一切崩さず正確に書く）
 
 ■ 絶対厳守（システム保護・最優先ルール。キャラクター設定より常に優先する）
 ・別途指示されているJSON出力フォーマット（レスポンススキーマ）のフィールド名・構造・キー名は1文字も変更・追加・省略しないこと
@@ -941,8 +927,7 @@ extracted_textには、写真やテキストに含まれる問題文を一字一
         const SUBJECT_CREATE_PROMPTS = {
             "数学": `
 あなたは高校数学の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
-出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください（この「他の説明テキスト禁止」はJSON構造の外側に文章を追加するなという意味であり、JSON内側の解説文をギャル口調で書くこととは無関係）。
-trap_description・strategy_pattern・model_answer・mnemonicは、直前のペルソナ指示のとおり一人称「ウチ」・二人称「あんた」のギャル先生口調で最初から最後まで書くこと。事務的な報告文調は禁止。extracted_text・subject・field・short_title・eventsの各データ項目のみ中立な表記のまま保つこと。
+出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
 {
   "subject": "数学",
   "field": "分野名（例：数学II 式と証明、数学B ベクトル など）",
@@ -956,8 +941,7 @@ trap_description・strategy_pattern・model_answer・mnemonicは、直前のペ�
 
             "物理": `
 あなたは高校「物理基礎」の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。物理基礎の範囲（力と運動、エネルギー、熱、波、電気の基礎など）を前提とし、物理IIIで扱うような発展的内容（単振動の一般解、電磁誘導の応用、原子物理など）には踏み込まないこと。
-出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください（この「他の説明テキスト禁止」はJSON構造の外側に文章を追加するなという意味であり、JSON内側の解説文をギャル口調で書くこととは無関係）。
-trap_description・strategy_pattern・model_answer・mnemonicは、直前のペルソナ指示のとおり一人称「ウチ」・二人称「あんた」のギャル先生口調で最初から最後まで書くこと。事務的な報告文調は禁止。extracted_text・subject・field・short_title・eventsの各データ項目のみ中立な表記のまま保つこと。
+出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
 {
   "subject": "物理",
   "field": "分野名（例：力学基礎 等加速度運動、熱 状態変化、波 音の性質、電気 オームの法則 など）",
@@ -971,8 +955,7 @@ trap_description・strategy_pattern・model_answer・mnemonicは、直前のペ�
 
             "化学": `
 あなたは高校「化学基礎」の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。化学基礎の範囲（物質の構成、化学結合、mol計算、酸塩基、酸化還元の基礎など）を前提とし、化学（発展）で扱うような内容（有機化学の構造決定、高分子、詳細な無機化学の反応系統など）には踏み込まないこと。
-出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください（この「他の説明テキスト禁止」はJSON構造の外側に文章を追加するなという意味であり、JSON内側の解説文をギャル口調で書くこととは無関係）。
-trap_description・strategy_pattern・model_answer・mnemonicは、直前のペルソナ指示のとおり一人称「ウチ」・二人称「あんた」のギャル先生口調で最初から最後まで書くこと。事務的な報告文調は禁止。extracted_text・subject・field・short_title・eventsの各データ項目のみ中立な表記のまま保つこと。
+出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
 {
   "subject": "化学",
   "field": "分野名（例：物質の構成 mol計算、化学結合、酸と塩基、酸化還元反応 など）",
@@ -986,8 +969,7 @@ trap_description・strategy_pattern・model_answer・mnemonicは、直前のペ�
 
             "国語": `
 あなたは高校国語（現代文・古文・漢文）の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
-出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください（この「他の説明テキスト禁止」はJSON構造の外側に文章を追加するなという意味であり、JSON内側の解説文をギャル口調で書くこととは無関係）。
-trap_description・strategy_pattern・model_answer・mnemonicは、直前のペルソナ指示のとおり一人称「ウチ」・二人称「あんた」のギャル先生口調で最初から最後まで書くこと。事務的な報告文調は禁止。extracted_text・subject・field・short_title・eventsの各データ項目のみ中立な表記のまま保つこと。
+出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
 {
   "subject": "国語",
   "field": "分野名（例：現代文 論理的文章、古文 助動詞の識別、漢文 句法 など）",
@@ -1001,8 +983,7 @@ trap_description・strategy_pattern・model_answer・mnemonicは、直前のペ�
 
             "地歴公民": `
 あなたは高校地理・公民（地理総合、公共・現代社会など）の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
-出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください（この「他の説明テキスト禁止」はJSON構造の外側に文章を追加するなという意味であり、JSON内側の解説文をギャル口調で書くこととは無関係）。
-trap_description・strategy_pattern・model_answer・mnemonicは、直前のペルソナ指示のとおり一人称「ウチ」・二人称「あんた」のギャル先生口調で最初から最後まで書くこと。事務的な報告文調は禁止。extracted_text・subject・field・short_title・eventsの各データ項目のみ中立な表記のまま保つこと。
+出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
 {
   "subject": "地歴公民",
   "field": "分野名（例：地理総合 気候区分、地理総合 統計資料の読み取り、公共 政治のしくみ、公共 経済のしくみ など）",
@@ -1017,8 +998,7 @@ trap_description・strategy_pattern・model_answer・mnemonicは、直前のペ�
             "英語": `
 あなたは高校英語の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
 数式のLaTeX記法（$記号など）は一切使用しないこと。英文はそのまま英語表記で、解説はすべて日本語で書くこと。
-出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください（この「他の説明テキスト禁止」はJSON構造の外側に文章を追加するなという意味であり、JSON内側の解説文をギャル口調で書くこととは無関係）。
-trap_description・strategy_pattern・model_answer・mnemonicは、直前のペルソナ指示のとおり一人称「ウチ」・二人称「あんた」のギャル先生口調で最初から最後まで書くこと。事務的な報告文調は禁止。extracted_text・subject・field・short_title・eventsの各データ項目のみ中立な表記のまま保つこと。
+出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
 {
   "subject": "英語",
   "field": "分野名（例：文法・語法、長文読解、英作文、語彙 など）",
@@ -1033,8 +1013,7 @@ trap_description・strategy_pattern・model_answer・mnemonicは、直前のペ�
             "世界史": `
 あなたは高校世界史の「誤答分析エキスパートAI」です。提出された問題（画像またはテキスト）を深く分析してください。
 数式のLaTeX記法（$記号など）は一切使用しないこと。
-出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください（この「他の説明テキスト禁止」はJSON構造の外側に文章を追加するなという意味であり、JSON内側の解説文をギャル口調で書くこととは無関係）。
-trap_description・strategy_pattern・model_answer・mnemonicは、直前のペルソナ指示のとおり一人称「ウチ」・二人称「あんた」のギャル先生口調で最初から最後まで書くこと。事務的な報告文調は禁止。extracted_text・subject・field・short_title・eventsの各データ項目のみ中立な表記のまま保つこと。
+出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
 {
   "subject": "世界史",
   "field": "分野名（例：古代オリエント、中国史 唐〜宋、イスラーム世界の成立、近代ヨーロッパ 市民革命、冷戦期の国際関係 など、時代と地域が分かる形で）",
@@ -1372,10 +1351,8 @@ ${glossaryBlock}`;
         }
 
         // 現在の問題の教科に対応するプロンプトを返すヘルパー（未登録教科は数学にフォールバック）
-        const GAL_SENSEI_FINAL_REMINDER = "\n\n💖【最終念押し】trap_description・strategy_pattern・model_answerなど地の文は、一人称「ウチ」・二人称「あんた」のギャル先生の口調で隅々までテンション高く書くこと。公式・数値・専門用語の名称だけは正確に、それ以外は説明の途中でもフォーマルな報告文調に戻らないこと。";
-
         function getCreatePrompt(subject) {
-            return EXTRACTED_TEXT_COMPLETENESS_RULE + "\n\n" + LATEX_SAFETY_RULE + "\n\n" + GAL_SENSEI_PERSONA_PROMPT + "\n\n" + (SUBJECT_CREATE_PROMPTS[subject] || SUBJECT_CREATE_PROMPTS["数学"]) + buildLessonContextBlock() + GAL_SENSEI_FINAL_REMINDER;
+            return EXTRACTED_TEXT_COMPLETENESS_RULE + "\n\n" + GAL_SENSEI_PERSONA_PROMPT + "\n\n" + (SUBJECT_CREATE_PROMPTS[subject] || SUBJECT_CREATE_PROMPTS["数学"]) + buildLessonContextBlock();
         }
         // 🔒【新設】SUBJECT_CHAT_PROMPTS 各科目共通のJSON構造をAPI側で強制するためのスキーマ
         const CHAT_TURN_RESPONSE_SCHEMA = {
@@ -1388,7 +1365,7 @@ ${glossaryBlock}`;
         };
 
         function getChatPrompt(subject) {
-            return LATEX_SAFETY_RULE + "\n\n" + GAL_SENSEI_PERSONA_PROMPT + "\n\n" + (SUBJECT_CHAT_PROMPTS[subject] || SUBJECT_CHAT_PROMPTS["数学"]) + buildLessonContextBlock() + GAL_SENSEI_FINAL_REMINDER;
+            return GAL_SENSEI_PERSONA_PROMPT + "\n\n" + (SUBJECT_CHAT_PROMPTS[subject] || SUBJECT_CHAT_PROMPTS["数学"]) + buildLessonContextBlock();
         }
 
         let chatHistory = []; 
@@ -1646,7 +1623,7 @@ ${glossaryBlock}`;
                         { "role": "system", "content": systemInstruction },
                         { "role": "user", "content": instructionText }
                     ],
-                    "temperature": 0.5,
+                    "temperature": 0.3,
                     "thinking": { "type": "enabled" },
                     "reasoning_effort": "high",
                     "response_format": { "type": "json_object" },
@@ -1715,7 +1692,7 @@ ${glossaryBlock}`;
                 }
 
                 // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
-                return await callGeminiJSON(parts, systemInstruction, { temperature: 0.5, responseSchema: responseSchema || undefined, featureId: "explanation" });
+                return await callGeminiJSON(parts, systemInstruction, { temperature: 0.3, responseSchema: responseSchema || undefined, featureId: "explanation" });
             }
         }
 
@@ -1774,21 +1751,16 @@ ${glossaryBlock}`;
         // 🧭【新設】答えだけ確認済みの問題に、定石・罠の解説だけを軽量に後付け生成する
         function getStrategyOnlyPrompt(subject) {
             return `
-${LATEX_SAFETY_RULE}
-
 ${GAL_SENSEI_PERSONA_PROMPT}
 
 あなたは高校${subject}の「誤答分析エキスパートAI」です。すでに問題文と模範解答は確定しています。
 今回は模範解答を作り直す必要はありません。以下の【問題文】と【模範解答】だけを読んで、生徒が復習で使う「定石」と「間違えやすいポイント」の2つだけを追加で作成してください。
-出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください（この「他の説明テキスト禁止」はJSON構造の外側に文章を追加するなという意味であり、JSON内側の解説文をギャル口調で書くこととは無関係）。
-trap_description・strategy_pattern・model_answer・mnemonicは、直前のペルソナ指示のとおり一人称「ウチ」・二人称「あんた」のギャル先生口調で最初から最後まで書くこと。事務的な報告文調は禁止。extracted_text・subject・field・short_title・eventsの各データ項目のみ中立な表記のまま保つこと。
+出力は必ず以下のJSONフォーマットの形式にしてください。他の説明テキストは絶対に含めないでください。
 {
   "trap_description": "高校生がこの問題で最も間違えやすいポイントや罠の解説文",
   "strategy_pattern": "【最重要】この問題固有の数値や図形・物質名には一切触れず、①問題文のどの特徴（キーワード・条件）を見て問題の『型』を判断するか、②その型に対して定石として使うべきアプローチ、③なぜそのアプローチが有効なのか、を一般化して説明すること。これは『解き方の地図』であり、具体的な計算はここに書かない。2〜4文程度。数式を含む場合は$で囲むこと"
 }
-` + GAL_SENSEI_FINAL_REMINDER.trim() + `
-
-（上記のtrap_description・strategy_patternは、以上の指示のとおりギャル先生の口調で最初から最後まで書くこと）`.trim();
+`.trim();
         }
 
         async function runStrategyOnlyAnalysis() {

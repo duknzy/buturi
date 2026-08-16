@@ -50,8 +50,8 @@ html, body, * {
 
 body {
     background-color: var(--bg-color);
-    /* 💡 写真が見えるよう暗幕を大幅に薄く（0.78/0.88 → 0.42/0.55） */
-    background-image: linear-gradient(rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.55)), var(--bg-image);
+    /* 写真全体の落ち着いた暗幕はしっかりキープ */
+    background-image: linear-gradient(rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.88)), var(--bg-image);
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
