@@ -24,9 +24,9 @@ html, body, * {
     --bg-color: #000000;
     --bg-image: url('bg.avif'); 
     
-    /* 💡 カードの黒塗りを 60% → 25% 前後まで大幅に薄くします */
-    --card-bg: rgba(6, 8, 14, 0.28);
-    --card-bg-glass: rgba(6, 8, 16, 0.22);
+    /* 💡 カードの黒塗りをさらに薄くして背景画像をもっと透けさせます */
+    --card-bg: rgba(6, 8, 14, 0.16);
+    --card-bg-glass: rgba(6, 8, 16, 0.12);
     /* 💡 ガラスの輪郭（枠線）を少しだけ光らせて立体感をキープ */
     --border-color: rgba(255, 255, 255, 0.12);
     --border-glow: rgba(0, 243, 255, 0.35);
@@ -50,8 +50,8 @@ html, body, * {
 
 body {
     background-color: var(--bg-color);
-    /* 写真全体の落ち着いた暗幕はしっかりキープ */
-    background-image: linear-gradient(rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.88)), var(--bg-image);
+    /* 写真全体の暗幕を薄めにして背景がしっかり見えるように調整 */
+    background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.62)), var(--bg-image);
     background-size: cover;
     background-position: center;
     background-attachment: fixed;

@@ -640,13 +640,6 @@ function injectStylesAndModal() {
             border-radius: 12px; padding: 0.7rem 1rem; font-weight: 900; font-size: 0.85rem;
         }
         .apikm-settings-link-btn:hover { background: rgba(0,243,255,0.16); }
-        .apikm-io-row { display: flex; gap: 0.5rem; margin: 0 0 0.4rem; }
-        .apikm-io-btn {
-            flex: 1; background: rgba(255,255,255,0.04); border: 1px solid #333; color: #fff;
-            border-radius: 10px; padding: 0.6rem 0.6rem; font-weight: 800; font-size: 0.78rem; cursor: pointer;
-        }
-        .apikm-io-btn:hover { background: rgba(255,255,255,0.09); border-color: #555; }
-        .apikm-io-note { font-size: 0.68rem; color: var(--text-muted,#708590); margin-bottom: 1rem; line-height: 1.5; }
         .apikm-close-row { display: flex; justify-content: flex-end; margin-top: 0.8rem; }
         .apikm-close-btn {
             background: #111; border: 1px solid #333; color: #fff; border-radius: 10px;
@@ -688,14 +681,8 @@ function injectStylesAndModal() {
                 </form>
             </div>
             <div class="apikm-settings-link-row">
-                <a class="apikm-settings-link-btn" href="ai-settings.html">⚙️ 機能ごとのモデル／キー割り当てを管理画面で設定 →</a>
+                <a class="apikm-settings-link-btn" href="ai-settings.html">⚙️ 機能ごとのモデル／キー割り当て・設定のインポート/エクスポートは管理画面で →</a>
             </div>
-            <div class="apikm-io-row">
-                <button type="button" class="apikm-io-btn" id="apikm-export-btn">📤 設定をエクスポート</button>
-                <button type="button" class="apikm-io-btn" id="apikm-import-btn">📥 設定をインポート</button>
-                <input type="file" id="apikm-import-file" accept="application/json,.json" style="display:none;">
-            </div>
-            <div class="apikm-io-note">APIキー・キーのニックネーム・機能ごとの割り当てをこの端末内でJSONファイルに書き出し／読み込みします（他サービスへの送信はありません）。</div>
             <div class="apikm-close-row">
                 <button type="button" class="apikm-close-btn" id="apikm-close-btn">閉じる</button>
             </div>
@@ -753,43 +740,6 @@ function injectStylesAndModal() {
         }
 
         if (e.target.id === "apikm-close-btn") closeModal();
-
-        if (e.target.id === "apikm-export-btn") {
-            const data = exportAISettings();
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const dateStr = new Date().toISOString().slice(0, 10);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `lolz-ai-settings-${dateStr}.json`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-            showToast("⚙️ AI設定をエクスポートしました", "success");
-        }
-
-        if (e.target.id === "apikm-import-btn") {
-            overlay.querySelector("#apikm-import-file").click();
-        }
-    });
-
-    overlay.querySelector("#apikm-import-file").addEventListener("change", async (e) => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        try {
-            const text = await file.text();
-            const data = JSON.parse(text);
-            const before = `既存のAPIキー・割り当て設定は上書きされます。\n「${file.name}」の内容をインポートしますか？`;
-            if (!window.confirm(before)) { e.target.value = ""; return; }
-            const summary = importAISettings(data);
-            renderAll();
-            showToast(`📥 インポートしました（Gemini:${summary.geminiKeys}件 / DeepSeek:${summary.deepseekKeys}件 / 機能割り当て:${summary.featureConfig}件）`, "success", 8000);
-        } catch (err) {
-            showToast(`⚠️ インポートに失敗しました：${err.message || err}`, "error", 8000);
-        } finally {
-            e.target.value = "";
-        }
     });
 
     overlay.querySelectorAll(".apikm-add-input").forEach((input) => {

@@ -100,6 +100,15 @@
         box-shadow: 2px 2px 0px #008b94;
     }
     .chip-empty-note { font-size: 0.76rem; color: var(--text-muted); padding: 0.3rem 0; }
+
+    /* --- 設定のインポート/エクスポート --- */
+    .io-row { display: flex; gap: 0.7rem; flex-wrap: wrap; }
+    .io-btn {
+        flex: 1; min-width: 200px; background: rgba(255,255,255,0.04); border: 1px solid #333; color: #fff;
+        border-radius: 12px; padding: 0.8rem 1rem; font-weight: 800; font-size: 0.85rem; cursor: pointer;
+    }
+    .io-btn:hover { background: rgba(255,255,255,0.09); border-color: #555; }
+    .io-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.8rem; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -190,6 +199,24 @@
         </div>
         <div class="feature-card-grid" data-feature-card-grid></div>
     </section>
+
+    <!-- ============================== -->
+    <!-- 📤📥 設定のインポート/エクスポート -->
+    <!-- ============================== -->
+    <section class="settings-section">
+        <div class="settings-section-title">📦 設定のインポート/エクスポート</div>
+        <div class="settings-section-sub">
+            APIキー・キーのニックネーム・機能ごとの割り当てをまとめてJSONファイルに書き出し／読み込みできます。このアプリ限定の形式で、他サービスとの連携や送信は行いません。
+        </div>
+        <div class="squircle-card">
+            <div class="io-row">
+                <button type="button" class="io-btn" id="io-export-btn">📤 設定をエクスポート</button>
+                <button type="button" class="io-btn" id="io-import-btn">📥 設定をインポート</button>
+                <input type="file" id="io-import-file" accept="application/json,.json" style="display:none;">
+            </div>
+            <div class="io-note">エクスポートしたファイルにはAPIキーの本文がそのまま含まれます。他人と共有しないよう注意してください。</div>
+        </div>
+    </section>
 </div>
 
 <script type="module">
@@ -197,7 +224,7 @@ import {
     getGeminiKeys, getDeepseekKeys, addKey, removeKey, getKeyLabel, setKeyLabel,
     GEMINI_FEATURES, GEMINI_MODEL_FALLBACK_LIST,
     getFeatureAssignment, setFeatureAssignment, resetFeatureAssignment,
-    showToast
+    showToast, exportAISettings, importAISettings
 } from "./api-key-manager.js";
 
 const ENGINE_LABEL = { gemini: "✨ Gemini", deepseek: "🐋 DeepSeek" };
@@ -405,6 +432,47 @@ document.addEventListener("click", (e) => {
         renderFeatureUI();
         showToast("デフォルトに戻しました", "info");
         return;
+    }
+});
+
+// --------------------------------------------------------------------------
+// 📦 設定のインポート/エクスポート
+// --------------------------------------------------------------------------
+document.getElementById("io-export-btn").addEventListener("click", () => {
+    const data = exportAISettings();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `lolz-ai-settings-${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast("⚙️ AI設定をエクスポートしました", "success");
+});
+
+document.getElementById("io-import-btn").addEventListener("click", () => {
+    document.getElementById("io-import-file").click();
+});
+
+document.getElementById("io-import-file").addEventListener("change", async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        const before = `既存のAPIキー・割り当て設定は上書きされます。\n「${file.name}」の内容をインポートしますか？`;
+        if (!window.confirm(before)) { e.target.value = ""; return; }
+        const summary = importAISettings(data);
+        renderAllKeyLists();
+        renderFeatureUI();
+        showToast(`📥 インポートしました（Gemini:${summary.geminiKeys}件 / DeepSeek:${summary.deepseekKeys}件 / 機能割り当て:${summary.featureConfig}件）`, "success", 8000);
+    } catch (err) {
+        showToast(`⚠️ インポートに失敗しました：${err.message || err}`, "error", 8000);
+    } finally {
+        e.target.value = "";
     }
 });
 
