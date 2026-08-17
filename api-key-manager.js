@@ -206,6 +206,8 @@ export const GEMINI_FEATURES = [
     { id: "lesson_plan",      label: "授業プランの生成",             page: "lesson.html" },
     { id: "lesson_drill",     label: "授業の類題作成",               page: "lesson.html" },
     { id: "lesson_teach",     label: "授業内AIチャット",             page: "lesson.html" },
+    { id: "memorization_points", label: "単元の暗記事項リスト生成（授業プランとは別リクエスト）", page: "lesson.html" },
+    { id: "refbook_extract",  label: "参考書の写真からの問題読み取り",  page: "refbook.html" },
 ];
 
 const FEATURE_CONFIG_STORAGE = "RE_MIND_FEATURE_CONFIG";

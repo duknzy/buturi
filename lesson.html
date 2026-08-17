@@ -557,6 +557,16 @@
         .lesson-memo-del-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; flex-shrink: 0; line-height: 1; padding: 0.1rem; }
         .lesson-memo-del-btn:hover { color: var(--accent-magenta); }
         .lesson-memo-empty { font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 1.4rem 0; }
+
+        /* 🧠 暗記事項リスト */
+        .memorize-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .memorize-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-left: 3px solid var(--accent-cyan); border-radius: 0 10px 10px 0; padding: 0.6rem 0.8rem; }
+        .memorize-item-category { display: inline-block; font-size: 0.68rem; font-weight: 900; color: var(--accent-cyan); background: rgba(0,243,255,0.1); border-radius: 6px; padding: 0.1rem 0.5rem; margin-bottom: 0.35rem; }
+        .memorize-item-content { font-size: 0.85rem; color: var(--text-bright-muted); line-height: 1.55; white-space: pre-wrap; }
+        .memorize-item-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem; line-height: 1.5; }
+        .memorize-empty { font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 1.4rem 0; }
+        .memorize-loading { font-size: 0.8rem; color: var(--accent-cyan); text-align: center; padding: 1.4rem 0; }
+        .memorize-error-retry { display: block; margin: 0.6rem auto 0; }
         .chat-attach-btn {
             flex-shrink: 0;
             display: inline-flex;
@@ -609,6 +619,7 @@
                 <a href="lesson.html" class="nav-btn">📖 授業・解説</a>
                 <a href="answer-check.html" class="nav-btn">⚡ 答え合わせ</a>
                 <a href="insights.html" class="nav-btn">💡 気づき・質問ログ</a>  
+                <a href="refbook.html" class="nav-btn">📚 参考書問題集</a>
                 <a href="timeline.html" class="nav-btn">🌍 世界史年表</a>
                 <a href="ai-settings.html" class="nav-btn">⚙️ AI設定</a>
                 <a href="tokei/index.html" class="nav-btn global-timer-link">⏱️ 集中タイマー</a>
@@ -799,6 +810,7 @@
                     <div class="sidebar-tab-group">
                         <button type="button" class="sidebar-tab-btn active" data-tab="tab-parts">📚 パート目次</button>
                         <button type="button" class="sidebar-tab-btn" data-tab="tab-notes">📝 授業ノート</button>
+                        <button type="button" class="sidebar-tab-btn" data-tab="tab-memorize">🧠 暗記事項</button>
                         <button type="button" class="sidebar-tab-btn" data-tab="tab-source">📖 原本テキスト</button>
                     </div>
 
@@ -822,7 +834,15 @@
                         <div id="lesson-memo-list" class="lesson-memo-list"></div>
                     </div>
 
-                    <!-- パネル3: 原本テキスト -->
+                    <!-- パネル3: 暗記事項リスト（授業プランとは別のAIリクエストで自動生成） -->
+                    <div class="sidebar-panel" id="tab-memorize">
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.6rem; font-weight: 700;">
+                            🧠 この単元で暗記すべき公式・反応式・用語・数値などの一覧です（授業と別リクエストでAIが自動生成）。
+                        </div>
+                        <div id="lesson-memorization-list" class="memorize-list tex2jax_process"></div>
+                    </div>
+
+                    <!-- パネル4: 原本テキスト -->
                     <div class="sidebar-panel" id="tab-source">
                         <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.6rem; font-weight: 700;" id="source-panel-label">
                             🔍 参考書の文字起こし全文
@@ -1291,6 +1311,122 @@ ${socraticAddon}
                 btn.disabled = false;
                 if (regenBtn) regenBtn.disabled = false;
             }
+        }
+
+        // --------------------------------------------------------------
+        // 🧠【新設】単元の暗記事項リスト生成
+        // 授業プラン生成（lesson_plan）とは完全に別のAIリクエストとして投げる。
+        // 理由: 1回のリクエストに要求を詰め込みすぎると出力精度が落ちるため役割を分離し、
+        //       featureId="memorization_points" を専用に持たせることでキー/モデル設定も
+        //       授業プラン生成側から独立させ、レート制限等の影響も分散させる。
+        // 授業プランの extracted_text（既に書き起こし/生成済みの授業ノート）を渡すだけなので、
+        // 画像の再送や本文の再生成は行わない。
+        // --------------------------------------------------------------
+        const MEMORIZATION_RESPONSE_SCHEMA = {
+            type: "OBJECT",
+            properties: {
+                memorization_points: {
+                    type: "ARRAY",
+                    items: {
+                        type: "OBJECT",
+                        properties: {
+                            category: { type: "STRING", enum: ["公式・法則", "反応式・現象", "用語・定義", "数値・データ", "暗記のコツ・語呂合わせ"] },
+                            content: { type: "STRING" },
+                            note: { type: "STRING" }
+                        },
+                        required: ["category", "content"]
+                    }
+                }
+            },
+            required: ["memorization_points"]
+        };
+
+        const MEMORIZATION_SYSTEM_INSTRUCTION = `あなたは生徒の暗記を助ける専門家です。以下に渡される「授業ノート（本文）」を読み、この単元をマスターするために生徒が確実に暗記すべき事項をすべて洗い出してリスト化してください。
+
+対象にすべきもの:
+- 公式・法則・定理（成り立ちではなく、覚えるべき結論の形）
+- 化学反応式・反応名・反応条件・現象（色の変化など）
+- 覚えるべき用語とその正確な定義
+- 覚えるべき数値・定数・単位・周期表的な暗記データ
+- 有効な語呂合わせや暗記のコツがあれば（一般的に知られているもの、または自然に作れるもの）
+
+対象にしないもの:
+- 問題の解き方の手順そのもの（暗記ではなく理解で対応すべきもの）
+- 一般常識レベルの内容
+
+数式は $ $ で囲むこと。抜け漏れなく、しかし冗長にならないように1項目1〜2文程度で簡潔にまとめること。
+
+出力は必ず以下のJSON形式のみで返してください。他のテキストは一切含めないこと。
+{
+  "memorization_points": [
+    { "category": "公式・法則／反応式・現象／用語・定義／数値・データ／暗記のコツ・語呂合わせ のいずれか1つ", "content": "暗記すべき内容そのもの（簡潔に）", "note": "補足・注意点・語呂合わせなど（無ければ空文字）" }
+  ]
+}`;
+
+        // extractedText: 授業ノート/参考書書き起こし全文, lessonTitle: 授業タイトル
+        // 戻り値: memorization_points の配列（失敗時は例外throw）
+        async function generateMemorizationPoints(extractedText, lessonTitle) {
+            const promptText = `【授業タイトル】\n${lessonTitle}\n\n【授業ノート本文】\n${extractedText || "（本文なし）"}`;
+            const result = await callGeminiJSON(
+                [{ text: promptText }],
+                MEMORIZATION_SYSTEM_INSTRUCTION,
+                { responseSchema: MEMORIZATION_RESPONSE_SCHEMA, featureId: "memorization_points", silentFallback: true }
+            );
+            return Array.isArray(result.memorization_points) ? result.memorization_points : [];
+        }
+
+        // 授業画面ロード時に自動実行。すでに生成済みならスキップ。バックグラウンドで動くため
+        // 授業のチャット進行やプラン確認フローをブロックしない。
+        async function ensureMemorizationPoints() {
+            if (!currentLesson) return;
+            if (Array.isArray(currentLesson.memorizationPoints)) {
+                renderMemorizationPoints();
+                return;
+            }
+            renderMemorizationPoints("loading");
+            try {
+                const points = await generateMemorizationPoints(currentLesson.extractedText, currentLesson.title);
+                currentLesson.memorizationPoints = points;
+                renderMemorizationPoints();
+                await saveLesson();
+                await forceTriggerMathJax();
+            } catch (err) {
+                console.error("⚠️ 暗記事項リストの生成に失敗しました:", err);
+                renderMemorizationPoints("error", err.message);
+            }
+        }
+
+        function renderMemorizationPoints(state, errorMessage) {
+            const container = el("lesson-memorization-list");
+            if (!container) return;
+
+            if (state === "loading") {
+                container.innerHTML = `<div class="memorize-loading">🧠 暗記事項リストを準備中...</div>`;
+                return;
+            }
+            if (state === "error") {
+                container.innerHTML = `
+                    <div class="memorize-empty">暗記事項リストの生成に失敗しました。<br>${errorMessage ? errorMessage.replace(/</g, "&lt;") : ""}</div>
+                    <button type="button" class="tactile-btn memorize-error-retry" id="memorize-retry-btn" style="font-size:0.75rem; padding:0.5rem 0.9rem;">🔁 再試行</button>
+                `;
+                const retryBtn = el("memorize-retry-btn");
+                if (retryBtn) retryBtn.addEventListener("click", () => ensureMemorizationPoints());
+                return;
+            }
+
+            const points = Array.isArray(currentLesson?.memorizationPoints) ? currentLesson.memorizationPoints : [];
+            if (points.length === 0) {
+                container.innerHTML = `<div class="memorize-empty">この単元では特筆すべき暗記事項が見つかりませんでした。</div>`;
+                return;
+            }
+
+            container.innerHTML = points.map(p => `
+                <div class="memorize-item">
+                    <span class="memorize-item-category">${(p.category || "").replace(/</g, "&lt;")}</span>
+                    <div class="memorize-item-content">${renderFormattedMarkdown(p.content || "")}</div>
+                    ${p.note ? `<div class="memorize-item-note">💡 ${renderFormattedMarkdown(p.note)}</div>` : ""}
+                </div>
+            `).join("");
         }
 
         function renderPlanPreview() {
@@ -2280,7 +2416,7 @@ ${GAL_SENSEI_PERSONA_PROMPT}
                 const tabId = btn.getAttribute("data-tab");
                 const panel = el(tabId);
                 if (panel) panel.classList.add("active");
-                if (tabId === "tab-source") forceTriggerMathJax();
+                if (tabId === "tab-source" || tabId === "tab-memorize") forceTriggerMathJax();
             });
         });
 
@@ -2504,6 +2640,7 @@ ${GAL_SENSEI_PERSONA_PROMPT}
             renderPartsTOC();
             initLessonNotes();
             renderSourceText();
+            ensureMemorizationPoints(); // 🧠 授業プランとは別のAIリクエストとしてバックグラウンドで自動生成（ブロックしない）
 
             if (currentLesson.chatHistory.length === 0) {
                 currentLesson.chatHistory.push({ role: "divider", content: `第1回: ${currentLesson.parts[0].title}` });
