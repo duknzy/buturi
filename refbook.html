@@ -133,6 +133,24 @@
 
         .rb-modal-content { width: 92%; max-width: 720px; max-height: 92vh; overflow-y: auto; }
 
+        /* 🩹【修正】style.css側には.modal-overlay/.modal-contentの基底定義が無いため、
+           ここで明示的に定義する（無いと画面中央固定のポップアップにならず、
+           通常のページ要素としてそのまま縦に積まれて表示されてしまう） */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.7);
+            display: none; align-items: center; justify-content: center;
+            z-index: 10000;
+        }
+        .modal-content {
+            width: 90%; max-width: 600px;
+            border: 1px solid var(--accent-cyan);
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+            max-height: 95vh;
+            overflow-y: auto;
+        }
+
         .unit-new-row { display: none; margin-top: 0.6rem; padding: 1rem; border: 1px dashed #22222a; border-radius: 12px; }
 
         @media (max-width: 640px) {
