@@ -482,6 +482,7 @@
         let rawLessons = {};
         let selectedQnaLogId = null;
         let editingProblemId = null; // その場編集中の問題ID
+        let editingLessonMemoKey = null; // その場編集中の授業メモ（"lessonId:memoId"）
 
         // 🎛 タブ切り替え
         const tabBtnInsights = document.getElementById("tab-btn-insights");
@@ -553,6 +554,7 @@
             if (activeTab === "insights") {
                 Object.values(rawProblems).forEach(p => { if (p.insight) subjects.add(p.subject || "未分類"); });
                 buildLessonMemoItems().forEach(item => subjects.add(item.subject || "未分類"));
+                buildMemorizationItems().forEach(item => subjects.add(item.subject || "未分類"));
             } else if (activeTab === "qna") {
                 Object.values(rawQnaLogs).forEach(l => { if (l.subject) subjects.add(l.subject); });
             } else {
@@ -596,12 +598,39 @@
                         subject: detectSubjectFromLesson(lesson),
                         field: lesson.topicKey || lesson.title || "授業メモ",
                         short_title: lesson.title || "授業メモ",
-                        insightUpdatedAt: m.createdAt,
+                        insightUpdatedAt: m.updatedAt || m.createdAt,
                         createdAt: m.createdAt,
                         isPinned: !!m.pinned,
                         partIndex: m.partIndex,
                         partTitle: (lesson.parts && typeof m.partIndex === "number" && lesson.parts[m.partIndex]) ? lesson.parts[m.partIndex].title : "",
                         sourceType: "lesson"
+                    });
+                });
+            });
+            return items;
+        }
+
+        // 🧠 授業ページの「暗記事項リスト」を気づき一覧アイテム形式に変換
+        //    （授業ページ内だけでなく、気づき・極意メモ一覧からも横断的に見えるようにする）
+        function buildMemorizationItems() {
+            const items = [];
+            Object.entries(rawLessons).forEach(([lessonId, lesson]) => {
+                if (!lesson || !Array.isArray(lesson.memorizationPoints)) return;
+                lesson.memorizationPoints.forEach((mp, idx) => {
+                    if (!mp || !mp.content || !mp.content.trim()) return;
+                    const mpId = mp.id || `idx${idx}`;
+                    items.push({
+                        id: `memorize_${lessonId}_${mpId}`,
+                        lessonId,
+                        insight: mp.content + (mp.note ? `\n💡 ${mp.note}` : ""),
+                        category: mp.category || "",
+                        subject: detectSubjectFromLesson(lesson),
+                        field: lesson.topicKey || lesson.title || "暗記事項",
+                        short_title: lesson.title || "暗記事項",
+                        insightUpdatedAt: lesson.updatedAt || lesson.createdAt,
+                        createdAt: lesson.createdAt,
+                        isPinned: false,
+                        sourceType: "memorize"
                     });
                 });
             });
@@ -633,6 +662,38 @@
                 showToast("授業メモを削除しました。", "success", 2000);
             } catch (err) {
                 showToast("削除に失敗しました。", "error");
+            }
+        };
+
+        // ✏️ 授業メモのその場編集
+        window.startEditLessonMemoFromInsights = function(lessonId, memoId, e) {
+            if (e) e.stopPropagation();
+            editingLessonMemoKey = `${lessonId}:${memoId}`;
+            renderActiveView();
+        };
+
+        window.cancelEditLessonMemoFromInsights = function(e) {
+            if (e) e.stopPropagation();
+            editingLessonMemoKey = null;
+            renderActiveView();
+        };
+
+        window.saveEditLessonMemoFromInsights = async function(lessonId, memoId, e) {
+            if (e) e.stopPropagation();
+            if (!currentUser) return;
+            const textarea = document.getElementById(`lessonmemo-edit-${lessonId}_${memoId}`);
+            if (!textarea) return;
+            const newText = textarea.value.trim();
+            if (!newText) { showToast("メモの内容を入力してください。", "error"); return; }
+            const lesson = rawLessons[lessonId];
+            if (!lesson || !Array.isArray(lesson.lessonMemos)) return;
+            const newMemos = lesson.lessonMemos.map(m => m.id === memoId ? { ...m, text: newText, updatedAt: new Date().toISOString() } : m);
+            try {
+                await update(ref(database, 'users/' + currentUser.uid + '/lessons/' + lessonId), { lessonMemos: newMemos });
+                editingLessonMemoKey = null;
+                showToast("授業メモを更新しました。", "success", 2000);
+            } catch (err) {
+                showToast("保存に失敗しました。", "error");
             }
         };
 
@@ -772,7 +833,8 @@
 
             let items = [
                 ...Object.values(rawProblems).filter(p => p && p.insight && p.insight.trim() !== "").map(p => ({ ...p, sourceType: "problem" })),
-                ...buildLessonMemoItems()
+                ...buildLessonMemoItems(),
+                ...buildMemorizationItems()
             ];
 
             if (subject !== "ALL") items = items.filter(p => (p.subject || "未分類") === subject);
@@ -858,6 +920,7 @@
         // リッチ対比カードのHTML
         function renderCardHtml(p) {
             if (p.sourceType === "lesson") return renderLessonMemoCardHtml(p);
+            if (p.sourceType === "memorize") return renderMemorizeCardHtml(p);
 
             const isEditing = editingProblemId === p.id;
             const starClass = p.isPinned ? "active" : "";
@@ -914,6 +977,16 @@
             const starClass = p.isPinned ? "active" : "";
             const pinnedClass = p.isPinned ? "pinned" : "";
             const partLabel = p.partTitle ? `第${p.partIndex + 1}回: ${p.partTitle}` : "";
+            const memoKey = `${p.lessonId}:${p.memoId}`;
+            const isEditing = editingLessonMemoKey === memoKey;
+
+            const bodyHtml = isEditing
+                ? `<textarea class="inline-edit-textarea" id="lessonmemo-edit-${p.lessonId}_${p.memoId}">${p.insight || ""}</textarea>
+                   <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:0.5rem;">
+                       <button type="button" class="tactile-btn tactile-btn-secondary" style="font-size:0.72rem; padding:0.4rem 0.8rem;" onclick="cancelEditLessonMemoFromInsights(event)">キャンセル</button>
+                       <button type="button" class="tactile-btn" style="font-size:0.72rem; padding:0.4rem 0.8rem;" onclick="saveEditLessonMemoFromInsights('${p.lessonId}', '${p.memoId}', event)">💾 保存</button>
+                   </div>`
+                : `<div class="insight-text tex2jax_process" onclick="startEditLessonMemoFromInsights('${p.lessonId}', '${p.memoId}', event)" title="クリックしてその場で編集">${normalizeMathSyntax(p.insight)}</div>`;
 
             return `
                 <div class="insight-card ${pinnedClass}" style="border-left-color: var(--accent-yellow);">
@@ -935,8 +1008,39 @@
                     <div class="insight-body-box">
                         <div class="insight-body-label">
                             <span>✏️ 授業中のメモ</span>
-                            <button type="button" style="background:none; border:none; color:var(--accent-magenta); font-size:0.72rem; font-weight:800; cursor:pointer;" onclick="deleteLessonMemoFromInsights('${p.lessonId}', '${p.memoId}', event)">🗑 削除</button>
+                            <div style="display:flex; gap:0.7rem;">
+                                ${!isEditing ? `<button type="button" style="background:none; border:none; color:var(--accent-cyan); font-size:0.72rem; font-weight:800; cursor:pointer;" onclick="startEditLessonMemoFromInsights('${p.lessonId}', '${p.memoId}', event)">✏️ 編集</button>` : ''}
+                                <button type="button" style="background:none; border:none; color:var(--accent-magenta); font-size:0.72rem; font-weight:800; cursor:pointer;" onclick="deleteLessonMemoFromInsights('${p.lessonId}', '${p.memoId}', event)">🗑 削除</button>
+                            </div>
                         </div>
+                        ${bodyHtml}
+                    </div>
+
+                    <div style="display:flex; justify-content:flex-end; border-top:1px dashed rgba(255,255,255,0.08); padding-top:0.6rem;">
+                        <a href="lesson.html?id=${encodeURIComponent(p.lessonId)}" class="goto-btn">授業を開く ➔</a>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 🧠 暗記事項（lesson.htmlで自動生成）カードのHTML（読み取り専用・授業を横断して一覧表示）
+        function renderMemorizeCardHtml(p) {
+            return `
+                <div class="insight-card" style="border-left-color: var(--accent-cyan);">
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:0.4rem; margin-bottom:0.6rem;">
+                            <span class="badge badge-physics" style="background: rgba(0,243,255,0.1); border-color: var(--accent-cyan); color: var(--accent-cyan);">🧠 暗記事項 // ${p.subject || "未分類"}</span>
+                            <span style="font-size:0.72rem; color:var(--text-muted);">🗓️ ${formatDate(p.insightUpdatedAt || p.createdAt)}</span>
+                        </div>
+
+                        <div class="insight-problem-preview" style="border-color: rgba(0,243,255,0.25); background: rgba(0,243,255,0.03);">
+                            <div class="insight-problem-title">📘 ${p.short_title}</div>
+                            ${p.category ? `<div style="font-size:0.78rem; color:var(--text-muted);">${p.category}</div>` : ""}
+                        </div>
+                    </div>
+
+                    <div class="insight-body-box">
+                        <div class="insight-body-label"><span>🧠 覚えるべきこと</span></div>
                         <div class="insight-text tex2jax_process">${normalizeMathSyntax(p.insight)}</div>
                     </div>
 
@@ -950,6 +1054,7 @@
         // 爆速リストのHTML
         function renderCompactRowHtml(p) {
             if (p.sourceType === "lesson") return renderLessonMemoCompactRowHtml(p);
+            if (p.sourceType === "memorize") return renderMemorizeCompactRowHtml(p);
 
             const starClass = p.isPinned ? "active" : "";
             const pinnedClass = p.isPinned ? "pinned" : "";
@@ -980,6 +1085,19 @@
                         <div class="compact-sub">📘 ${p.short_title} ｜ ${formatDate(p.insightUpdatedAt || p.createdAt)}</div>
                     </div>
                     <button type="button" onclick="deleteLessonMemoFromInsights('${p.lessonId}', '${p.memoId}', event)" style="flex-shrink:0; background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.85rem;" title="削除">🗑</button>
+                    <a href="lesson.html?id=${encodeURIComponent(p.lessonId)}" class="goto-btn" style="flex-shrink:0;">➔</a>
+                </div>
+            `;
+        }
+
+        function renderMemorizeCompactRowHtml(p) {
+            return `
+                <div class="insight-compact-row">
+                    <span class="badge badge-physics" style="font-size:0.68rem; flex-shrink:0; background: rgba(0,243,255,0.1); border-color: var(--accent-cyan); color: var(--accent-cyan);">🧠 ${p.subject || "未分類"}</span>
+                    <div class="compact-main">
+                        <div class="compact-text tex2jax_process">${normalizeMathSyntax(p.insight)}</div>
+                        <div class="compact-sub">📘 ${p.short_title} ｜ ${formatDate(p.insightUpdatedAt || p.createdAt)}</div>
+                    </div>
                     <a href="lesson.html?id=${encodeURIComponent(p.lessonId)}" class="goto-btn" style="flex-shrink:0;">➔</a>
                 </div>
             `;

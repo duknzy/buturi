@@ -158,6 +158,40 @@
 
         .unit-new-row { display: none; margin-top: 0.6rem; padding: 1rem; border: 1px dashed #22222a; border-radius: 12px; }
 
+        /* 🖼️ 図・写真ビューア（一問一答画面） */
+        .quiz-badge-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+        .mini-badge {
+            display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.7rem; font-weight: 800;
+            padding: 0.3rem 0.6rem; border-radius: 8px; letter-spacing: 0.5px;
+        }
+        .mini-badge-figure { background: rgba(255, 245, 0, 0.14); color: var(--accent-yellow); border: 1px solid rgba(255, 245, 0, 0.35); }
+        .mini-badge-ai { background: rgba(0, 243, 255, 0.12); color: var(--accent-cyan); border: 1px solid rgba(0, 243, 255, 0.3); }
+
+        .figure-toggle-btn {
+            margin-top: 1rem; font-size: 0.78rem; padding: 0.5rem 0.9rem;
+        }
+        .figure-gallery {
+            display: none; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.8rem;
+            padding: 0.8rem; border: 1px dashed rgba(255, 245, 0, 0.3); border-radius: 12px; background: rgba(0,0,0,0.25);
+        }
+        .figure-gallery.open { display: flex; }
+        .figure-gallery img {
+            height: 140px; border-radius: 8px; border: 1px solid #22222a; cursor: zoom-in;
+            transition: transform 150ms ease;
+        }
+        .figure-gallery img:hover { transform: scale(1.03); }
+
+        .lightbox-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 20000;
+            display: none; align-items: center; justify-content: center; padding: 2rem; cursor: zoom-out;
+        }
+        .lightbox-overlay.open { display: flex; }
+        .lightbox-overlay img { max-width: 100%; max-height: 100%; border-radius: 6px; }
+
+        .ai-answer-note {
+            font-size: 0.72rem; color: var(--accent-cyan); font-weight: 800; margin-bottom: 0.5rem;
+        }
+
         @media (max-width: 640px) {
             .quiz-card { padding: 1.3rem; }
             .rb-inline-row { flex-direction: column; }
@@ -242,7 +276,10 @@
             <div id="quiz-active-area">
                 <div class="squircle-card quiz-card">
                     <div class="quiz-card-head">
-                        <span class="badge badge-physics" id="quiz-card-badge">--</span>
+                        <div class="quiz-badge-row">
+                            <span class="badge badge-physics" id="quiz-card-badge">--</span>
+                            <span class="mini-badge mini-badge-figure" id="quiz-figure-badge" style="display:none;">🖼️ 図あり</span>
+                        </div>
                         <div class="quiz-card-actions">
                             <button type="button" class="tactile-btn tactile-btn-secondary" id="quiz-edit-btn" style="padding:0.4rem 0.8rem; font-size:0.75rem;">✏️ 編集</button>
                             <button type="button" class="tactile-btn tactile-btn-secondary" id="quiz-delete-btn" style="padding:0.4rem 0.8rem; font-size:0.75rem; color: var(--accent-magenta); border-color: var(--accent-magenta);">🗑 削除</button>
@@ -251,12 +288,16 @@
 
                     <div class="quiz-question-text tex2jax_process" id="quiz-question-text"></div>
 
+                    <button type="button" class="tactile-btn tactile-btn-secondary figure-toggle-btn" id="quiz-figure-toggle-btn" style="display:none;">🖼️ 参考書の元写真を見る（図・表を確認）</button>
+                    <div class="figure-gallery" id="quiz-figure-gallery"></div>
+
                     <div class="quiz-reveal-row" id="quiz-reveal-row">
                         <button type="button" class="tactile-btn" id="quiz-reveal-btn">👀 答え・解説を見る</button>
                     </div>
 
                     <div class="quiz-answer-block" id="quiz-answer-block">
                         <div class="quiz-answer-label">✅ ANSWER</div>
+                        <div class="ai-answer-note" id="quiz-answer-ai-note" style="display:none;">🤖 この解答・解説はAIが作成したものです（参考書に印刷がなかったため）。念のため内容を確認してください。</div>
                         <div class="quiz-answer-text tex2jax_process" id="quiz-answer-text"></div>
                         <div class="quiz-answer-label">📝 EXPLANATION</div>
                         <div class="quiz-explanation-text tex2jax_process" id="quiz-explanation-text"></div>
@@ -361,6 +402,10 @@
                 <label class="rb-form-label">問題文</label>
                 <textarea class="rb-form-textarea" id="edit-question-input" style="min-height: 120px;"></textarea>
             </div>
+            <div class="rb-form-row" id="edit-figure-preview-row" style="display:none;">
+                <label class="rb-form-label">登録済みの元写真</label>
+                <div class="photo-thumb-strip" id="edit-figure-preview"></div>
+            </div>
             <div class="rb-form-row">
                 <label class="rb-form-label">解答</label>
                 <textarea class="rb-form-textarea" id="edit-answer-input" style="min-height: 90px;"></textarea>
@@ -368,6 +413,9 @@
             <div class="rb-form-row">
                 <label class="rb-form-label">解説</label>
                 <textarea class="rb-form-textarea" id="edit-explanation-input" style="min-height: 110px;"></textarea>
+            </div>
+            <div class="rb-form-row">
+                <button type="button" class="tactile-btn tactile-btn-secondary" id="edit-ai-generate-btn" style="width:100%; padding:0.7rem; font-size:0.85rem;">🤖 AIに解答・解説を作らせる（今の解答は上書きされます）</button>
             </div>
             <div style="display:flex; justify-content: space-between; gap: 0.8rem; margin-top: 1.4rem; border-top: 1px solid #22222a; padding-top: 1rem;">
                 <button type="button" class="tactile-btn tactile-btn-secondary" id="edit-delete-btn" style="color: var(--accent-magenta); border-color: var(--accent-magenta);">🗑 この問題を削除</button>
@@ -377,6 +425,11 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- 🔍 画像拡大表示用ライトボックス -->
+    <div class="lightbox-overlay" id="lightbox-overlay">
+        <img id="lightbox-img" src="" alt="拡大画像">
     </div>
 
     <script type="module">
@@ -416,7 +469,24 @@
         let solvedInThisRun = {}; // problemId -> true（今回のセッションで解答表示済み）
 
         let pendingImages = [];   // 登録モーダルで選択中の画像 {mimeType, base64, dataUrl}
-        let pendingExtracted = []; // AI読み取り結果のプレビュー行 {number,type,question,answer,explanation,include}
+        let pendingExtracted = []; // AI読み取り結果のプレビュー行 {number,type,question,hasFigure,answer,explanation,answerGenerated,include}
+
+        let problemImagesCache = {}; // problemId -> [dataUrl, ...]（一度取得した元写真をキャッシュ）
+
+        // "data:image/jpeg;base64,xxxx" 形式のURLをGemini用 {mimeType, data} に分解
+        function dataUrlToInlineData(dataUrl) {
+            const m = /^data:([^;]+);base64,(.*)$/s.exec(dataUrl || "");
+            if (!m) return null;
+            return { mimeType: m[1], data: m[2] };
+        }
+
+        function openLightbox(src) {
+            document.getElementById("lightbox-img").src = src;
+            document.getElementById("lightbox-overlay").classList.add("open");
+        }
+        document.getElementById("lightbox-overlay").addEventListener("click", () => {
+            document.getElementById("lightbox-overlay").classList.remove("open");
+        });
 
         let editingProblemId = null;
 
@@ -688,14 +758,54 @@
             document.getElementById("quiz-answer-text").innerHTML = renderMathText(p.answer || "（解答なし）");
             document.getElementById("quiz-explanation-text").innerHTML = renderMathText(p.explanation || "（解説なし）");
 
+            document.getElementById("quiz-answer-ai-note").style.display = p.answerGenerated ? "block" : "none";
+
             document.getElementById("quiz-answer-block").classList.remove("open");
             document.getElementById("quiz-reveal-row").style.display = "flex";
+
+            // 🖼️ 図・元写真の表示
+            document.getElementById("quiz-figure-badge").style.display = p.hasFigure ? "inline-flex" : "none";
+            loadQuizFigures(pid, !!p.hasFigure);
 
             document.getElementById("quiz-prev-btn").disabled = currentQuizIndex === 0;
             document.getElementById("quiz-prev-btn").style.opacity = currentQuizIndex === 0 ? 0.4 : 1;
 
             typesetMath([document.getElementById("quiz-active-area")]);
         }
+
+        // 🖼️ 現在の問題に紐づく元写真を取得してギャラリーにセットする
+        //    hasFigure が true の場合は最初から開いた状態で表示する
+        async function loadQuizFigures(problemId, autoOpen) {
+            const toggleBtn = document.getElementById("quiz-figure-toggle-btn");
+            const gallery = document.getElementById("quiz-figure-gallery");
+            toggleBtn.style.display = "none";
+            gallery.classList.remove("open");
+            gallery.innerHTML = "";
+
+            let images = problemImagesCache[problemId];
+            if (images === undefined) {
+                images = [];
+                try {
+                    const snap = await get(ref(database, "users/" + currentUser.uid + "/refBookProblemImages/" + problemId));
+                    if (snap.exists()) images = snap.val().images || [];
+                } catch (e) { /* 画像なしでも続行 */ }
+                problemImagesCache[problemId] = images;
+            }
+
+            // 表示中の問題が切り替わっていないか確認（非同期取得中の競合防止）
+            if (currentQuizList[currentQuizIndex] !== problemId) return;
+            if (images.length === 0) return;
+
+            toggleBtn.style.display = "inline-flex";
+            gallery.innerHTML = images.map(src => `<img src="${src}" loading="lazy">`).join("");
+            gallery.querySelectorAll("img").forEach(img => {
+                img.addEventListener("click", () => openLightbox(img.src));
+            });
+            if (autoOpen) gallery.classList.add("open");
+        }
+        document.getElementById("quiz-figure-toggle-btn").addEventListener("click", () => {
+            document.getElementById("quiz-figure-gallery").classList.toggle("open");
+        });
 
         function escapeHtml(str) {
             return String(str == null ? "" : str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -801,7 +911,9 @@
         // ----------------------------------------------------------------
         // 編集モーダル
         // ----------------------------------------------------------------
-        function openEditModal(problemId) {
+        let editAnswerGeneratedFlag = false; // 現在編集中の解答が「AIが作成したもの」かどうか
+
+        async function openEditModal(problemId) {
             const p = problemsCache[problemId];
             if (!p) return;
             editingProblemId = problemId;
@@ -810,7 +922,31 @@
             document.getElementById("edit-question-input").value = p.question || "";
             document.getElementById("edit-answer-input").value = p.answer || "";
             document.getElementById("edit-explanation-input").value = p.explanation || "";
+            editAnswerGeneratedFlag = !!p.answerGenerated;
             document.getElementById("edit-modal").style.display = "flex";
+
+            // 登録済みの元写真をプレビュー表示（あれば）
+            const previewRow = document.getElementById("edit-figure-preview-row");
+            const previewStrip = document.getElementById("edit-figure-preview");
+            previewRow.style.display = "none";
+            previewStrip.innerHTML = "";
+            let images = problemImagesCache[problemId];
+            if (images === undefined) {
+                images = [];
+                try {
+                    const snap = await get(ref(database, "users/" + currentUser.uid + "/refBookProblemImages/" + problemId));
+                    if (snap.exists()) images = snap.val().images || [];
+                } catch (e) { /* 画像なしでも続行 */ }
+                problemImagesCache[problemId] = images;
+            }
+            if (images.length > 0 && editingProblemId === problemId) {
+                previewRow.style.display = "block";
+                previewStrip.innerHTML = images.map(src => `<div class="photo-thumb"><img src="${src}"></div>`).join("");
+                previewStrip.querySelectorAll("img").forEach(img => {
+                    img.style.cursor = "zoom-in";
+                    img.addEventListener("click", () => openLightbox(img.src));
+                });
+            }
         }
         document.getElementById("quiz-edit-btn").addEventListener("click", () => {
             if (currentQuizList.length === 0) return;
@@ -823,6 +959,58 @@
             if (e.target.id === "edit-modal") document.getElementById("edit-modal").style.display = "none";
         });
 
+        // 🤖 登録済みの問題に対して、後からAIに解答・解説を作らせる
+        const REFBOOK_ANSWER_SCHEMA = {
+            type: "OBJECT",
+            properties: {
+                answer: { type: "STRING" },
+                explanation: { type: "STRING" }
+            },
+            required: ["answer", "explanation"]
+        };
+        const REFBOOK_ANSWER_PROMPT = `
+あなたは高校生向け参考書の「解答作成AI」です。与えられた問題文（写真が添付されている場合は、図・グラフ・表などもよく確認すること）に対して、正しいと考えられる解答と、解答に至る考え方を高校生にわかりやすく説明する解説を作成してください。
+数式・化学式・記号を含む場合は、$ $ で囲んだLaTeX形式で表現すること（例：$H_2O$、$x^2+1$）。
+出力は指定のJSON構造のみとし、他の説明文は一切含めないこと。
+`.trim();
+
+        document.getElementById("edit-ai-generate-btn").addEventListener("click", async () => {
+            const question = document.getElementById("edit-question-input").value.trim();
+            if (!question) { showToast("先に問題文を入力してください。", "error"); return; }
+            const btn = document.getElementById("edit-ai-generate-btn");
+            btn.disabled = true;
+            btn.textContent = "AIが解答を作成中...";
+            try {
+                const images = problemImagesCache[editingProblemId] || [];
+                const parts = [{ text: `問題文：\n${question}` }];
+                images.forEach(dataUrl => {
+                    const inline = dataUrlToInlineData(dataUrl);
+                    if (inline) parts.push({ inlineData: inline });
+                });
+                if (images.length > 0) {
+                    parts.push({ text: "上記の写真はこの問題が載っている参考書のページです。図・グラフ・表がある場合は参考にしてください。" });
+                }
+                const result = await callGeminiJSON(parts, REFBOOK_ANSWER_PROMPT, {
+                    temperature: 0.3, responseSchema: REFBOOK_ANSWER_SCHEMA, featureId: "refbook_answer_generate"
+                });
+                document.getElementById("edit-answer-input").value = result.answer || "";
+                document.getElementById("edit-explanation-input").value = result.explanation || "";
+                editAnswerGeneratedFlag = true;
+                showToast("AIが解答・解説を作成しました。内容を確認してから保存してください。", "info");
+            } catch (error) {
+                console.error("解答生成エラー:", error);
+                showToast("解答の作成に失敗しました。\n\n【原因】" + error.message, "error", 8000);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "🤖 AIに解答・解説を作らせる（今の解答は上書きされます）";
+            }
+        });
+
+        // 解答・解説を手動で編集したら「AI作成」フラグを外す
+        ["edit-answer-input", "edit-explanation-input"].forEach(id => {
+            document.getElementById(id).addEventListener("input", () => { editAnswerGeneratedFlag = false; });
+        });
+
         document.getElementById("save-edit-btn").addEventListener("click", async () => {
             if (!editingProblemId || !currentUser) return;
             const updates = {
@@ -830,7 +1018,8 @@
                 type: document.getElementById("edit-type-input").value.trim(),
                 question: document.getElementById("edit-question-input").value.trim(),
                 answer: document.getElementById("edit-answer-input").value.trim(),
-                explanation: document.getElementById("edit-explanation-input").value.trim()
+                explanation: document.getElementById("edit-explanation-input").value.trim(),
+                answerGenerated: editAnswerGeneratedFlag
             };
             await update(ref(database, "users/" + currentUser.uid + "/refBookProblems/" + editingProblemId), updates);
             document.getElementById("edit-modal").style.display = "none";
@@ -960,10 +1149,12 @@
                             number: { type: "STRING" },
                             type: { type: "STRING" },
                             question: { type: "STRING" },
+                            hasFigure: { type: "BOOLEAN" },
                             answer: { type: "STRING" },
-                            explanation: { type: "STRING" }
+                            explanation: { type: "STRING" },
+                            answerGenerated: { type: "BOOLEAN" }
                         },
-                        required: ["number", "question", "answer"]
+                        required: ["number", "question", "answer", "answerGenerated"]
                     }
                 }
             },
@@ -975,13 +1166,21 @@
 
 【厳守事項】
 - 1枚の写真、あるいは複数枚の写真の中に複数の問題（例：WARMING UP①〜⑤、基本例題1・2、□3〜6の練習問題など）が写っている場合は、それらすべてを別々の要素として問題配列(problems)に含めること。1問も見逃さないこと。
-- 各問題の解答・解説がページ内に印刷されている場合は、その解答・解説の内容もできる限り正確に書き出すこと（解答編が別写真で写っている場合はそちらも参照して対応付けること）。解答が写真に無い場合は answer と explanation を空文字にしてよい。
 - 「WARMING UP」のような単元まるごとの解説パートで、個別の問題番号が振られていない導入文・まとめ図・年表などは抽出しないこと（それらは別の授業用ページとして扱われるため対象外）。
 - 数式・化学式・記号を含む場合は、$ $ で囲んだLaTeX形式で表現すること（例：$H_2O$、$x^2+1$）。
 - 要約・省略は禁止。問題文・選択肢・空欄記号（ア,イ,ウ…等）まで一字一句省略せず書き出すこと。
 - number には、参考書内でその問題に振られている番号や記号をそのまま入れる（例："基本例題1"、"3"、"WARMING UP①"）。
 - type には、その問題の種別を短く入れる（例："基本例題"、"WARMING UP"、"練習問題"、"実験"）。
 - unitLabelGuess には、そのページの単元見出し（例："①物質の探究"）が写真から読み取れればそれを入れる。読み取れなければ空文字にする。
+
+【図・グラフについて】
+- hasFigure には、その問題を解くために図・グラフ・表・実験装置のイラスト・写真など「文章だけでは再現できない視覚情報」を参照する必要がある場合は true を、問題文だけで完結する場合は false を入れること。
+- 図そのものを書き起こす必要はない（元の写真がアプリ内に保存され、hasFigure=trueの問題には自動的にその写真が添付表示されるため）。ただし問題文中の「右図のように」「下のグラフから」等の文言はそのまま残すこと。
+
+【解答・解説について（必ず両方を埋めること）】
+- 各問題の解答・解説がページ内に印刷されている場合は、その内容をできる限り正確に書き写すこと（解答編が別写真で写っている場合はそちらも参照して対応付ける）。この場合 answerGenerated は false にすること。
+- 解答・解説がページ内のどこにも印刷されていない場合は、answer と explanation を空文字のままにせず、問題文（および図が写っている場合はその画像）をもとに、あなた自身の知識で正しいと考えられる解答と、高校生にわかりやすい解説を作成すること。この場合 answerGenerated は true にすること。
+- 印刷されている解答をそのまま書き写した場合と、あなたが自分で作成した場合を、answerGenerated で必ず区別すること（真偽を混同しないこと）。
 
 出力は指定のJSON構造のみとし、他の説明文は一切含めないこと。
 `.trim();
@@ -1012,8 +1211,10 @@
                     number: p.number || "",
                     type: p.type || "",
                     question: p.question || "",
+                    hasFigure: !!p.hasFigure,
                     answer: p.answer || "",
                     explanation: p.explanation || "",
+                    answerGenerated: !!p.answerGenerated,
                     include: true
                 }));
 
@@ -1060,8 +1261,11 @@
                         <label class="rb-form-label">問題文</label>
                         <textarea class="rb-form-textarea" data-field="question">${escapeHtml(item.question)}</textarea>
                     </div>
+                    <label class="extracted-item-toggle" style="margin-top:0.6rem;">
+                        <input type="checkbox" data-field="hasFigure" ${item.hasFigure ? "checked" : ""}> 🖼️ この問題には図・グラフ・表がある（元の写真を一問一答画面に添付表示）
+                    </label>
                     <div class="rb-form-row">
-                        <label class="rb-form-label">解答</label>
+                        <label class="rb-form-label">解答${item.answerGenerated ? ' <span class="mini-badge mini-badge-ai">🤖 AI作成</span>' : ""}</label>
                         <textarea class="rb-form-textarea" data-field="answer" style="min-height:60px;">${escapeHtml(item.answer)}</textarea>
                     </div>
                     <div class="rb-form-row">
@@ -1078,6 +1282,7 @@
                     const eventName = fieldEl.type === "checkbox" ? "change" : "input";
                     fieldEl.addEventListener(eventName, () => {
                         pendingExtracted[idx][field] = fieldEl.type === "checkbox" ? fieldEl.checked : fieldEl.value;
+                        if (field === "answer") pendingExtracted[idx].answerGenerated = false; // 手動修正したらAI作成フラグは外す
                     });
                 });
             });
@@ -1107,8 +1312,10 @@
                         number: item.number,
                         type: item.type,
                         question: item.question,
+                        hasFigure: !!item.hasFigure,
                         answer: item.answer,
                         explanation: item.explanation,
+                        answerGenerated: !!item.answerGenerated,
                         order: Date.now() + i,
                         createdAt: new Date().toISOString()
                     });

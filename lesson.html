@@ -547,16 +547,29 @@
         .ai-diagram-box svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
 
         /* 📝 授業メモ一覧 */
-        .memo-add-row { display: flex; gap: 0.5rem; margin-bottom: 0.9rem; }
-        .memo-add-input { flex-grow: 1; background: #000; border: 1px solid #22222a; color: #fff; padding: 0.6rem 0.8rem; border-radius: 10px; font-size: 0.85rem; }
+        .memo-add-row { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.9rem; }
+        .memo-add-textarea {
+            width: 100%; background: #000; border: 1px solid #22222a; color: #fff; padding: 0.7rem 0.8rem;
+            border-radius: 10px; font-size: 0.85rem; font-family: inherit; line-height: 1.6; resize: vertical;
+            min-height: 70px; white-space: pre-wrap;
+        }
+        .memo-add-hint { font-size: 0.68rem; color: var(--text-muted); margin-top: -0.2rem; }
+        .memo-add-submit-row { display: flex; justify-content: flex-end; }
         .lesson-memo-list { display: flex; flex-direction: column; gap: 0.5rem; }
         .lesson-memo-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-left: 3px solid var(--accent-yellow); border-radius: 0 10px 10px 0; padding: 0.6rem 0.8rem; }
         .lesson-memo-item-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
-        .lesson-memo-text { font-size: 0.85rem; color: var(--text-bright-muted); line-height: 1.5; flex-grow: 1; white-space: pre-wrap; }
+        .lesson-memo-text { font-size: 0.85rem; color: var(--text-bright-muted); line-height: 1.5; flex-grow: 1; white-space: pre-wrap; word-break: break-word; cursor: pointer; }
         .lesson-memo-meta { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.35rem; }
-        .lesson-memo-del-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; flex-shrink: 0; line-height: 1; padding: 0.1rem; }
+        .lesson-memo-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+        .lesson-memo-del-btn, .lesson-memo-edit-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; flex-shrink: 0; line-height: 1; padding: 0.1rem; }
         .lesson-memo-del-btn:hover { color: var(--accent-magenta); }
+        .lesson-memo-edit-btn:hover { color: var(--accent-cyan); }
         .lesson-memo-empty { font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 1.4rem 0; }
+        .lesson-memo-edit-textarea {
+            width: 100%; background: #000; border: 1px solid var(--accent-cyan); color: #fff; padding: 0.6rem 0.8rem;
+            border-radius: 8px; font-size: 0.85rem; font-family: inherit; line-height: 1.6; resize: vertical; min-height: 70px;
+        }
+        .lesson-memo-edit-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
 
         /* 🧠 暗記事項リスト */
         .memorize-list { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -828,8 +841,11 @@
                             ✏️ 授業で気づいたことをその場でメモ（一覧で残ります）
                         </div>
                         <div class="memo-add-row">
-                            <input type="text" class="memo-add-input" id="memo-add-input" placeholder="気づいたことを入力してEnter">
-                            <button type="button" class="tactile-btn" id="memo-add-btn" style="font-size: 0.75rem; padding: 0.5rem 0.9rem; background: var(--accent-cyan); color:#000; box-shadow: 2px 2px 0px #008b94;">＋追加</button>
+                            <textarea class="memo-add-textarea" id="memo-add-input" rows="3" placeholder="気づいたことを入力（複数行OK）"></textarea>
+                            <div class="memo-add-hint">Ctrl+Enter（Macは⌘+Enter）で追加 / Enterで改行</div>
+                            <div class="memo-add-submit-row">
+                                <button type="button" class="tactile-btn" id="memo-add-btn" style="font-size: 0.75rem; padding: 0.5rem 0.9rem; background: var(--accent-cyan); color:#000; box-shadow: 2px 2px 0px #008b94;">＋追加</button>
+                            </div>
                         </div>
                         <div id="lesson-memo-list" class="lesson-memo-list"></div>
                     </div>
@@ -1386,7 +1402,10 @@ ${socraticAddon}
             renderMemorizationPoints("loading");
             try {
                 const points = await generateMemorizationPoints(currentLesson.extractedText, currentLesson.title);
-                currentLesson.memorizationPoints = points;
+                currentLesson.memorizationPoints = points.map((p, idx) => ({
+                    id: "mp_" + Date.now() + "_" + idx,
+                    ...p
+                }));
                 renderMemorizationPoints();
                 await saveLesson();
                 await forceTriggerMathJax();
@@ -2332,6 +2351,14 @@ ${GAL_SENSEI_PERSONA_PROMPT}
             });
         })();
 
+        let editingMemoId = null; // 授業メモのその場編集中ID
+
+        function autoGrowTextarea(el) {
+            if (!el) return;
+            el.style.height = "auto";
+            el.style.height = (el.scrollHeight + 2) + "px";
+        }
+
         function initLessonNotes() {
             renderLessonMemos();
 
@@ -2340,7 +2367,13 @@ ${GAL_SENSEI_PERSONA_PROMPT}
             if (!addInput || !addBtn) return;
 
             addBtn.addEventListener("click", () => addLessonMemo());
-            addInput.addEventListener("keydown", (e) => { if (e.key === "Enter") addLessonMemo(); });
+            addInput.addEventListener("input", () => autoGrowTextarea(addInput));
+            addInput.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    addLessonMemo();
+                }
+            });
         }
 
         async function addLessonMemo() {
@@ -2357,6 +2390,7 @@ ${GAL_SENSEI_PERSONA_PROMPT}
             });
 
             input.value = "";
+            autoGrowTextarea(input);
             renderLessonMemos();
             await forceTriggerMathJax();
             await saveLesson();
@@ -2366,6 +2400,33 @@ ${GAL_SENSEI_PERSONA_PROMPT}
             if (!currentLesson || !Array.isArray(currentLesson.lessonMemos)) return;
             currentLesson.lessonMemos = currentLesson.lessonMemos.filter(m => m.id !== memoId);
             renderLessonMemos();
+            await saveLesson();
+        };
+
+        window.startEditLessonMemo = function(memoId) {
+            editingMemoId = memoId;
+            renderLessonMemos();
+            const ta = document.getElementById(`memo-edit-textarea-${memoId}`);
+            if (ta) { ta.focus(); autoGrowTextarea(ta); }
+        };
+
+        window.cancelEditLessonMemo = function() {
+            editingMemoId = null;
+            renderLessonMemos();
+        };
+
+        window.saveEditLessonMemo = async function(memoId) {
+            if (!currentLesson || !Array.isArray(currentLesson.lessonMemos)) return;
+            const ta = document.getElementById(`memo-edit-textarea-${memoId}`);
+            if (!ta) return;
+            const newText = ta.value.trim();
+            if (!newText) { showToast("メモの内容を入力してください。", "error"); return; }
+            currentLesson.lessonMemos = currentLesson.lessonMemos.map(m =>
+                m.id === memoId ? { ...m, text: newText, updatedAt: new Date().toISOString() } : m
+            );
+            editingMemoId = null;
+            renderLessonMemos();
+            await forceTriggerMathJax();
             await saveLesson();
         };
 
@@ -2388,15 +2449,44 @@ ${GAL_SENSEI_PERSONA_PROMPT}
             container.innerHTML = memos.map(m => {
                 const partLabel = (typeof m.partIndex === "number" && currentLesson.parts && currentLesson.parts[m.partIndex])
                     ? `第${m.partIndex + 1}回` : "";
+
+                if (m.id === editingMemoId) {
+                    return `
+                    <div class="lesson-memo-item">
+                        <textarea class="lesson-memo-edit-textarea" id="memo-edit-textarea-${m.id}">${m.text.replace(/</g, "&lt;")}</textarea>
+                        <div class="lesson-memo-edit-actions">
+                            <button type="button" class="tactile-btn tactile-btn-secondary" style="font-size:0.72rem; padding:0.4rem 0.8rem;" onclick="cancelEditLessonMemo()">キャンセル</button>
+                            <button type="button" class="tactile-btn" style="font-size:0.72rem; padding:0.4rem 0.8rem;" onclick="saveEditLessonMemo('${m.id}')">💾 保存</button>
+                        </div>
+                    </div>`;
+                }
+
                 return `
                 <div class="lesson-memo-item">
                     <div class="lesson-memo-item-top">
-                        <div class="lesson-memo-text tex2jax_process">${renderFormattedMarkdown(m.text)}</div>
-                        <button type="button" class="lesson-memo-del-btn" onclick="deleteLessonMemo('${m.id}')" title="削除">🗑</button>
+                        <div class="lesson-memo-text tex2jax_process" onclick="startEditLessonMemo('${m.id}')" title="クリックして編集">${renderFormattedMarkdown(m.text)}</div>
+                        <div class="lesson-memo-actions">
+                            <button type="button" class="lesson-memo-edit-btn" onclick="startEditLessonMemo('${m.id}')" title="編集">✏️</button>
+                            <button type="button" class="lesson-memo-del-btn" onclick="deleteLessonMemo('${m.id}')" title="削除">🗑</button>
+                        </div>
                     </div>
-                    <div class="lesson-memo-meta">${partLabel ? partLabel + " ・ " : ""}🗓️ ${formatMemoDate(m.createdAt)}</div>
+                    <div class="lesson-memo-meta">${partLabel ? partLabel + " ・ " : ""}🗓️ ${formatMemoDate(m.updatedAt || m.createdAt)}${m.updatedAt ? "（編集済み）" : ""}</div>
                 </div>`;
             }).join("");
+
+            const editingTa = editingMemoId ? document.getElementById(`memo-edit-textarea-${editingMemoId}`) : null;
+            if (editingTa) {
+                autoGrowTextarea(editingTa);
+                editingTa.addEventListener("input", () => autoGrowTextarea(editingTa));
+                editingTa.addEventListener("keydown", (e) => {
+                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        saveEditLessonMemo(editingMemoId);
+                    } else if (e.key === "Escape") {
+                        cancelEditLessonMemo();
+                    }
+                });
+            }
         }
 
         function renderSourceText() {
