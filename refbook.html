@@ -192,6 +192,26 @@
             font-size: 0.72rem; color: var(--accent-cyan); font-weight: 800; margin-bottom: 0.5rem;
         }
 
+        /* 📝 自分用メモ（一問一答・保存されないその場だけのメモ） */
+        .scratch-memo-row { margin-top: 1.2rem; }
+        .scratch-memo-label {
+            font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.4rem;
+            display: flex; align-items: center; gap: 0.4rem;
+        }
+        .scratch-memo-textarea {
+            width: 100%; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.2); color: #fff;
+            padding: 0.7rem 0.9rem; border-radius: 10px; font-size: 0.9rem; font-family: inherit; line-height: 1.6;
+            resize: vertical; min-height: 60px;
+        }
+        .scratch-memo-textarea:focus { border-color: var(--accent-cyan); outline: none; }
+        .scratch-memo-recap {
+            display: none; margin-bottom: 1.2rem; padding: 0.8rem 0.9rem; border-radius: 10px;
+            border: 1px dashed rgba(255,255,255,0.2); background: rgba(255,255,255,0.02);
+        }
+        .scratch-memo-recap.visible { display: block; }
+        .scratch-memo-recap-label { font-size: 0.72rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.35rem; }
+        .scratch-memo-recap-text { font-size: 0.88rem; color: var(--text-bright-muted); line-height: 1.6; white-space: pre-wrap; }
+
         @media (max-width: 640px) {
             .quiz-card { padding: 1.3rem; }
             .rb-inline-row { flex-direction: column; }
@@ -291,11 +311,20 @@
                     <button type="button" class="tactile-btn tactile-btn-secondary figure-toggle-btn" id="quiz-figure-toggle-btn" style="display:none;">🖼️ 参考書の元写真を見る（図・表を確認）</button>
                     <div class="figure-gallery" id="quiz-figure-gallery"></div>
 
+                    <div class="scratch-memo-row">
+                        <div class="scratch-memo-label">📝 自分の解答メモ（保存されません・答えを見るときに一緒に表示されます）</div>
+                        <textarea class="scratch-memo-textarea" id="quiz-scratch-memo" placeholder="ここに自分の解答を書いておくと、答えを見るときに一緒に見比べられます"></textarea>
+                    </div>
+
                     <div class="quiz-reveal-row" id="quiz-reveal-row">
                         <button type="button" class="tactile-btn" id="quiz-reveal-btn">👀 答え・解説を見る</button>
                     </div>
 
                     <div class="quiz-answer-block" id="quiz-answer-block">
+                        <div class="scratch-memo-recap" id="quiz-scratch-memo-recap">
+                            <div class="scratch-memo-recap-label">📝 自分が書いたメモ</div>
+                            <div class="scratch-memo-recap-text" id="quiz-scratch-memo-recap-text"></div>
+                        </div>
                         <div class="quiz-answer-label">✅ ANSWER</div>
                         <div class="ai-answer-note" id="quiz-answer-ai-note" style="display:none;">🤖 この解答・解説はAIが作成したものです（参考書に印刷がなかったため）。念のため内容を確認してください。</div>
                         <div class="quiz-answer-text tex2jax_process" id="quiz-answer-text"></div>
@@ -472,6 +501,7 @@
         let pendingExtracted = []; // AI読み取り結果のプレビュー行 {number,type,question,hasFigure,answer,explanation,answerGenerated,include}
 
         let problemImagesCache = {}; // problemId -> [dataUrl, ...]（一度取得した元写真をキャッシュ）
+        let scratchMemos = {}; // problemId -> 自分用メモ（保存しない・ページを閉じたら消える一時メモ）
 
         // "data:image/jpeg;base64,xxxx" 形式のURLをGemini用 {mimeType, data} に分解
         function dataUrlToInlineData(dataUrl) {
@@ -758,6 +788,11 @@
             document.getElementById("quiz-answer-text").innerHTML = renderMathText(p.answer || "（解答なし）");
             document.getElementById("quiz-explanation-text").innerHTML = renderMathText(p.explanation || "（解説なし）");
 
+            // 📝 自分用メモ（この問題のぶんを復元。保存はしない）
+            const scratchTa = document.getElementById("quiz-scratch-memo");
+            scratchTa.value = scratchMemos[pid] || "";
+            updateScratchMemoRecap(pid);
+
             document.getElementById("quiz-answer-ai-note").style.display = p.answerGenerated ? "block" : "none";
 
             document.getElementById("quiz-answer-block").classList.remove("open");
@@ -771,6 +806,28 @@
             document.getElementById("quiz-prev-btn").style.opacity = currentQuizIndex === 0 ? 0.4 : 1;
 
             typesetMath([document.getElementById("quiz-active-area")]);
+        }
+
+        // 📝 自分用メモ（一問一答内だけのその場メモ・DB保存なし）
+        // 入力するたびに更新し、答え・解説と一緒に見比べられるようリキャップ欄にも反映する
+        document.getElementById("quiz-scratch-memo").addEventListener("input", (e) => {
+            const pid = currentQuizList[currentQuizIndex];
+            if (!pid) return;
+            scratchMemos[pid] = e.target.value;
+            updateScratchMemoRecap(pid);
+        });
+
+        function updateScratchMemoRecap(problemId) {
+            const text = (scratchMemos[problemId] || "").trim();
+            const recap = document.getElementById("quiz-scratch-memo-recap");
+            const recapText = document.getElementById("quiz-scratch-memo-recap-text");
+            if (text) {
+                recap.classList.add("visible");
+                recapText.textContent = text;
+            } else {
+                recap.classList.remove("visible");
+                recapText.textContent = "";
+            }
         }
 
         // 🖼️ 現在の問題に紐づく元写真を取得してギャラリーにセットする
