@@ -368,6 +368,9 @@
             <button type="button" class="main-tab-btn active" id="tab-btn-insights">
                 🧠 気づき・極意メモ (<span id="count-insights">0</span>)
             </button>
+            <button type="button" class="main-tab-btn tab-yellow" id="tab-btn-memorize">
+                📌 暗記事項 (<span id="count-memorize">0</span>)
+            </button>
             <button type="button" class="main-tab-btn tab-yellow" id="tab-btn-qna">
                 💬 AI質問ログ (<span id="count-qna">0</span>)
             </button>
@@ -410,6 +413,9 @@
         <main>
             <!-- 1. 気づきメモビュー -->
             <div id="view-insights"></div>
+
+            <!-- 1.5. 暗記事項ビュー（授業ページで自動生成される暗記事項の一覧。気づき・極意メモとは別） -->
+            <div id="view-memorize" style="display: none;"></div>
 
             <!-- 2. AI質問ログビュー（2カラム） -->
             <div id="view-qna" class="qna-layout" style="display: none;">
@@ -486,6 +492,7 @@
 
         // 🎛 タブ切り替え
         const tabBtnInsights = document.getElementById("tab-btn-insights");
+        const tabBtnMemorize = document.getElementById("tab-btn-memorize");
         const tabBtnQna = document.getElementById("tab-btn-qna");
         const tabBtnMnemonics = document.getElementById("tab-btn-mnemonics");
         const insightSubToolbar = document.getElementById("insight-subtoolbar");
@@ -493,10 +500,12 @@
         function switchTab(tab) {
             activeTab = tab;
             tabBtnInsights.classList.toggle("active", tab === "insights");
+            tabBtnMemorize.classList.toggle("active", tab === "memorize");
             tabBtnQna.classList.toggle("active", tab === "qna");
             tabBtnMnemonics.classList.toggle("active", tab === "mnemonics");
 
             document.getElementById("view-insights").style.display = tab === "insights" ? "block" : "none";
+            document.getElementById("view-memorize").style.display = tab === "memorize" ? "block" : "none";
             document.getElementById("view-qna").style.display = tab === "qna" ? "grid" : "none";
             document.getElementById("view-mnemonics").style.display = tab === "mnemonics" ? "grid" : "none";
             insightSubToolbar.style.display = tab === "insights" ? "flex" : "none";
@@ -506,6 +515,7 @@
         }
 
         tabBtnInsights.addEventListener("click", () => switchTab("insights"));
+        tabBtnMemorize.addEventListener("click", () => switchTab("memorize"));
         tabBtnQna.addEventListener("click", () => switchTab("qna"));
         tabBtnMnemonics.addEventListener("click", () => switchTab("mnemonics"));
 
@@ -554,6 +564,7 @@
             if (activeTab === "insights") {
                 Object.values(rawProblems).forEach(p => { if (p.insight) subjects.add(p.subject || "未分類"); });
                 buildLessonMemoItems().forEach(item => subjects.add(item.subject || "未分類"));
+            } else if (activeTab === "memorize") {
                 buildMemorizationItems().forEach(item => subjects.add(item.subject || "未分類"));
             } else if (activeTab === "qna") {
                 Object.values(rawQnaLogs).forEach(l => { if (l.subject) subjects.add(l.subject); });
@@ -581,6 +592,9 @@
             if (/世界史|日本史|歴史/i.test(text)) return "世界史";
             if (/英語|文法/i.test(text)) return "英語";
             if (/物理|力学|電磁気|波動/i.test(text)) return "物理";
+            if (/生物|遺伝|細胞|dna|光合成|生態系/i.test(text)) return "生物";
+            if (/地学|地層|天体|気象|プレート/i.test(text)) return "地学";
+            if (/理科/i.test(text)) return "理科";
             return "未分類";
         }
 
@@ -833,8 +847,7 @@
 
             let items = [
                 ...Object.values(rawProblems).filter(p => p && p.insight && p.insight.trim() !== "").map(p => ({ ...p, sourceType: "problem" })),
-                ...buildLessonMemoItems(),
-                ...buildMemorizationItems()
+                ...buildLessonMemoItems()
             ];
 
             if (subject !== "ALL") items = items.filter(p => (p.subject || "未分類") === subject);
@@ -911,6 +924,49 @@
                     ? `<div class="insight-grid">${items.map(p => renderCardHtml(p)).join("")}</div>`
                     : `<div class="insight-compact-list">${items.map(p => renderCompactRowHtml(p)).join("")}</div>`;
             }
+
+            if (window.MathJax && MathJax.typesetPromise) {
+                MathJax.typesetPromise([container]).catch(err => console.log('MathJax typeset error:', err));
+            }
+        }
+
+        // 🧠【新設】暗記事項ビュー（授業ページで自動生成される暗記事項の一覧。気づき・極意メモとは別タブで表示）
+        function renderMemorize() {
+            const container = document.getElementById("view-memorize");
+            const query = searchInput.value.trim().toLowerCase();
+            const subject = subjectSelect.value;
+            const sort = sortSelect.value;
+
+            let items = buildMemorizationItems();
+
+            if (subject !== "ALL") items = items.filter(p => (p.subject || "未分類") === subject);
+            if (query) {
+                items = items.filter(p =>
+                    (p.insight || "").toLowerCase().includes(query) ||
+                    (p.short_title || "").toLowerCase().includes(query) ||
+                    (p.field || "").toLowerCase().includes(query) ||
+                    (p.category || "").toLowerCase().includes(query)
+                );
+            }
+
+            items.sort((a, b) => {
+                if (sort === "oldest") return new Date(a.insightUpdatedAt || a.createdAt || 0) - new Date(b.insightUpdatedAt || b.createdAt || 0);
+                if (sort === "subject") {
+                    const subA = (a.subject || "") + (a.field || "");
+                    const subB = (b.subject || "") + (b.field || "");
+                    return subA.localeCompare(subB, "ja");
+                }
+                return new Date(b.insightUpdatedAt || b.createdAt || 0) - new Date(a.insightUpdatedAt || a.createdAt || 0);
+            });
+
+            if (items.length === 0) {
+                container.innerHTML = "";
+                showEmptyNotice("該当する「暗記事項」が見つかりませんでした。");
+                return;
+            }
+            hideEmptyNotice();
+
+            container.innerHTML = `<div class="insight-grid">${items.map(p => renderMemorizeCardHtml(p)).join("")}</div>`;
 
             if (window.MathJax && MathJax.typesetPromise) {
                 MathJax.typesetPromise([container]).catch(err => console.log('MathJax typeset error:', err));
@@ -1255,6 +1311,7 @@
 
         function renderActiveView() {
             if (activeTab === "insights") renderInsights();
+            else if (activeTab === "memorize") renderMemorize();
             else if (activeTab === "qna") renderQna();
             else if (activeTab === "mnemonics") renderMnemonics();
         }
@@ -1271,13 +1328,15 @@
         function updateCounts() {
             const insightCount = Object.values(rawProblems).filter(p => p && p.insight && p.insight.trim() !== "").length
                 + buildLessonMemoItems().length;
+            const memorizeCount = buildMemorizationItems().length;
             const qnaCount = Object.keys(rawQnaLogs).length;
             const mnemonicCount = Object.values(rawProblems).filter(p => p && p.subject === "世界史" && p.mnemonic && p.mnemonic.trim() !== "").length;
 
             document.getElementById("count-insights").textContent = insightCount;
+            document.getElementById("count-memorize").textContent = memorizeCount;
             document.getElementById("count-qna").textContent = qnaCount;
             document.getElementById("count-mnemonics").textContent = mnemonicCount;
-            document.getElementById("stat-summary-text").textContent = `総蓄積ナレッジ: ${insightCount + qnaCount + mnemonicCount} 件`;
+            document.getElementById("stat-summary-text").textContent = `総蓄積ナレッジ: ${insightCount + memorizeCount + qnaCount + mnemonicCount} 件`;
         }
 
         onAuthStateChanged(auth, (user) => {

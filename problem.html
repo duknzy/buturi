@@ -241,6 +241,34 @@
         .qna-past-log-item .qna-log-preview { font-size: 0.85rem; color: var(--text-bright-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .qna-log-detail-messages .chat-bubble { max-width: 100%; }
 
+        /* 🖼️【新設】図解リクエスト（AIに図・イメージで説明してもらう機能。lesson.htmlの図解機能を移植） */
+        .diagram-controls-wrap { display: none; flex-direction: column; gap: 0.5rem; margin-top: 0.6rem; }
+        .diagram-request-toggle-btn {
+            background: rgba(0, 243, 255, 0.08);
+            border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+            box-shadow: none;
+            font-size: 0.78rem;
+            padding: 0.5rem 0.9rem;
+            align-self: flex-start;
+        }
+        .diagram-request-toggle-btn:hover { background: rgba(0, 243, 255, 0.16); }
+        .diagram-request-row { display: flex; gap: 0.5rem; }
+        .diagram-request-row.hidden { display: none; }
+        .diagram-request-input {
+            flex-grow: 1; background: #000; border: 1px solid var(--accent-cyan);
+            padding: 0.6rem 0.9rem; color: #fff; border-radius: 10px; font-size: 0.85rem;
+        }
+        .ai-diagram-box {
+            margin-top: 0.7rem;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(0, 243, 255, 0.25);
+            border-radius: 12px;
+            padding: 0.7rem;
+            overflow-x: auto;
+        }
+        .ai-diagram-box svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+
         .chat-input-wrapper { display: flex; align-items: flex-end; gap: 0.5rem; border-top: 1px solid #1a2a35; padding-top: 1rem; margin-top: auto; }
         .chat-input {
             flex-grow: 1; background: #000; border: 1px solid #222; padding: 0.6rem 1rem; color: #fff; border-radius: 10px;
@@ -644,6 +672,13 @@
     <textarea class="chat-input" id="ai-chat-question-field" rows="1" placeholder="解説のわからない部分を質問...（Shift+Enterで改行）" name="ai-chat-question-field" autocomplete="off" data-lpignore="true" data-1p-ignore="true"></textarea>
     <button type="button" class="tactile-btn" style="padding: 0.5rem 1rem; align-self: flex-end;">送信</button>
 </div>
+                <div class="diagram-controls-wrap" id="diagram-controls-wrap">
+                    <button type="button" class="tactile-btn diagram-request-toggle-btn" id="request-diagram-btn">🖼️ 図で説明してほしい</button>
+                    <div class="diagram-request-row hidden" id="diagram-request-row">
+                        <input type="text" class="diagram-request-input" id="diagram-request-input" placeholder="例: 力のつり合いを図にして">
+                        <button type="button" class="tactile-btn diagram-request-toggle-btn" id="diagram-request-send-btn">送信</button>
+                    </div>
+                </div>
                 <div class="qna-save-row" id="qna-save-row">
                     <button type="button" class="tactile-btn qna-save-btn" id="qna-save-btn">💾 この会話を記録する</button>
                     <button type="button" class="tactile-btn" id="lesson-handoff-btn" style="background:#111; color:var(--accent-yellow); border:1px solid var(--accent-yellow); box-shadow:none;">🎓 前提から授業でやり直す</button>
@@ -1129,6 +1164,21 @@ extracted_textには、写真やテキストに含まれる問題文を一字一
 `.trim()
         };
 
+        // 🩹【移植】lesson.htmlと共通。AIが生成したSVGから危険なタグ・属性を除去する簡易サニタイザー
+        function sanitizeDiagramSvg(svg) {
+            if (!svg || typeof svg !== "string") return "";
+            let cleaned = svg.trim();
+            const startIdx = cleaned.indexOf("<svg");
+            if (startIdx === -1) return "";
+            cleaned = cleaned.slice(startIdx);
+            cleaned = cleaned
+                .replace(/<script[\s\S]*?<\/script>/gi, "")
+                .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
+                .replace(/\son\w+\s*=\s*'[^']*'/gi, "")
+                .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "");
+            return cleaned;
+        }
+
         // 📝 模範解答（answerFormula）をチャット欄と同じルールでHTML整形する共通関数。
         // 初回表示時に呼ばれる。
         // 🧠【移植】insights.htmlで先に実装済みだった数式正規化＆穴埋め枠の修復処理。
@@ -1412,13 +1462,32 @@ ${glossaryBlock}`;
             type: "OBJECT",
             properties: {
                 ai_response: { type: "STRING" },
-                current_step_label: { type: "STRING" }
+                current_step_label: { type: "STRING" },
+                diagram_svg: { type: "STRING" }
             },
-            required: ["ai_response", "current_step_label"]
+            required: ["ai_response", "current_step_label", "diagram_svg"]
         };
 
+        // 🖼️【新設】AIに質問する画面でも図解（SVG）で説明してもらえるようにするルール（lesson.htmlの図解機能を移植）。
+        //    各科目プロンプトの末尾に共通で追加し、そこで一度示したJSON構造をdiagram_svg込みで上書きする。
+        const CHAT_DIAGRAM_RULE_BLOCK = `
+
+【図解ルール（diagram_svg）】：
+生徒のメッセージが「【図解リクエスト】」で始まっている場合、または生徒が図・イメージでの説明を明確に求めている場合は、diagram_svgに図解を必ず入れること。
+・viewBox="0 0 400 300" 程度のシンプルなSVGコードのみを文字列として入れること（<svg>タグから始め、説明文やMarkdownのコードブロック記法は含めないこと）。
+・背景は透明、線や図形の色は #ffffff, #00f3ff, #ff007f, #fff500 のいずれかを使い、視認性を優先すること。
+・生徒のリクエストが漠然としている場合は、直前のやり取りの中で最も視覚化しやすい部分を判断して図解すること。
+・図解が不要な通常のやり取りでは、diagram_svgは空文字列（""）にすること。
+
+上記を踏まえ、返答は必ず以下のJSON形式のみで出力すること（説明文やMarkdownのコードブロックは一切含めないこと。これより前に示したJSON構造の説明があっても、diagram_svgを含むこちらの形式を優先すること）：
+{
+  "ai_response": "生徒の疑問に対する丁寧な解説（数式は$ $を使用）",
+  "current_step_label": "解説中・疑問解消など",
+  "diagram_svg": "図解が必要な場合のみSVGコード全体。不要なら空文字列"
+}`;
+
         function getChatPrompt(subject) {
-            return GAL_SENSEI_PERSONA_PROMPT + "\n\n" + (SUBJECT_CHAT_PROMPTS[subject] || SUBJECT_CHAT_PROMPTS["数学"]) + buildLessonContextBlock();
+            return GAL_SENSEI_PERSONA_PROMPT + "\n\n" + (SUBJECT_CHAT_PROMPTS[subject] || SUBJECT_CHAT_PROMPTS["数学"]) + CHAT_DIAGRAM_RULE_BLOCK + buildLessonContextBlock();
         }
 
         let chatHistory = []; 
@@ -2012,7 +2081,8 @@ ${GAL_SENSEI_PERSONA_PROMPT}
 
             const aBubble = document.createElement("div"); 
             aBubble.className = "chat-bubble bubble-ai"; 
-            aBubble.innerHTML = renderFormattedMarkdown(aiJson.ai_response); 
+            const cleanedSvg = sanitizeDiagramSvg(aiJson.diagram_svg);
+            aBubble.innerHTML = renderFormattedMarkdown(aiJson.ai_response) + (cleanedSvg ? `<div class="ai-diagram-box">${cleanedSvg}</div>` : "");
 
             chatHistoryArea.appendChild(aBubble);
 
@@ -2024,7 +2094,7 @@ ${GAL_SENSEI_PERSONA_PROMPT}
 
             // 💬【新設】保存対象の会話に今回のやり取りを追加し、保存ボタンを出す
             qnaTurns.push({ role: "user", content: userText });
-            qnaTurns.push({ role: "assistant", content: aiJson.ai_response || "" });
+            qnaTurns.push(cleanedSvg ? { role: "assistant", content: aiJson.ai_response || "", diagramSvg: cleanedSvg } : { role: "assistant", content: aiJson.ai_response || "" });
             const saveRowEl = document.getElementById("qna-save-row");
             if (saveRowEl) saveRowEl.style.display = "flex";
         }
@@ -2070,6 +2140,35 @@ ${GAL_SENSEI_PERSONA_PROMPT}
                 }
             });
         }
+        // 🖼️【新設】「図で説明してほしい」ボタン（lesson.htmlの図解リクエスト機能を移植）
+        const requestDiagramBtn = document.getElementById("request-diagram-btn");
+        const diagramRequestRow = document.getElementById("diagram-request-row");
+        const diagramRequestInput = document.getElementById("diagram-request-input");
+        const diagramRequestSendBtn = document.getElementById("diagram-request-send-btn");
+
+        if (requestDiagramBtn && diagramRequestRow) {
+            requestDiagramBtn.addEventListener("click", () => {
+                diagramRequestRow.classList.toggle("hidden");
+                if (!diagramRequestRow.classList.contains("hidden")) diagramRequestInput.focus();
+            });
+        }
+
+        function submitDiagramRequest() {
+            if (!diagramRequestInput) return;
+            const req = diagramRequestInput.value.trim();
+            if (!req) return;
+            diagramRequestInput.value = "";
+            diagramRequestRow.classList.add("hidden");
+            sendMessageToTutor(`【図解リクエスト】${req}`);
+        }
+
+        if (diagramRequestSendBtn) diagramRequestSendBtn.addEventListener("click", submitDiagramRequest);
+        if (diagramRequestInput) {
+            diagramRequestInput.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); submitDiagramRequest(); }
+            });
+        }
+
         if (showAnswerBtn && revealWrap && revealZone) {
             showAnswerBtn.addEventListener("click", () => { revealWrap.style.display = "none"; revealZone.style.display = "flex"; if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise(); });
         }
@@ -2148,6 +2247,8 @@ ${GAL_SENSEI_PERSONA_PROMPT}
             activateAiBtn.addEventListener("click", () => {
                 // 1. チャット入力欄を隠し状態から出現させる
                 aiChatInputWrap.style.display = "flex"; 
+                const diagramControlsWrap = document.getElementById("diagram-controls-wrap");
+                if (diagramControlsWrap) diagramControlsWrap.style.display = "flex";
                 
                 // 2. AIのメッセージエリアを質問受付状態に更新
                 document.getElementById("initial-ai-bubble").textContent = "解説のどの部分が納得いかなかったですか？『なぜこの式になるのか分からない』『途中式の計算を詳しく教えて』など、何でもメッセージをどうぞ！";
