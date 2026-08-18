@@ -168,7 +168,7 @@
                 <input type="text" id="setup-target" class="w-full px-3 py-2 text-sm rounded-lg border border-borderLight bg-baseBg">
             </div>
             <div class="border-t pt-4 space-y-3">
-                <span class="text-xs font-bold text-textMain block text-left">🎯 この夏、各科目で絶対に攻略したい分野・目標</span>
+                <span class="text-xs font-bold text-textMain block text-left">🎯 今、各科目で絶対に攻略したい分野・目標</span>
                 <div class="space-y-2.5 text-xs text-left">
                     <div>
                         <label class="font-bold text-blue-600 block mb-0.5">📘 数学の目標</label>
@@ -205,6 +205,7 @@
             <div>
                 <h1 class="text-xl font-black text-textMain tracking-tight">🏁 24時間リソース・テレメトリー</h1>
                 <p class="text-xs text-textSub mt-0.5" id="userTargetDisplay">Target: --</p>
+                <p class="text-xs font-black mt-1 hidden-screen" id="examCountdownDisplay"></p>
             </div>
             <div class="mt-4 sm:mt-0 flex items-center space-x-6">
                 <div class="text-right">
@@ -213,6 +214,7 @@
                 </div>
                 <nav class="flex space-x-2 border-l pl-4 border-borderLight">
                     <button id="nav-cockpit" onclick="switchView('cockpit')" class="px-3 py-1.5 border-b-2 border-transparent text-sm font-bold text-textMain tab-active">🏎️ Cockpit</button>
+                    <button id="nav-analysis" onclick="switchView('analysis')" class="px-3 py-1.5 border-b-2 border-transparent text-sm font-bold text-textSub">📈 分析</button>
                     <button id="nav-garage" onclick="switchView('garage')" class="px-3 py-1.5 border-b-2 border-transparent text-sm font-bold text-textSub">🛠️ Garage</button>
                 </nav>
                 <button onclick="handleLogout()" class="text-xs bg-cardBg text-textSub hover:text-red-500 px-2.5 py-1.5 rounded-lg border border-borderLight transition-colors">Logout</button>
@@ -238,7 +240,7 @@
                 <div class="col-span-1 flex flex-col gap-4">
                     <!-- SEASON PROGRESS -->
                     <div class="bg-white p-5 rounded-2xl border border-borderLight shadow-sm space-y-2">
-                        <span class="text-xs font-bold text-textSub block uppercase" id="macroTitleDisplay">🎯 夏休み目標総勉強時間</span>
+                        <span class="text-xs font-bold text-textSub block uppercase" id="macroTitleDisplay">🎯 学習期間 目標総勉強時間</span>
                         <div class="flex justify-between items-end">
                             <span class="text-xs text-textSub" id="macroPeriodDisplay">--</span>
                             <div class="text-right">
@@ -320,7 +322,7 @@
             <!-- MACRO TASK STRATEGY BOARD -->
 <section class="bg-white p-6 rounded-2xl border border-borderLight shadow-sm space-y-4 col-span-1 lg:col-span-3">
     <div class="border-b pb-2 flex justify-between items-center">
-        <h3 class="text-md font-black text-textMain">🎯 夏休み科目別・分野別大計画（進捗ボード）</h3>
+        <h3 class="text-md font-black text-textMain">🎯 科目別・分野別大計画（進捗ボード）</h3>
         <span class="text-xs text-textSub">※ガレージ画面から自分で分野を登録・削除できます</span>
     </div>
     <div id="macroTaskCockpitList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -333,7 +335,7 @@
         <div id="view-garage" class="hidden-screen space-y-8">
             <div class="border-b pb-2">
                 <h2 class="text-xl font-bold text-textMain">🛠️ マシン・ガレージ（24時間リソース調整）</h2>
-                <p class="text-xs text-textSub mt-0.5">夏休みの基本目標や、平日・休日の24時間テンプレートの分数配分を自分で調節できます。</p>
+                <p class="text-xs text-textSub mt-0.5">現在の学習期間の基本目標や、平日・休日の24時間テンプレートの分数配分を自分で調節できます。</p>
             </div>
 
             <!-- MACRO GOAL SETTING -->
@@ -356,6 +358,13 @@
                         <label class="block font-bold text-textSub mb-1">終了日</label>
                         <input type="date" id="garage-end-date" class="w-full p-2 border rounded-lg bg-baseBg text-textMain">
                     </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-5 gap-4 text-xs pt-2 border-t">
+                    <div class="sm:col-span-2">
+                        <label class="block font-bold text-textSub mb-1">🎯 入試本番日（カウントダウン表示）</label>
+                        <input type="date" id="garage-exam-date" class="w-full p-2 border rounded-lg bg-baseBg font-bold text-textMain">
+                    </div>
+                    <p class="text-textSub sm:col-span-3 self-end pb-2">設定するとヘッダーに本番までの残り日数が表示されます。空欄なら非表示。</p>
                 </div>
             </div>
 
@@ -473,6 +482,36 @@
                 </button>
             </div>
         </div>
+
+        <!-- VIEW: ANALYSIS -->
+        <div id="view-analysis" class="hidden-screen space-y-8">
+            <div class="border-b pb-2 flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                <div>
+                    <h2 class="text-xl font-bold text-textMain">📈 振り返り・トレンド分析</h2>
+                    <p class="text-xs text-textSub mt-0.5">過去の実績（チェック済みタスク）を集計して振り返ります。</p>
+                </div>
+                <div class="flex gap-2 text-xs">
+                    <button onclick="generateAnalysis(7)" class="px-3 py-1.5 bg-blue-50 text-accentBlue border border-blue-200 hover:bg-blue-100 rounded-xl font-bold">直近7日</button>
+                    <button onclick="generateAnalysis(30)" class="px-3 py-1.5 bg-orange-50 text-accentOrange border border-orange-200 hover:bg-orange-100 rounded-xl font-bold">直近30日</button>
+                </div>
+            </div>
+
+            <!-- 振り返りレポート -->
+            <section class="bg-white rounded-2xl border border-borderLight p-6 shadow-sm">
+                <h3 class="text-sm font-bold text-textMain border-b pb-2 mb-4">🗒️ 振り返りレポート</h3>
+                <div id="analysisReportContainer" class="text-xs text-textSub">
+                    上のボタンから集計期間を選んでください。
+                </div>
+            </section>
+
+            <!-- 曜日別・科目別トレンド -->
+            <section class="bg-white rounded-2xl border border-borderLight p-6 shadow-sm overflow-x-auto">
+                <h3 class="text-sm font-bold text-textMain border-b pb-2 mb-4">📅 曜日別・科目別 学習時間トレンド</h3>
+                <div id="analysisTrendContainer" class="text-xs">
+                    <p class="text-textSub">集計期間を選ぶと、曜日×科目のマトリクスが表示されます。</p>
+                </div>
+            </section>
+        </div>
     </main>
 </div>
 
@@ -482,7 +521,7 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot, query, where, documentId, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
   apiKey: "AIzaSyDam0BRv-0636AFeXaHV3HQW6Dq2nGX8fs",
@@ -531,11 +570,12 @@ let burndownChart = null;
     const studySubjectKeys = ['math', 'physics', 'chem', 'eng', 'kobun', 'jp', 'soc'];
 
     const defaultMacroPlan = {
-        title: "夏季フルアップデート計画",
+        title: "2学期 学習計画",
         totalTargetHours: 300,
         completedHours: 0,
-        startDate: "2026-07-21",
-        endDate: "2026-08-17",
+        startDate: "2026-08-18",
+        endDate: "2026-12-25",
+        examDate: "",
         templates: {
             phase1: { sleep: 420, life: 90, school: 600, math: 120, physics: 90, chem: 90, eng: 0, info: 30 }, // 睡眠420分[cite: 2], 生活90分
             phase2: { sleep: 420, life: 90, school: 0, math: 180, physics: 180, chem: 180, eng: 60, info: 210 } // 睡眠420分[cite: 2], 生活90分, 勉強12h[cite: 2]
@@ -586,10 +626,10 @@ let burndownChart = null;
         initialPlan.macroTasks = []; // サンプルのタスクを一度リセット
 
         // 入力があった科目だけ、初期の大計画リストにプッシュ
-        if (mathGoal) initialPlan.macroTasks.push({ id: Date.now(), subject: 'math', category: '夏目標', goal: mathGoal, done: false });
-        if (physicsGoal) initialPlan.macroTasks.push({ id: Date.now() + 1, subject: 'physics', category: '夏目標', goal: physicsGoal, done: false });
-        if (chemGoal) initialPlan.macroTasks.push({ id: Date.now() + 2, subject: 'chem', category: '夏目標', goal: chemGoal, done: false });
-        if (engGoal) initialPlan.macroTasks.push({ id: Date.now() + 3, subject: 'eng', category: '夏目標', goal: engGoal, done: false });
+        if (mathGoal) initialPlan.macroTasks.push({ id: Date.now(), subject: 'math', category: '重点目標', goal: mathGoal, done: false });
+        if (physicsGoal) initialPlan.macroTasks.push({ id: Date.now() + 1, subject: 'physics', category: '重点目標', goal: physicsGoal, done: false });
+        if (chemGoal) initialPlan.macroTasks.push({ id: Date.now() + 2, subject: 'chem', category: '重点目標', goal: chemGoal, done: false });
+        if (engGoal) initialPlan.macroTasks.push({ id: Date.now() + 3, subject: 'eng', category: '重点目標', goal: engGoal, done: false });
 
         // ユーザープロフィールとカスタムされた初期計画をFirestoreに保存
         await setDoc(doc(db, "users", currentUser.uid), { name, target });
@@ -611,6 +651,30 @@ let burndownChart = null;
         initChart();
         loadDateData();
         listenToPaddock();
+        updateExamCountdown();
+    }
+
+    function updateExamCountdown() {
+        const el = document.getElementById('examCountdownDisplay');
+        const examDate = macroPlanData.examDate;
+        if (!examDate) {
+            el.classList.add('hidden-screen');
+            return;
+        }
+        const today0 = new Date(); today0.setHours(0,0,0,0);
+        const exam0 = new Date(examDate + 'T00:00:00');
+        const diffDays = Math.ceil((exam0 - today0) / 86400000);
+        el.classList.remove('hidden-screen');
+        if (diffDays > 0) {
+            el.innerText = `🎯 入試本番まで残り ${diffDays}日`;
+            el.className = "text-xs font-black mt-1 text-accentOrange";
+        } else if (diffDays === 0) {
+            el.innerText = `🎯 本日が入試本番です。全力で！`;
+            el.className = "text-xs font-black mt-1 text-red-500";
+        } else {
+            el.innerText = `🎯 入試本番日は過ぎています`;
+            el.className = "text-xs font-black mt-1 text-textSub";
+        }
     }
 
     async function loadMacroPlan() {
@@ -647,6 +711,7 @@ let burndownChart = null;
             `;
         });
         renderMacroTasks();
+        updateExamCountdown();
     }
 
     window.toggleMilestone = async (idx) => {
@@ -656,19 +721,17 @@ let burndownChart = null;
     };
 
     window.switchView = (viewName) => {
-        if(viewName === 'cockpit') {
-            document.getElementById('view-cockpit').classList.remove('hidden-screen');
-            document.getElementById('view-garage').classList.add('hidden-screen');
-            document.getElementById('nav-cockpit').className = "px-3 py-1.5 border-b-2 text-sm font-bold text-textMain tab-active";
-            document.getElementById('nav-garage').className = "px-3 py-1.5 border-b-2 border-transparent text-sm font-bold text-textSub";
-            renderTimeline();
-        } else {
-            document.getElementById('view-cockpit').classList.add('hidden-screen');
-            document.getElementById('view-garage').classList.remove('hidden-screen');
-            document.getElementById('nav-garage').className = "px-3 py-1.5 border-b-2 text-sm font-bold text-textMain tab-active";
-            document.getElementById('nav-cockpit').className = "px-3 py-1.5 border-b-2 border-transparent text-sm font-bold text-textSub";
-            syncGarageForm();
-        }
+        const views = { cockpit: 'view-cockpit', analysis: 'view-analysis', garage: 'view-garage' };
+        const navs = { cockpit: 'nav-cockpit', analysis: 'nav-analysis', garage: 'nav-garage' };
+        Object.keys(views).forEach(key => {
+            document.getElementById(views[key]).classList.toggle('hidden-screen', key !== viewName);
+            document.getElementById(navs[key]).className = key === viewName
+                ? "px-3 py-1.5 border-b-2 text-sm font-bold text-textMain tab-active"
+                : "px-3 py-1.5 border-b-2 border-transparent text-sm font-bold text-textSub";
+        });
+
+        if (viewName === 'cockpit') renderTimeline();
+        if (viewName === 'garage') syncGarageForm();
     };
 
     function syncGarageForm() {
@@ -676,6 +739,7 @@ let burndownChart = null;
         document.getElementById('garage-target-hours').value = macroPlanData.totalTargetHours || 300;
         document.getElementById('garage-start-date').value = macroPlanData.startDate || '';
         document.getElementById('garage-end-date').value = macroPlanData.endDate || '';
+        document.getElementById('garage-exam-date').value = macroPlanData.examDate || '';
 
         const t1 = macroPlanData.templates.phase1;
         Object.keys(t1).forEach(k => document.getElementById(`t1-${k}`).value = t1[k]);
@@ -729,6 +793,7 @@ let burndownChart = null;
         macroPlanData.totalTargetHours = parseInt(document.getElementById('garage-target-hours').value) || 300;
         macroPlanData.startDate = document.getElementById('garage-start-date').value;
         macroPlanData.endDate = document.getElementById('garage-end-date').value;
+        macroPlanData.examDate = document.getElementById('garage-exam-date').value;
 
         ['phase1', 'phase2'].forEach(pId => {
             const prefix = pId === 'phase1' ? 't1-' : 't2-';
@@ -970,6 +1035,132 @@ if (time.includes(':')) {
         currentDayTasks = currentDayTasks.filter(t => t.id !== id);
         renderTimeline();
         await setDoc(doc(db, `users/${currentUser.uid}/dailyPlans/${currentSelectedDate}`), { tasks: currentDayTasks });
+    };
+
+    // ===== 分析タブ: 振り返りレポート & 曜日別・科目別トレンド =====
+    function formatDateStr(d) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    async function fetchDailyPlansRange(days) {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(end.getDate() - (days - 1));
+        const startStr = formatDateStr(start);
+        const endStr = formatDateStr(end);
+
+        const ref = collection(db, `users/${currentUser.uid}/dailyPlans`);
+        const q = query(ref, where(documentId(), '>=', startStr), where(documentId(), '<=', endStr));
+        const snap = await getDocs(q);
+        const result = {};
+        snap.forEach(d => { result[d.id] = d.data().tasks || []; });
+        return result;
+    }
+
+    const weekdayLabels = ['日', '月', '火', '水', '木', '金', '土'];
+
+    window.generateAnalysis = async (days) => {
+        if (!currentUser) return;
+        const reportContainer = document.getElementById('analysisReportContainer');
+        const trendContainer = document.getElementById('analysisTrendContainer');
+        reportContainer.innerHTML = `<p class="text-textSub">集計中...</p>`;
+        trendContainer.innerHTML = `<p class="text-textSub">集計中...</p>`;
+
+        const plansByDate = await fetchDailyPlansRange(days);
+
+        // 科目別の合計（完了分）と計画分を集計
+        const subjectCompleted = {};
+        const subjectPlanned = {};
+        // 曜日×科目の完了分マトリクス
+        const weekdaySubjectMinutes = {};
+        weekdayLabels.forEach((_, i) => { weekdaySubjectMinutes[i] = {}; });
+
+        let totalCompleted = 0, totalPlanned = 0, loggedDays = 0;
+
+        Object.keys(plansByDate).forEach(dateStr => {
+            const tasks = plansByDate[dateStr];
+            if (!tasks || tasks.length === 0) return;
+            loggedDays++;
+            const weekday = new Date(dateStr + 'T00:00:00').getDay();
+
+            tasks.forEach(t => {
+                if (!studySubjectKeys.includes(t.subject)) return;
+                subjectPlanned[t.subject] = (subjectPlanned[t.subject] || 0) + t.duration;
+                totalPlanned += t.duration;
+                if (t.done) {
+                    subjectCompleted[t.subject] = (subjectCompleted[t.subject] || 0) + t.duration;
+                    totalCompleted += t.duration;
+                    weekdaySubjectMinutes[weekday][t.subject] = (weekdaySubjectMinutes[weekday][t.subject] || 0) + t.duration;
+                }
+            });
+        });
+
+        // --- 振り返りレポート描画 ---
+        const rate = totalPlanned > 0 ? Math.round((totalCompleted / totalPlanned) * 100) : 0;
+        let reportHTML = `
+            <div class="grid grid-cols-3 gap-3 mb-4">
+                <div class="p-3 bg-cardBg rounded-xl text-center">
+                    <span class="block text-textSub font-bold text-[10px] uppercase">記録日数</span>
+                    <span class="block text-lg font-black text-textMain">${loggedDays}/${days}日</span>
+                </div>
+                <div class="p-3 bg-cardBg rounded-xl text-center">
+                    <span class="block text-textSub font-bold text-[10px] uppercase">完了学習時間</span>
+                    <span class="block text-lg font-black text-textMain">${(totalCompleted / 60).toFixed(1)}h</span>
+                </div>
+                <div class="p-3 bg-cardBg rounded-xl text-center">
+                    <span class="block text-textSub font-bold text-[10px] uppercase">計画消化率</span>
+                    <span class="block text-lg font-black text-accentOrange">${rate}%</span>
+                </div>
+            </div>
+            <div class="space-y-1.5">
+        `;
+        studySubjectKeys.forEach(sub => {
+            const comp = subjectCompleted[sub] || 0;
+            if (comp === 0 && !(subjectPlanned[sub] > 0)) return;
+            const meta = subjectMeta[sub];
+            const plan = subjectPlanned[sub] || 0;
+            const subRate = plan > 0 ? Math.round((comp / plan) * 100) : 0;
+            reportHTML += `
+                <div class="flex items-center justify-between p-1.5 rounded ${meta.bg}">
+                    <span class="font-bold ${meta.text}">${meta.name}</span>
+                    <span class="text-textMain">${(comp/60).toFixed(1)}h 完了 / ${(plan/60).toFixed(1)}h 計画（${subRate}%）</span>
+                </div>
+            `;
+        });
+        reportHTML += `</div>`;
+        if (totalPlanned === 0) {
+            reportHTML = `<p class="text-textSub">この期間の学習記録がまだありません。タイムラインでタスクを完了にすると、ここに集計されます。</p>`;
+        }
+        reportContainer.innerHTML = reportHTML;
+
+        // --- 曜日別・科目別トレンド描画 ---
+        const activeSubs = studySubjectKeys.filter(sub => Object.values(weekdaySubjectMinutes).some(w => w[sub] > 0));
+        if (activeSubs.length === 0) {
+            trendContainer.innerHTML = `<p class="text-textSub">この期間の完了タスクがまだありません。</p>`;
+            return;
+        }
+        let tableHTML = `<table class="w-full text-center border-collapse"><thead><tr>
+            <th class="p-2 text-textSub font-bold border-b">曜日</th>`;
+        activeSubs.forEach(sub => {
+            tableHTML += `<th class="p-2 font-bold border-b ${subjectMeta[sub].text}">${subjectMeta[sub].name}</th>`;
+        });
+        tableHTML += `<th class="p-2 text-textSub font-bold border-b">合計</th></tr></thead><tbody>`;
+
+        for (let w = 0; w < 7; w++) {
+            let rowTotal = 0;
+            tableHTML += `<tr><td class="p-2 font-bold border-b text-textMain">${weekdayLabels[w]}</td>`;
+            activeSubs.forEach(sub => {
+                const mins = weekdaySubjectMinutes[w][sub] || 0;
+                rowTotal += mins;
+                tableHTML += `<td class="p-2 border-b text-textSub">${mins > 0 ? (mins/60).toFixed(1) + 'h' : '—'}</td>`;
+            });
+            tableHTML += `<td class="p-2 border-b font-bold text-textMain">${rowTotal > 0 ? (rowTotal/60).toFixed(1) + 'h' : '—'}</td></tr>`;
+        }
+        tableHTML += `</tbody></table>`;
+        trendContainer.innerHTML = tableHTML;
     };
 
     function listenToPaddock() {
