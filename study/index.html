@@ -391,6 +391,7 @@
                         <input type="date" id="garage-end-date" class="w-full p-2 border rounded-lg bg-baseBg text-textMain">
                     </div>
                 </div>
+<<<<<<< HEAD
                 <div class="grid grid-cols-1 sm:grid-cols-5 gap-4 text-xs pt-2 border-t items-end">
                     <div>
                         <label class="block font-bold text-textSub mb-1">現在の達成時間(h)</label>
@@ -401,6 +402,8 @@
                     </div>
                     <p class="text-textSub sm:col-span-3 pb-2">新しい期間の目標を立てた時は、ここを0にリセットしてから保存してください（達成時間は期間をまたいで自動では引き継がれません）。</p>
                 </div>
+=======
+>>>>>>> f4616c60ebe222920eff8226d2c4e9ef50dc8815
                 <div class="grid grid-cols-1 sm:grid-cols-5 gap-4 text-xs pt-2 border-t">
                     <div class="sm:col-span-2">
                         <label class="block font-bold text-textSub mb-1">🎯 入試本番日（カウントダウン表示）</label>
@@ -774,10 +777,13 @@ let burndownChart = null;
 
         if (viewName === 'cockpit') renderTimeline();
         if (viewName === 'garage') syncGarageForm();
+<<<<<<< HEAD
     };
 
     window.resetCompletedHours = () => {
         document.getElementById('garage-completed-hours').value = '0.0';
+=======
+>>>>>>> f4616c60ebe222920eff8226d2c4e9ef50dc8815
     };
 
     function syncGarageForm() {
