@@ -391,6 +391,16 @@
                         <input type="date" id="garage-end-date" class="w-full p-2 border rounded-lg bg-baseBg text-textMain">
                     </div>
                 </div>
+                <div class="grid grid-cols-1 sm:grid-cols-5 gap-4 text-xs pt-2 border-t items-end">
+                    <div>
+                        <label class="block font-bold text-textSub mb-1">現在の達成時間(h)</label>
+                        <input type="number" step="0.1" id="garage-completed-hours" class="w-full p-2 border rounded-lg bg-baseBg font-bold text-textMain">
+                    </div>
+                    <div>
+                        <button type="button" onclick="resetCompletedHours()" class="w-full p-2 border rounded-lg bg-red-50 text-red-500 border-red-200 hover:bg-red-100 font-bold">↺ 0にリセット</button>
+                    </div>
+                    <p class="text-textSub sm:col-span-3 pb-2">新しい期間の目標を立てた時は、ここを0にリセットしてから保存してください（達成時間は期間をまたいで自動では引き継がれません）。</p>
+                </div>
                 <div class="grid grid-cols-1 sm:grid-cols-5 gap-4 text-xs pt-2 border-t">
                     <div class="sm:col-span-2">
                         <label class="block font-bold text-textSub mb-1">🎯 入試本番日（カウントダウン表示）</label>
@@ -766,9 +776,14 @@ let burndownChart = null;
         if (viewName === 'garage') syncGarageForm();
     };
 
+    window.resetCompletedHours = () => {
+        document.getElementById('garage-completed-hours').value = '0.0';
+    };
+
     function syncGarageForm() {
         document.getElementById('garage-title').value = macroPlanData.title || '';
         document.getElementById('garage-target-hours').value = macroPlanData.totalTargetHours || 300;
+        document.getElementById('garage-completed-hours').value = parseFloat(macroPlanData.completedHours || 0).toFixed(1);
         document.getElementById('garage-start-date').value = macroPlanData.startDate || '';
         document.getElementById('garage-end-date').value = macroPlanData.endDate || '';
         document.getElementById('garage-exam-date').value = macroPlanData.examDate || '';
@@ -823,6 +838,7 @@ let burndownChart = null;
     window.saveGarageSettings = async () => {
         macroPlanData.title = document.getElementById('garage-title').value.trim();
         macroPlanData.totalTargetHours = parseInt(document.getElementById('garage-target-hours').value) || 300;
+        macroPlanData.completedHours = Math.max(0, parseFloat(document.getElementById('garage-completed-hours').value) || 0);
         macroPlanData.startDate = document.getElementById('garage-start-date').value;
         macroPlanData.endDate = document.getElementById('garage-end-date').value;
         macroPlanData.examDate = document.getElementById('garage-exam-date').value;
