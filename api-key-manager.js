@@ -196,21 +196,26 @@ export async function fetchWithKeyRotation(keys, buildRequest, { requestTimeoutM
         throw new Error("APIキーが1件も登録されていません。右下の🔑ボタンから登録してください。");
     }
 
-    let lastError = null;
-    const keyCount = keys.length;
-    const offset = ((startIndex % keyCount) + keyCount) % keyCount;
-    const rotation = Array.from({ length: keyCount }, (_, step) => (offset + step) % keyCount);
+    // 💡【修正】先に「お休み中でない生きているキー」のインデックスだけを抽出する
+    const availableIndices = keys
+        .map((k, idx) => ({ key: k, originalIndex: idx }))
+        .filter(item => !isKeyCoolingDown(item.key, modelName));
 
-    // 💡 お休み中でないキーだけを抽出（お休み中のキーはアタックせず完全スキップ）
-    const activeIndices = rotation.filter(i => !isKeyCoolingDown(keys[i], modelName));
-
-    if (activeIndices.length === 0) {
+    if (availableIndices.length === 0) {
         const tag = modelName ? `[${modelName}] ` : "";
         throw new Error(`${tag}全キーが日次利用上限のためお休み中です`);
     }
 
-    for (const i of activeIndices) {
-        const key = keys[i];
+    // 💡 生きているキーの配列に対して startIndex のオフセットを適用する
+    const activeCount = availableIndices.length;
+    const offset = ((startIndex % activeCount) + activeCount) % activeCount;
+    const order = Array.from({ length: activeCount }, (_, step) => availableIndices[(offset + step) % activeCount]);
+
+    let lastError = null;
+    for (const item of order) {
+        const key = item.key;
+        const i = item.originalIndex; // 元のキー番号（ログ用）
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);
         try {
@@ -219,7 +224,6 @@ export async function fetchWithKeyRotation(keys, buildRequest, { requestTimeoutM
             clearTimeout(timeoutId);
 
             if (response.status === 429) {
-                // 429を受け取ったら即座に「このモデル × このキー」を日次リセットまでお休みに設定
                 const cooldownMs = Math.max(0, nextGeminiQuotaResetAt() - Date.now());
                 setKeyCooldown(key, modelName, cooldownMs);
                 const hoursLeft = Math.max(1, Math.round(cooldownMs / 3600000));
