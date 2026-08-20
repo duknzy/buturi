@@ -204,7 +204,6 @@ function nextGeminiQuotaResetAt() {
     laMidnightAsLocal.setDate(laMidnightAsLocal.getDate() + 1); // ロサンゼルスの「翌日」0時
     return laMidnightAsLocal.getTime() - laOffsetMs;
 }
-}
 
 // --------------------------------------------------------------------------
 // 🔁 キー・ローテーション付きfetch
