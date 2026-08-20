@@ -130,6 +130,21 @@
             font-size: 0.7rem; cursor: pointer;
         }
 
+        /* 参考書AI読み取り：手動リクエスト振り分けUI */
+        .rb-group-header {
+            flex-basis: 100%; display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
+            flex-wrap: wrap; font-size: 0.78rem; color: var(--text-bright-muted); margin-bottom: 0.2rem;
+        }
+        .rb-mini-link-btn {
+            background: transparent; border: none; color: var(--accent-cyan); font-size: 0.75rem; font-weight: 800;
+            cursor: pointer; text-decoration: underline; padding: 0; white-space: nowrap;
+        }
+        .photo-thumb-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
+        .photo-thumb-group-select {
+            font-size: 0.65rem; background: #000; color: var(--text-bright-muted); border: 1px solid #22222a;
+            border-radius: 6px; padding: 0.15rem 0.2rem; width: 72px;
+        }
+
         .extracted-item {
             border: 1px solid #22222a; border-radius: 14px; padding: 1.2rem; margin-top: 1rem; background: rgba(255,255,255,0.02);
         }
@@ -497,7 +512,8 @@
         let currentQuizIndex = 0;
         let solvedInThisRun = {}; // problemId -> true（今回のセッションで解答表示済み）
 
-        let pendingImages = [];   // 登録モーダルで選択中の画像 {mimeType, base64, dataUrl}
+        let pendingImages = [];   // 登録モーダルで選択中の画像 {mimeType, base64, dataUrl, group}
+        let groupsDirty = false;  // true = ユーザーが手動でリクエスト振り分けを編集済み（自動再計算しない）
         let pendingExtracted = []; // AI読み取り結果のプレビュー行 {number,type,question,hasFigure,answer,explanation,answerGenerated,include}
 
         let problemImagesCache = {}; // problemId -> [dataUrl, ...]（一度取得した元写真をキャッシュ）
@@ -1130,6 +1146,7 @@
 
         function resetRegisterModal() {
             pendingImages = [];
+            groupsDirty = false;
             pendingExtracted = [];
             document.getElementById("register-photo-preview").innerHTML = "";
             document.getElementById("extracted-items-container").innerHTML = "";
@@ -1171,27 +1188,106 @@
         document.getElementById("register-image-input").addEventListener("change", async (e) => {
             const files = Array.from(e.target.files || []);
             for (const file of files) {
-                try { pendingImages.push(await compressImageForOcr(file)); }
+                try {
+                    const img = await compressImageForOcr(file);
+                    if (groupsDirty) {
+                        // 手動編集済みの場合、既存の最後のリクエストに空きがあればそこへ、無ければ新しいリクエストへ
+                        const size = REFBOOK_EXTRACT_CHUNK_SIZE;
+                        const lastGroup = pendingImages.length ? Math.max(...pendingImages.map(im => im.group)) : 1;
+                        const lastGroupCount = pendingImages.filter(im => im.group === lastGroup).length;
+                        img.group = (pendingImages.length === 0 || lastGroupCount < size) ? lastGroup : lastGroup + 1;
+                    }
+                    pendingImages.push(img);
+                }
                 catch (err) { console.error("画像読み込み失敗:", err); }
             }
             renderPendingImagePreview();
             e.target.value = "";
         });
 
+        // 選択順の位置ベースでREFBOOK_EXTRACT_CHUNK_SIZE枚ずつのリクエストに自動振り分けする。
+        // 最後の1枚だけ余る場合は、問題と解答が引き裂かれないよう直前のリクエストに吸収する。
+        function autoAssignGroups(images) {
+            const size = REFBOOK_EXTRACT_CHUNK_SIZE;
+            images.forEach((img, i) => { img.group = Math.floor(i / size) + 1; });
+            const maxGroup = images.length ? images[images.length - 1].group : 0;
+            if (maxGroup > 1 && images.filter(img => img.group === maxGroup).length === 1) {
+                images.filter(img => img.group === maxGroup)[0].group = maxGroup - 1;
+            }
+        }
+
+        // グループ番号の欠番（途中のグループが空になった等）を詰めて1,2,3...に振り直す
+        function compactGroups(images) {
+            const renumber = new Map();
+            let next = 1;
+            images.forEach(img => {
+                if (!renumber.has(img.group)) renumber.set(img.group, next++);
+                img.group = renumber.get(img.group);
+            });
+        }
+
+        function onGroupSelectChange(idx, newGroup) {
+            const size = REFBOOK_EXTRACT_CHUNK_SIZE;
+            const countInTarget = pendingImages.filter((img, j) => j !== idx && img.group === newGroup).length;
+            if (countInTarget >= size) {
+                showToast(`1リクエストにつき最大${size}枚までです。`, "error");
+                renderPendingImagePreview();
+                return;
+            }
+            pendingImages[idx].group = newGroup;
+            groupsDirty = true;
+            compactGroups(pendingImages);
+            renderPendingImagePreview();
+        }
+
         function renderPendingImagePreview() {
+            if (!groupsDirty) autoAssignGroups(pendingImages);
+            compactGroups(pendingImages);
+
             const container = document.getElementById("register-photo-preview");
-            container.innerHTML = pendingImages.map((img, i) => `
-                <div class="photo-thumb">
-                    <img src="${img.dataUrl}">
-                    <div class="photo-thumb-remove" data-remove-pending-img="${i}">×</div>
+            const size = REFBOOK_EXTRACT_CHUNK_SIZE;
+            const showGrouping = pendingImages.length > size;
+            const groupCount = pendingImages.length ? Math.max(...pendingImages.map(img => img.group)) : 0;
+
+            const header = showGrouping ? `
+                <div class="rb-group-header">
+                    <span>🗂️ ${groupCount}件のリクエストに分割されます（枚数が多いと処理が遅くなるため）。写真ごとに送信先を変更できます。</span>
+                    <button type="button" id="reset-groups-btn" class="rb-mini-link-btn">自動振り分けに戻す</button>
+                </div>` : "";
+
+            container.innerHTML = header + pendingImages.map((img, i) => `
+                <div class="photo-thumb-wrap">
+                    <div class="photo-thumb">
+                        <img src="${img.dataUrl}">
+                        <div class="photo-thumb-remove" data-remove-pending-img="${i}">×</div>
+                    </div>
+                    ${showGrouping ? `
+                    <select class="photo-thumb-group-select" data-group-select="${i}">
+                        ${Array.from({ length: groupCount + 1 }, (_, gi) => gi + 1).map(g =>
+                            `<option value="${g}" ${img.group === g ? "selected" : ""}>リクエスト${g}</option>`
+                        ).join("")}
+                    </select>` : ""}
                 </div>
             `).join("");
+
             container.querySelectorAll("[data-remove-pending-img]").forEach(btn => {
                 btn.addEventListener("click", () => {
                     pendingImages.splice(parseInt(btn.getAttribute("data-remove-pending-img"), 10), 1);
                     renderPendingImagePreview();
                 });
             });
+            container.querySelectorAll("[data-group-select]").forEach(sel => {
+                sel.addEventListener("change", () => {
+                    onGroupSelectChange(parseInt(sel.getAttribute("data-group-select"), 10), parseInt(sel.value, 10));
+                });
+            });
+            const resetBtn = document.getElementById("reset-groups-btn");
+            if (resetBtn) {
+                resetBtn.addEventListener("click", () => {
+                    groupsDirty = false;
+                    renderPendingImagePreview();
+                });
+            }
         }
 
         const REFBOOK_EXTRACT_SCHEMA = {
@@ -1242,6 +1338,38 @@
 出力は指定のJSON構造のみとし、他の説明文は一切含めないこと。
 `.trim();
 
+        // 🩹【大量枚数タイムアウト対策】写真が多いほど1リクエストのpayloadと推論時間が増え、
+        //   登録キー数×モデル数ぶんの直列リトライと相まってタイムアウトしやすくなっていたため、
+        //   一定枚数を超えたら複数の小さなリクエストに分割して並列実行するように変更。
+        //   デフォルトは選択順に自動でグループ分けされるが、ページをまたぐ問題がある場合に
+        //   備えて写真ごとに送信先リクエストを手動で変更できる（renderPendingImagePreview参照）。
+        const REFBOOK_EXTRACT_CHUNK_SIZE = 3; // 1リクエストあたりの最大画像枚数
+
+        // 各画像の .group（renderPendingImagePreviewで自動 or 手動設定）に従ってリクエスト単位にまとめる
+        function buildChunksFromGroups(images) {
+            const map = new Map();
+            images.forEach(img => {
+                const g = img.group || 1;
+                if (!map.has(g)) map.set(g, []);
+                map.get(g).push(img);
+            });
+            return Array.from(map.keys()).sort((a, b) => a - b).map(g => map.get(g));
+        }
+
+        function buildExtractParts(imageChunk, totalChunks) {
+            const parts = [{ text: "このページに写っている問題をすべて指定のJSONで抽出してください。" }];
+            imageChunk.forEach(img => {
+                parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+            });
+            if (imageChunk.length > 1) {
+                parts[0].text += `\n\n写真は${imageChunk.length}枚あります。同じページの別カット、または問題ページと解答ページの組み合わせである可能性があります。すべての画像の情報を統合して抽出してください。`;
+            }
+            if (totalChunks > 1) {
+                parts[0].text += `\n\nこれは参考書の一部のページ群です。他にも別の写真グループが並行して処理されているため、ここに写っていない問題については触れず、この画像群だけで完結する範囲で抽出してください。`;
+            }
+            return parts;
+        }
+
         document.getElementById("run-extract-btn").addEventListener("click", async () => {
             if (pendingImages.length === 0) {
                 showToast("写真を選択してください。", "error");
@@ -1249,22 +1377,39 @@
             }
             const btn = document.getElementById("run-extract-btn");
             btn.disabled = true;
-            btn.textContent = "Gemini Visionが読み取り中...";
+
+            const chunks = buildChunksFromGroups(pendingImages);
+            btn.textContent = chunks.length > 1
+                ? `Gemini Visionが読み取り中...（${chunks.length}件に分割して並列処理）`
+                : "Gemini Visionが読み取り中...";
 
             try {
-                const parts = [{ text: "このページに写っている問題をすべて指定のJSONで抽出してください。" }];
-                pendingImages.forEach(img => {
-                    parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
-                });
-                if (pendingImages.length > 1) {
-                    parts[0].text += `\n\n写真は${pendingImages.length}枚あります。同じページの別カット、または問題ページと解答ページの組み合わせである可能性があります。すべての画像の情報を統合して抽出してください。`;
-                }
+                const results = await Promise.allSettled(
+                    chunks.map(chunk =>
+                        callGeminiJSON(buildExtractParts(chunk, chunks.length), REFBOOK_EXTRACT_PROMPT, {
+                            temperature: 0.2, responseSchema: REFBOOK_EXTRACT_SCHEMA, featureId: "refbook_extract"
+                        })
+                    )
+                );
 
-                const aiResult = await callGeminiJSON(parts, REFBOOK_EXTRACT_PROMPT, {
-                    temperature: 0.2, responseSchema: REFBOOK_EXTRACT_SCHEMA, featureId: "refbook_extract"
+                const mergedProblems = [];
+                let unitLabelGuess = "";
+                let failedCount = 0;
+                let lastError = null;
+
+                results.forEach(r => {
+                    if (r.status === "fulfilled") {
+                        const problems = r.value?.problems || [];
+                        mergedProblems.push(...problems);
+                        if (!unitLabelGuess && r.value?.unitLabelGuess) unitLabelGuess = r.value.unitLabelGuess;
+                    } else {
+                        failedCount++;
+                        lastError = r.reason;
+                        console.error("AI読み取りエラー（一部チャンク）:", r.reason);
+                    }
                 });
 
-                pendingExtracted = (aiResult.problems || []).map(p => ({
+                pendingExtracted = mergedProblems.map(p => ({
                     number: p.number || "",
                     type: p.type || "",
                     question: p.question || "",
@@ -1276,14 +1421,18 @@
                 }));
 
                 if (pendingExtracted.length === 0) {
-                    showToast("問題を読み取れませんでした。写真を変えて再度お試しください。", "error");
+                    const reason = lastError ? `\n\n【原因】${lastError.message}` : "";
+                    showToast("問題を読み取れませんでした。写真を変えて再度お試しください。" + reason, "error", 8000);
                 } else {
-                    if (aiResult.unitLabelGuess && !document.getElementById("new-unit-name-input").value) {
-                        document.getElementById("new-unit-name-input").value = aiResult.unitLabelGuess;
+                    if (unitLabelGuess && !document.getElementById("new-unit-name-input").value) {
+                        document.getElementById("new-unit-name-input").value = unitLabelGuess;
                     }
                     renderExtractedItems();
                     document.getElementById("save-extracted-btn").style.display = "inline-flex";
-                    showToast(`${pendingExtracted.length}問読み取りました。内容を確認して登録してください。`, "info");
+                    const partialNote = failedCount > 0
+                        ? `（${chunks.length}件中${failedCount}件は読み取りに失敗しました。不足分は写真を分けて再登録してください）`
+                        : "";
+                    showToast(`${pendingExtracted.length}問読み取りました。内容を確認して登録してください。${partialNote}`, failedCount > 0 ? "error" : "info", failedCount > 0 ? 8000 : undefined);
                 }
             } catch (error) {
                 console.error("AI読み取りエラー:", error);
