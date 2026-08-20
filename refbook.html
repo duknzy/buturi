@@ -121,7 +121,7 @@
         .rb-inline-row { display: flex; gap: 0.8rem; }
         .rb-inline-row > div { flex: 1; }
 
-        .photo-thumb-strip { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.8rem; }
+        .photo-thumb-strip { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.8rem; }
         .photo-thumb { position: relative; width: 72px; height: 72px; border-radius: 10px; overflow: hidden; border: 1px solid #22222a; }
         .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
         .photo-thumb-remove {
@@ -130,19 +130,18 @@
             font-size: 0.7rem; cursor: pointer;
         }
 
-        /* 参考書AI読み取り：手動リクエスト振り分けUI */
+        /* 参考書AI読み取り：写真間の「つながり」トグルUI */
         .rb-group-header {
-            flex-basis: 100%; display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
-            flex-wrap: wrap; font-size: 0.78rem; color: var(--text-bright-muted); margin-bottom: 0.2rem;
+            flex-basis: 100%; font-size: 0.78rem; color: var(--text-bright-muted); margin-bottom: 0.2rem;
         }
-        .rb-mini-link-btn {
-            background: transparent; border: none; color: var(--accent-cyan); font-size: 0.75rem; font-weight: 800;
-            cursor: pointer; text-decoration: underline; padding: 0; white-space: nowrap;
+        .photo-thumb-wrap { display: flex; align-items: center; }
+        .rb-link-toggle {
+            background: rgba(255,255,255,0.04); border: 1px solid #22222a; color: var(--text-muted);
+            border-radius: 8px; width: 24px; height: 24px; font-size: 0.8rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0; align-self: center;
         }
-        .photo-thumb-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
-        .photo-thumb-group-select {
-            font-size: 0.65rem; background: #000; color: var(--text-bright-muted); border: 1px solid #22222a;
-            border-radius: 6px; padding: 0.15rem 0.2rem; width: 72px;
+        .rb-link-toggle.linked {
+            background: rgba(0,243,255,0.18); border-color: var(--accent-cyan); color: var(--accent-cyan);
         }
 
         .extracted-item {
@@ -512,8 +511,8 @@
         let currentQuizIndex = 0;
         let solvedInThisRun = {}; // problemId -> true（今回のセッションで解答表示済み）
 
-        let pendingImages = [];   // 登録モーダルで選択中の画像 {mimeType, base64, dataUrl, group}
-        let groupsDirty = false;  // true = ユーザーが手動でリクエスト振り分けを編集済み（自動再計算しない）
+        let pendingImages = [];   // 登録モーダルで選択中の画像 {mimeType, base64, dataUrl}
+        let lockedBoundaries = []; // pendingImages[i]とpendingImages[i+1]の間を「つなげる」(分割しない)か。長さは常に pendingImages.length-1
         let pendingExtracted = []; // AI読み取り結果のプレビュー行 {number,type,question,hasFigure,answer,explanation,answerGenerated,include}
 
         let problemImagesCache = {}; // problemId -> [dataUrl, ...]（一度取得した元写真をキャッシュ）
@@ -1146,7 +1145,7 @@
 
         function resetRegisterModal() {
             pendingImages = [];
-            groupsDirty = false;
+            lockedBoundaries = [];
             pendingExtracted = [];
             document.getElementById("register-photo-preview").innerHTML = "";
             document.getElementById("extracted-items-container").innerHTML = "";
@@ -1188,87 +1187,60 @@
         document.getElementById("register-image-input").addEventListener("change", async (e) => {
             const files = Array.from(e.target.files || []);
             for (const file of files) {
-                try {
-                    const img = await compressImageForOcr(file);
-                    if (groupsDirty) {
-                        // 手動編集済みの場合、既存の最後のリクエストに空きがあればそこへ、無ければ新しいリクエストへ
-                        const size = REFBOOK_EXTRACT_CHUNK_SIZE;
-                        const lastGroup = pendingImages.length ? Math.max(...pendingImages.map(im => im.group)) : 1;
-                        const lastGroupCount = pendingImages.filter(im => im.group === lastGroup).length;
-                        img.group = (pendingImages.length === 0 || lastGroupCount < size) ? lastGroup : lastGroup + 1;
-                    }
-                    pendingImages.push(img);
-                }
+                try { pendingImages.push(await compressImageForOcr(file)); }
                 catch (err) { console.error("画像読み込み失敗:", err); }
             }
             renderPendingImagePreview();
             e.target.value = "";
         });
 
-        // 選択順の位置ベースでREFBOOK_EXTRACT_CHUNK_SIZE枚ずつのリクエストに自動振り分けする。
-        // 最後の1枚だけ余る場合は、問題と解答が引き裂かれないよう直前のリクエストに吸収する。
-        function autoAssignGroups(images) {
-            const size = REFBOOK_EXTRACT_CHUNK_SIZE;
-            images.forEach((img, i) => { img.group = Math.floor(i / size) + 1; });
-            const maxGroup = images.length ? images[images.length - 1].group : 0;
-            if (maxGroup > 1 && images.filter(img => img.group === maxGroup).length === 1) {
-                images.filter(img => img.group === maxGroup)[0].group = maxGroup - 1;
-            }
-        }
-
-        // グループ番号の欠番（途中のグループが空になった等）を詰めて1,2,3...に振り直す
-        function compactGroups(images) {
-            const renumber = new Map();
-            let next = 1;
-            images.forEach(img => {
-                if (!renumber.has(img.group)) renumber.set(img.group, next++);
-                img.group = renumber.get(img.group);
-            });
-        }
-
-        function onGroupSelectChange(idx, newGroup) {
-            const size = REFBOOK_EXTRACT_CHUNK_SIZE;
-            const countInTarget = pendingImages.filter((img, j) => j !== idx && img.group === newGroup).length;
-            if (countInTarget >= size) {
-                showToast(`1リクエストにつき最大${size}枚までです。`, "error");
-                renderPendingImagePreview();
-                return;
-            }
-            pendingImages[idx].group = newGroup;
-            groupsDirty = true;
-            compactGroups(pendingImages);
-            renderPendingImagePreview();
+        // lockedBoundariesの長さをpendingImages.length-1に同期する（増減時に前方の値はできるだけ保持）
+        function syncLockedBoundaries() {
+            const needed = Math.max(pendingImages.length - 1, 0);
+            while (lockedBoundaries.length < needed) lockedBoundaries.push(false);
+            lockedBoundaries.length = needed;
         }
 
         function renderPendingImagePreview() {
-            if (!groupsDirty) autoAssignGroups(pendingImages);
-            compactGroups(pendingImages);
+            syncLockedBoundaries();
 
             const container = document.getElementById("register-photo-preview");
             const size = REFBOOK_EXTRACT_CHUNK_SIZE;
-            const showGrouping = pendingImages.length > size;
-            const groupCount = pendingImages.length ? Math.max(...pendingImages.map(img => img.group)) : 0;
+            const showLinking = pendingImages.length > size;
 
-            const header = showGrouping ? `
+            let chunkIndexOf = [];
+            let chunkCount = 0;
+            if (pendingImages.length) {
+                const chunks = buildChunksFromLocks(pendingImages, lockedBoundaries);
+                chunkCount = chunks.length;
+                let pos = 0;
+                chunks.forEach((chunk, ci) => { chunk.forEach(() => { chunkIndexOf[pos++] = ci; }); });
+            }
+
+            const header = showLinking ? `
                 <div class="rb-group-header">
-                    <span>🗂️ ${groupCount}件のリクエストに分割されます（枚数が多いと処理が遅くなるため）。写真ごとに送信先を変更できます。</span>
-                    <button type="button" id="reset-groups-btn" class="rb-mini-link-btn">自動振り分けに戻す</button>
+                    🔗 現在 ${chunkCount}件のリクエストに分かれて送信されます。ページが続いていて分割してほしくない写真の間は、間の「・」を🔗に切り替えるとつなげられます。
                 </div>` : "";
 
-            container.innerHTML = header + pendingImages.map((img, i) => `
-                <div class="photo-thumb-wrap">
-                    <div class="photo-thumb">
-                        <img src="${img.dataUrl}">
-                        <div class="photo-thumb-remove" data-remove-pending-img="${i}">×</div>
-                    </div>
-                    ${showGrouping ? `
-                    <select class="photo-thumb-group-select" data-group-select="${i}">
-                        ${Array.from({ length: groupCount + 1 }, (_, gi) => gi + 1).map(g =>
-                            `<option value="${g}" ${img.group === g ? "selected" : ""}>リクエスト${g}</option>`
-                        ).join("")}
-                    </select>` : ""}
-                </div>
-            `).join("");
+            const palette = ["#00f3ff", "#ff007f", "#fff500", "#00ff78", "#a78bfa", "#ff8a00"];
+
+            let inner = "";
+            pendingImages.forEach((img, i) => {
+                const band = showLinking ? `box-shadow: 0 0 0 2px ${palette[chunkIndexOf[i] % palette.length]};` : "";
+                inner += `
+                    <div class="photo-thumb-wrap">
+                        <div class="photo-thumb" style="${band}">
+                            <img src="${img.dataUrl}">
+                            <div class="photo-thumb-remove" data-remove-pending-img="${i}">×</div>
+                        </div>
+                    </div>`;
+                if (showLinking && i < pendingImages.length - 1) {
+                    const locked = !!lockedBoundaries[i];
+                    inner += `<button type="button" class="rb-link-toggle${locked ? " linked" : ""}" data-link-idx="${i}" title="${locked ? "つながっています（クリックで解除）" : "クリックでつなげる"}">${locked ? "🔗" : "・"}</button>`;
+                }
+            });
+
+            container.innerHTML = header + inner;
 
             container.querySelectorAll("[data-remove-pending-img]").forEach(btn => {
                 btn.addEventListener("click", () => {
@@ -1276,18 +1248,13 @@
                     renderPendingImagePreview();
                 });
             });
-            container.querySelectorAll("[data-group-select]").forEach(sel => {
-                sel.addEventListener("change", () => {
-                    onGroupSelectChange(parseInt(sel.getAttribute("data-group-select"), 10), parseInt(sel.value, 10));
-                });
-            });
-            const resetBtn = document.getElementById("reset-groups-btn");
-            if (resetBtn) {
-                resetBtn.addEventListener("click", () => {
-                    groupsDirty = false;
+            container.querySelectorAll("[data-link-idx]").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const idx = parseInt(btn.getAttribute("data-link-idx"), 10);
+                    lockedBoundaries[idx] = !lockedBoundaries[idx];
                     renderPendingImagePreview();
                 });
-            }
+            });
         }
 
         const REFBOOK_EXTRACT_SCHEMA = {
@@ -1341,19 +1308,53 @@
         // 🩹【大量枚数タイムアウト対策】写真が多いほど1リクエストのpayloadと推論時間が増え、
         //   登録キー数×モデル数ぶんの直列リトライと相まってタイムアウトしやすくなっていたため、
         //   一定枚数を超えたら複数の小さなリクエストに分割して並列実行するように変更。
-        //   デフォルトは選択順に自動でグループ分けされるが、ページをまたぐ問題がある場合に
-        //   備えて写真ごとに送信先リクエストを手動で変更できる（renderPendingImagePreview参照）。
-        const REFBOOK_EXTRACT_CHUNK_SIZE = 3; // 1リクエストあたりの最大画像枚数
+        //   デフォルトは選択順にサイズで自動分割されるが、ページをまたぐ問題がある場合に
+        //   備えて写真と写真の間の🔗トグルで「ここでは分割しない」を指定できる
+        //   （renderPendingImagePreview / buildChunksFromLocks 参照）。
+        const REFBOOK_EXTRACT_CHUNK_SIZE = 3; // 1リクエストあたりの目安の最大画像枚数
 
-        // 各画像の .group（renderPendingImagePreviewで自動 or 手動設定）に従ってリクエスト単位にまとめる
-        function buildChunksFromGroups(images) {
-            const map = new Map();
-            images.forEach(img => {
-                const g = img.group || 1;
-                if (!map.has(g)) map.set(g, []);
-                map.get(g).push(img);
+        // lockedBoundaries[i]===true の箇所（pendingImages[i]とpendingImages[i+1]の間）は
+        // 絶対に別リクエストに割らない。それ以外はREFBOOK_EXTRACT_CHUNK_SIZEを目安に詰めて分割する。
+        // つながった写真の連結が目安枚数を超える場合は、分割せずそのまま1つの大きめリクエストにする。
+        function buildChunksFromLocks(images, locks) {
+            const size = REFBOOK_EXTRACT_CHUNK_SIZE;
+            if (images.length === 0) return [];
+
+            // 1. 🔗でつながった写真をひとかたまり（run）にまとめる
+            const runs = [];
+            let current = [images[0]];
+            for (let i = 1; i < images.length; i++) {
+                if (locks[i - 1]) {
+                    current.push(images[i]);
+                } else {
+                    runs.push(current);
+                    current = [images[i]];
+                }
+            }
+            runs.push(current);
+
+            // 2. runを崩さずに、目安枚数まで詰めてチャンク化する
+            const chunks = [];
+            let chunk = [];
+            runs.forEach(run => {
+                if (run.length > size) {
+                    if (chunk.length) { chunks.push(chunk); chunk = []; }
+                    chunks.push(run); // つながりが目安枚数を超える場合はやむを得ずそのまま1リクエストにする
+                } else if (chunk.length + run.length > size) {
+                    chunks.push(chunk);
+                    chunk = run.slice();
+                } else {
+                    chunk = chunk.concat(run);
+                }
             });
-            return Array.from(map.keys()).sort((a, b) => a - b).map(g => map.get(g));
+            if (chunk.length) chunks.push(chunk);
+
+            // 3. 最後が1枚だけ余ったら、問題と解答が引き裂かれないよう直前のチャンクに吸収する
+            if (chunks.length > 1 && chunks[chunks.length - 1].length === 1) {
+                const last = chunks.pop();
+                chunks[chunks.length - 1] = chunks[chunks.length - 1].concat(last);
+            }
+            return chunks;
         }
 
         function buildExtractParts(imageChunk, totalChunks) {
@@ -1378,7 +1379,7 @@
             const btn = document.getElementById("run-extract-btn");
             btn.disabled = true;
 
-            const chunks = buildChunksFromGroups(pendingImages);
+            const chunks = buildChunksFromLocks(pendingImages, lockedBoundaries);
             btn.textContent = chunks.length > 1
                 ? `Gemini Visionが読み取り中...（${chunks.length}件に分割して並列処理）`
                 : "Gemini Visionが読み取り中...";
