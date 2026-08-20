@@ -150,6 +150,15 @@
         }
         .extracted-item-head { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; }
         .extracted-item-toggle { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 800; }
+        .extracted-item-head-label { color: var(--text-muted); font-size: 0.75rem; flex-grow: 1; }
+        .extracted-item-move { display: flex; gap: 0.3rem; flex-shrink: 0; }
+        .extracted-move-btn {
+            background: rgba(255,255,255,0.06); border: 1px solid #22222a; color: var(--text-bright-muted);
+            border-radius: 8px; width: 28px; height: 28px; font-size: 0.75rem; cursor: pointer; line-height: 1;
+        }
+        .extracted-move-btn:disabled { opacity: 0.25; cursor: default; }
+        .extracted-move-btn:not(:disabled):hover { border-color: var(--accent-cyan); color: #fff; }
+        .extracted-items-toolbar { display: flex; justify-content: flex-end; margin-bottom: 0.6rem; }
 
         .rb-modal-content { width: 92%; max-width: 720px; max-height: 92vh; overflow-y: auto; }
 
@@ -478,7 +487,7 @@
 
     <script type="module">
         import {
-            getGeminiKeys, initApiKeyManager, showToast, callGeminiJSON, generateTinyThumbnail
+            getGeminiKeys, initApiKeyManager, showToast, callGeminiJSON, generateTinyThumbnail, getEffectiveGeminiKeys
         } from "./api-key-manager.js";
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -1389,12 +1398,23 @@
                 : "Gemini Visionが読み取り中...";
 
             try {
+                // 🩹【並列リクエスト429対策】全チャンクが同時に「先頭キー」へ殺到しないよう、
+                //   チャンクごとに開始キーをずらす（keyOffset）。
+                //   登録キー数よりチャンク数が多い場合はキーが一巡して同じキーを再利用する
+                //   チャンクが出てくるので、その「2周目以降」の波だけ少し発火を遅らせる。
+                const effectiveKeyCount = Math.max(1, getEffectiveGeminiKeys("refbook_extract").length);
+                const CHUNK_STAGGER_MS = 400; // 同じキーを再利用する波を遅らせる間隔
+
                 const results = await Promise.allSettled(
-                    chunks.map(chunk =>
-                        callGeminiJSON(buildExtractParts(chunk, chunks.length), REFBOOK_EXTRACT_PROMPT, {
-                            temperature: 0.2, responseSchema: REFBOOK_EXTRACT_SCHEMA, featureId: "refbook_extract"
-                        })
-                    )
+                    chunks.map((chunk, idx) => {
+                        const wave = Math.floor(idx / effectiveKeyCount); // 0=キーが被らない1周目、1以降=キー再利用
+                        const fire = () => callGeminiJSON(buildExtractParts(chunk, chunks.length), REFBOOK_EXTRACT_PROMPT, {
+                            temperature: 0.2, responseSchema: REFBOOK_EXTRACT_SCHEMA, featureId: "refbook_extract",
+                            keyOffset: idx
+                        });
+                        if (wave === 0) return fire();
+                        return new Promise(resolve => setTimeout(resolve, wave * CHUNK_STAGGER_MS)).then(fire);
+                    })
                 );
 
                 const mergedProblems = [];
@@ -1448,15 +1468,46 @@
             }
         });
 
+        // 🩹【並び順の手直し用】問題番号文字列（"基本例題1"「WARMING UP①」等）から
+        //   先頭に現れる数字を拾って自然順ソートするための簡易ヘルパー。
+        //   丸数字(①〜⑳)も数字として扱えるよう先に変換してから拾う。
+        //   数字が見つからない場合は末尾に回す（元の順序内での相対位置は安定ソートで維持される）。
+        function circledToDigit(str) {
+            return String(str || "").replace(/[\u2460-\u2473]/g, ch => String(ch.codePointAt(0) - 0x2460 + 1));
+        }
+        function extractLeadingNumber(str) {
+            const m = circledToDigit(str).match(/\d+/);
+            return m ? parseInt(m[0], 10) : Number.POSITIVE_INFINITY;
+        }
+        function sortExtractedByNumber(items) {
+            // Array#sortは安定ソートなので、番号が同じ/無い項目同士は元の順序のまま保たれる
+            return [...items].sort((a, b) => extractLeadingNumber(a.number) - extractLeadingNumber(b.number));
+        }
+
         function renderExtractedItems() {
             const container = document.getElementById("extracted-items-container");
-            container.innerHTML = pendingExtracted.map((item, i) => `
+            if (pendingExtracted.length === 0) {
+                container.innerHTML = "";
+                return;
+            }
+            // 🩹【並び順の手直し】並列チャンク処理そのものは写真の順番どおりにマージされるが、
+            //   AIの読み取り結果自体が前後することもあるため、登録前にここで手直しできるようにする。
+            const toolbar = `
+                <div class="extracted-items-toolbar">
+                    <button type="button" class="tactile-btn tactile-btn-secondary" id="sort-extracted-btn" style="padding:0.5rem 1rem; font-size:0.78rem;">🔢 問題番号順に並び替え</button>
+                </div>
+            `;
+            container.innerHTML = toolbar + pendingExtracted.map((item, i) => `
                 <div class="extracted-item" data-idx="${i}">
                     <div class="extracted-item-head">
                         <label class="extracted-item-toggle">
                             <input type="checkbox" data-field="include" ${item.include ? "checked" : ""}> 登録する
                         </label>
-                        <span style="color:var(--text-muted); font-size:0.75rem;">読み取り結果 #${i + 1}（内容はこの下で修正できます）</span>
+                        <span class="extracted-item-head-label">読み取り結果 #${i + 1}（内容はこの下で修正できます）</span>
+                        <div class="extracted-item-move">
+                            <button type="button" class="extracted-move-btn" data-move="up" ${i === 0 ? "disabled" : ""} title="1つ上へ移動">▲</button>
+                            <button type="button" class="extracted-move-btn" data-move="down" ${i === pendingExtracted.length - 1 ? "disabled" : ""} title="1つ下へ移動">▼</button>
+                        </div>
                     </div>
                     <div class="rb-inline-row rb-form-row">
                         <div>
@@ -1496,7 +1547,24 @@
                         if (field === "answer") pendingExtracted[idx].answerGenerated = false; // 手動修正したらAI作成フラグは外す
                     });
                 });
+                itemEl.querySelectorAll("[data-move]").forEach(moveBtn => {
+                    moveBtn.addEventListener("click", () => {
+                        const targetIdx = moveBtn.getAttribute("data-move") === "up" ? idx - 1 : idx + 1;
+                        if (targetIdx < 0 || targetIdx >= pendingExtracted.length) return;
+                        [pendingExtracted[idx], pendingExtracted[targetIdx]] = [pendingExtracted[targetIdx], pendingExtracted[idx]];
+                        renderExtractedItems();
+                    });
+                });
             });
+
+            const sortBtn = document.getElementById("sort-extracted-btn");
+            if (sortBtn) {
+                sortBtn.addEventListener("click", () => {
+                    pendingExtracted = sortExtractedByNumber(pendingExtracted);
+                    renderExtractedItems();
+                    showToast("問題番号順に並び替えました。内容を確認してください。", "info");
+                });
+            }
         }
 
         function escapeAttr(str) { return escapeHtml(str).replace(/"/g, "&quot;"); }

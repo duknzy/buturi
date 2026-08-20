@@ -110,6 +110,103 @@ export function setKeyLabel(engine, key, label) {
 }
 
 // --------------------------------------------------------------------------
+// 🩺【新設】429を返したキーの「一時お休み」管理。
+// 429になったキーは、レート制限が明けるまで基本的にまた429になるだけなので、
+// ローテーション時に後回しにする（＝先に他のキーを試す）ことで無駄打ちを減らす。
+// - レスポンスに retryDelay（Google APIのRetryInfo形式、例:"34s"）が含まれていればその秒数を使う。
+// - 含まれていない場合（Geminiの無料枠は基本的に「1日ごとの回数制限」のため、こちらが大半）は、
+//   次にクォータがリセットされるタイミング（太平洋時間の深夜0時＝日本時間の16:00 or 17:00）まで
+//   お休みさせる。
+// 🩹【永続化】refbook.htmlだけでなく、lesson.html・problem.html等アプリ内の全ページで
+//   同じ429キーを避けたいため、ページ内メモリ(Map)ではなくlocalStorageに保存する。
+//   これによりページ遷移・リロードをまたいでも「今日はもう429になったキー」を覚えていられる。
+//   （期限切れのエントリは読み込み時に自動的に間引く）
+// --------------------------------------------------------------------------
+const KEY_COOLDOWN_STORAGE = "RE_MIND_KEY_COOLDOWN"; // { [キー本文]: お休み終了時刻(ms, epoch) }
+
+function loadCooldowns() {
+    let map = {};
+    try {
+        const raw = localStorage.getItem(KEY_COOLDOWN_STORAGE);
+        const parsed = raw ? JSON.parse(raw) : {};
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) map = parsed;
+    } catch (e) {
+        map = {};
+    }
+    // 期限切れのぶんはここで間引いておく（永久にストレージへ溜まり続けないように）
+    const now = Date.now();
+    let changed = false;
+    for (const k of Object.keys(map)) {
+        if (typeof map[k] !== "number" || map[k] <= now) {
+            delete map[k];
+            changed = true;
+        }
+    }
+    if (changed) {
+        try { localStorage.setItem(KEY_COOLDOWN_STORAGE, JSON.stringify(map)); } catch (e) { /* noop */ }
+    }
+    return map;
+}
+
+function isKeyCoolingDown(key) {
+    const until = loadCooldowns()[key];
+    return typeof until === "number" && Date.now() < until;
+}
+
+function setKeyCooldown(key, ms) {
+    const map = loadCooldowns();
+    map[key] = Date.now() + Math.max(0, ms);
+    try { localStorage.setItem(KEY_COOLDOWN_STORAGE, JSON.stringify(map)); } catch (e) { /* noop */ }
+}
+
+// 🖥 管理画面（ai-settings.html）等から、キーが今お休み中かどうか・あと何msで解けるかを
+// 確認したい場合向けの公開API。お休み中でなければnullを返す。
+export function getKeyCooldownRemainingMs(key) {
+    const until = loadCooldowns()[key];
+    if (typeof until !== "number") return null;
+    const remaining = until - Date.now();
+    return remaining > 0 ? remaining : null;
+}
+
+// Google API系の429エラー本文からRetryInfo(details[].retryDelay)を探して秒→msに変換する。
+// 無ければnullを返す（呼び出し側で「次の日次リセットまで」のデフォルト値にフォールバックする）。
+function parseRetryDelayMs(errBody) {
+    try {
+        const details = errBody?.error?.details || [];
+        const retryInfo = details.find(d => typeof d?.["@type"] === "string" && d["@type"].includes("RetryInfo"));
+        const delayStr = retryInfo?.retryDelay; // 例: "34s"
+        if (typeof delayStr === "string") {
+            const sec = parseFloat(delayStr);
+            if (!isNaN(sec) && sec > 0) return sec * 1000;
+        }
+    } catch (e) { /* 形式が想定外でも無視してデフォルト値にフォールバック */ }
+    return null;
+}
+
+// Gemini(Google AI Studio)無料枠の日次クォータがリセットされる「次のタイミング」を返す。
+// 太平洋時間(America/Los_Angeles)の深夜0時にリセットされるため、日本時間だと夏時間で16:00、
+// 標準時で17:00になる。米国のDST切り替え日をこちらで個別管理しなくて済むよう、
+// Intlのタイムゾーン変換で「今のロサンゼルス時間での翌日0時」を直接求める。
+function nextGeminiQuotaResetAt() {
+    const now = new Date();
+    const laParts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Los_Angeles",
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
+    }).formatToParts(now).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+
+    // 実行環境のローカルタイムゾーンで文字列をパースした場合とロサンゼルス時間の差分(offset)を求め、
+    // 同じoffsetを「ロサンゼルスの翌日0時」にも適用することで、実時刻(UTC)ベースの絶対タイムスタンプにする。
+    const laNowAsLocal = new Date(`${laParts.year}-${laParts.month}-${laParts.day}T${laParts.hour}:${laParts.minute}:${laParts.second}`);
+    const laOffsetMs = laNowAsLocal.getTime() - now.getTime();
+
+    const laMidnightAsLocal = new Date(`${laParts.year}-${laParts.month}-${laParts.day}T00:00:00`);
+    laMidnightAsLocal.setDate(laMidnightAsLocal.getDate() + 1); // ロサンゼルスの「翌日」0時
+    return laMidnightAsLocal.getTime() - laOffsetMs;
+}
+}
+
+// --------------------------------------------------------------------------
 // 🔁 キー・ローテーション付きfetch
 // buildRequest(key) => { url, options } を渡すと、登録済みキーを先頭から順に試す。
 // 429・認証エラー・通信エラーなど、どんな失敗でも「次のキー」へフォールバックし、
@@ -120,13 +217,30 @@ export function setKeyLabel(engine, key, label) {
 // 登録キー数ぶん直列に待たされて体感の遅さの主因になっていたため追加。
 // 🩹【調整】実際のNetworkログを見ると正常応答・503確定とも20〜40秒台かかるケースがあり、
 //   20秒だと本来成功するはずのリクエストまでタイムアウト扱いで打ち切ってしまっていたため60秒に延長。
-export async function fetchWithKeyRotation(keys, buildRequest, { requestTimeoutMs = 60000 } = {}) {
+// startIndex: ローテーションを開始するキーのindex（省略時0＝従来どおり先頭から）。
+// 🩹【並列リクエスト429対策】複数チャンクを同時にfetchWithKeyRotationへ渡すと、
+//   全チャンクが揃って同じ「先頭キー」に殺到し、そのキーだけ即RPM制限に達して
+//   429連鎖→全滅、という事態が起きていた。呼び出し側でチャンクごとに異なる
+//   startIndexを渡すことで、最初に叩くキーを散らして衝突を避けられるようにする。
+// 🩹【新設】さらに、直近429になった「お休み中」のキーは同じ理由でまた429になりやすいため、
+//   ローテーション内では後回しにする（＝先にお休み中でないキーを一通り試し、
+//   全滅した場合の最後の望みとしてお休み中のキーも試す）。
+export async function fetchWithKeyRotation(keys, buildRequest, { requestTimeoutMs = 60000, startIndex = 0 } = {}) {
     if (!keys || keys.length === 0) {
         throw new Error("APIキーが1件も登録されていません。右下の🔑ボタンから登録してください。");
     }
 
     let lastError = null;
-    for (let i = 0; i < keys.length; i++) {
+    const keyCount = keys.length;
+    const offset = ((startIndex % keyCount) + keyCount) % keyCount;
+    const rotation = Array.from({ length: keyCount }, (_, step) => (offset + step) % keyCount);
+    // お休み中でないキーを先に、お休み中のキーは後回しにする（お休み中同士・していない同士の相対順は維持）
+    const order = [
+        ...rotation.filter(i => !isKeyCoolingDown(keys[i])),
+        ...rotation.filter(i => isKeyCoolingDown(keys[i])),
+    ];
+
+    for (const i of order) {
         const key = keys[i];
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);
@@ -136,7 +250,16 @@ export async function fetchWithKeyRotation(keys, buildRequest, { requestTimeoutM
             clearTimeout(timeoutId);
 
             if (response.status === 429) {
-                console.warn(`⚠️ キー#${i + 1} がレート制限（429）に達しました → 次のキーへフォールバック`);
+                const errBody = await response.json().catch(() => ({}));
+                // レスポンスに具体的な待ち時間指定があればそれを優先し、無ければ
+                // 「次の日次クォータリセット（太平洋時間の深夜0時）まで」をお休み時間とする。
+                const explicitMs = parseRetryDelayMs(errBody);
+                const cooldownMs = explicitMs != null ? explicitMs : Math.max(0, nextGeminiQuotaResetAt() - Date.now());
+                setKeyCooldown(key, cooldownMs);
+                const cooldownLabel = explicitMs != null
+                    ? `約${Math.round(cooldownMs / 1000)}秒`
+                    : `日次リセット（あと約${Math.round(cooldownMs / 3600000)}時間）まで`;
+                console.warn(`⚠️ キー#${i + 1} がレート制限（429）に達しました → ${cooldownLabel}このキーを後回しにして次のキーへフォールバック`);
                 lastError = new Error(`レート制限(429): キー#${i + 1}`);
                 continue;
             }
@@ -169,6 +292,7 @@ export async function fetchWithKeyRotation(keys, buildRequest, { requestTimeoutM
     }
     throw lastError || new Error("登録済みの全APIキーで失敗しました。");
 }
+
 
 // --------------------------------------------------------------------------
 // 🧠【共通化】以前は各ページに個別コピペされていたGemini関連の定数・ヘルパー群。
@@ -413,9 +537,11 @@ export function extractJsonArray(text) {
 //   temperature: number（省略時 0.4）
 //   arrayMode: true にすると応答をJSON配列として抽出する（省略時はJSONオブジェクト）
 //   silentFallback: true にすると notifyModelFallback（画面右下トースト）を出さない
+//   keyOffset: 複数リクエストを並列で投げる時に、呼び出しごとに違う値（0,1,2...）を渡すと
+//              最初に試すキーをその分だけずらせる（429の同時集中を避けるためのもの）
 // --------------------------------------------------------------------------
 async function runGeminiFallbackLoop(contents, systemInstruction, options = {}) {
-    const { temperature = 0.4, arrayMode = false, silentFallback = false, responseSchema = null, featureId = null, requestTimeoutMs = 60000 } = options;
+    const { temperature = 0.4, arrayMode = false, silentFallback = false, responseSchema = null, featureId = null, requestTimeoutMs = 60000, keyOffset = 0 } = options;
     // ⚙️ featureIdが渡されていれば、管理画面で機能ごとに絞り込んだモデル順・キーだけを使う。
     //    未指定/未設定なら従来どおり全モデル・全キーが対象。
     const keys = getEffectiveGeminiKeys(featureId);
@@ -447,7 +573,7 @@ async function runGeminiFallbackLoop(contents, systemInstruction, options = {}) 
             response = await fetchWithKeyRotation(keys, (key) => ({
                 url: buildGeminiUrl(modelName, key),
                 options: { method: "POST", headers: { "Content-Type": "application/json" }, body: requestBody }
-            }), { requestTimeoutMs });
+            }), { requestTimeoutMs, startIndex: keyOffset });
         } catch (err) {
             return { ok: false, isFormatError: false, reason: err?.message || "不明な通信エラー", error: err };
         }
