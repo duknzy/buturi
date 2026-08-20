@@ -1230,7 +1230,7 @@
                 inner += `
                     <div class="photo-thumb-wrap">
                         <div class="photo-thumb" style="${band}">
-                            <img src="${img.dataUrl}">
+                            <img src="${img.dataUrl}" data-preview-idx="${i}" style="cursor: zoom-in;">
                             <div class="photo-thumb-remove" data-remove-pending-img="${i}">×</div>
                         </div>
                     </div>`;
@@ -1246,6 +1246,11 @@
                 btn.addEventListener("click", () => {
                     pendingImages.splice(parseInt(btn.getAttribute("data-remove-pending-img"), 10), 1);
                     renderPendingImagePreview();
+                });
+            });
+            container.querySelectorAll("[data-preview-idx]").forEach(imgEl => {
+                imgEl.addEventListener("click", () => {
+                    openLightbox(pendingImages[parseInt(imgEl.getAttribute("data-preview-idx"), 10)].dataUrl);
                 });
             });
             container.querySelectorAll("[data-link-idx]").forEach(btn => {
