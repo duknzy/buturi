@@ -122,28 +122,45 @@
         .rb-inline-row > div { flex: 1; }
 
         .photo-thumb-strip { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.8rem; }
-        .photo-thumb { position: relative; width: 72px; height: 72px; border-radius: 10px; overflow: hidden; border: 1px solid #22222a; }
+        .photo-thumb { position: relative; width: 72px; height: 72px; border-radius: 10px; overflow: hidden; border: 1px solid #22222a; flex-shrink: 0; }
         .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
         .photo-thumb-remove {
-            position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.7); color: #fff;
+            position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.75); color: #fff;
             width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-size: 0.7rem; cursor: pointer;
+            font-size: 0.7rem; cursor: pointer; font-weight: 900;
         }
+        .photo-thumb-remove:hover { background: #ff4545; }
 
-        /* 参考書AI読み取り：手動リクエスト振り分けUI */
-        .rb-group-header {
-            flex-basis: 100%; display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
-            flex-wrap: wrap; font-size: 0.78rem; color: var(--text-bright-muted); margin-bottom: 0.2rem;
+        /* 🗂️ リクエスト枠（チャンク）専用UI */
+        .chunk-groups-wrap { display: flex; flex-direction: column; gap: 0.8rem; margin-top: 0.4rem; }
+        .chunk-card {
+            background: rgba(255, 255, 255, 0.02); border: 1px solid #22222a;
+            border-radius: 14px; padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.6rem;
+            transition: border-color 150ms ease;
         }
-        .rb-mini-link-btn {
-            background: transparent; border: none; color: var(--accent-cyan); font-size: 0.75rem; font-weight: 800;
-            cursor: pointer; text-decoration: underline; padding: 0; white-space: nowrap;
+        .chunk-card:hover { border-color: rgba(0, 243, 255, 0.35); }
+        .chunk-card-head { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; }
+        .chunk-card-title {
+            font-size: 0.82rem; font-weight: 800; color: var(--accent-cyan); display: flex; align-items: center; gap: 0.5rem;
         }
-        .photo-thumb-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
-        .photo-thumb-group-select {
-            font-size: 0.65rem; background: #000; color: var(--text-bright-muted); border: 1px solid #22222a;
-            border-radius: 6px; padding: 0.15rem 0.2rem; width: 72px;
+        .chunk-card-badge { font-size: 0.7rem; color: var(--text-muted); font-weight: 700; }
+        .chunk-delete-btn {
+            background: transparent; border: 1px solid #ff4545; color: #ff4545; border-radius: 6px;
+            padding: 0.2rem 0.5rem; font-size: 0.68rem; cursor: pointer; font-weight: 800;
         }
+        .chunk-delete-btn:hover { background: rgba(255, 69, 69, 0.15); }
+        .chunk-thumbs-row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+        .chunk-add-photo-btn {
+            width: 72px; height: 72px; border-radius: 10px; border: 1px dashed #33333e;
+            background: rgba(255, 255, 255, 0.02); color: var(--text-muted);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 0.2rem; cursor: pointer; font-size: 0.68rem; font-weight: 800; flex-shrink: 0;
+            transition: all 150ms ease;
+        }
+        .chunk-add-photo-btn:hover {
+            border-color: var(--accent-cyan); color: var(--accent-cyan); background: rgba(0, 243, 255, 0.06);
+        }
+        .add-chunk-row { margin-top: 0.6rem; }
 
         .extracted-item {
             border: 1px solid #22222a; border-radius: 14px; padding: 1.2rem; margin-top: 1rem; background: rgba(255,255,255,0.02);
@@ -162,9 +179,6 @@
 
         .rb-modal-content { width: 92%; max-width: 720px; max-height: 92vh; overflow-y: auto; }
 
-        /* 🩹【修正】style.css側には.modal-overlay/.modal-contentの基底定義が無いため、
-           ここで明示的に定義する（無いと画面中央固定のポップアップにならず、
-           通常のページ要素としてそのまま縦に積まれて表示されてしまう） */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -216,7 +230,7 @@
             font-size: 0.72rem; color: var(--accent-cyan); font-weight: 800; margin-bottom: 0.5rem;
         }
 
-        /* 📝 自分用メモ（一問一答・保存されないその場だけのメモ） */
+        /* 📝 自分用メモ */
         .scratch-memo-row { margin-top: 1.2rem; }
         .scratch-memo-label {
             font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.4rem;
@@ -383,7 +397,7 @@
         <div class="squircle-tile modal-content rb-modal-content glass-card">
             <div class="tile-header-group">
                 <span class="badge badge-ai" style="color: var(--accent-cyan);">📸 参考書の写真から問題を登録</span>
-                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.4rem;">同じページ内の複数の問題（例：WARMING UP①〜⑤、基本例題1など）はまとめて1回で読み取れます。</p>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.4rem;">リクエスト枠ごとに写真を追加できます（1枠につき2〜3枚推奨）。各枠がそれぞれ並列でAIに送信されます。</p>
             </div>
 
             <div class="rb-form-row">
@@ -414,11 +428,13 @@
                 </div>
             </div>
 
+            <!-- 🗂️ リクエスト枠（チャンク）コンテナ -->
             <div class="rb-form-row">
-                <label class="rb-form-label">問題ページの写真（複数選択可）</label>
-                <input type="file" accept="image/*" multiple id="register-image-input" style="display:none;">
-                <button type="button" class="tactile-btn tactile-btn-secondary" id="register-image-trigger-btn">🖼️ 写真を選択</button>
-                <div class="photo-thumb-strip" id="register-photo-preview"></div>
+                <label class="rb-form-label">問題ページの写真（リクエストごとに整理）</label>
+                <div class="chunk-groups-wrap" id="chunk-groups-container"></div>
+                <div class="add-chunk-row">
+                    <button type="button" class="tactile-btn tactile-btn-secondary" id="add-chunk-btn" style="width:100%; padding:0.6rem; font-size:0.82rem;">＋ 新しいリクエスト枠を追加</button>
+                </div>
             </div>
 
             <div class="rb-form-row">
@@ -521,14 +537,15 @@
         let currentQuizIndex = 0;
         let solvedInThisRun = {}; // problemId -> true（今回のセッションで解答表示済み）
 
-        let pendingImages = [];   // 登録モーダルで選択中の画像 {mimeType, base64, dataUrl, group}
-        let groupsDirty = false;  // true = ユーザーが手動でリクエスト振り分けを編集済み（自動再計算しない）
+        // 🗂️ リクエスト枠（チャンク）リスト: [ { id: string, images: [{mimeType, base64, dataUrl}] }, ... ]
+        let chunkGroups = [{ id: "chunk_1", images: [] }];
+        let nextChunkId = 2;
+
         let pendingExtracted = []; // AI読み取り結果のプレビュー行 {number,type,question,hasFigure,answer,explanation,answerGenerated,include}
 
-        let problemImagesCache = {}; // problemId -> [dataUrl, ...]（一度取得した元写真をキャッシュ）
-        let scratchMemos = {}; // problemId -> 自分用メモ（保存しない・ページを閉じたら消える一時メモ）
+        let problemImagesCache = {}; // problemId -> [dataUrl, ...]
+        let scratchMemos = {}; // problemId -> 自分用メモ
 
-        // "data:image/jpeg;base64,xxxx" 形式のURLをGemini用 {mimeType, data} に分解
         function dataUrlToInlineData(dataUrl) {
             const m = /^data:([^;]+);base64,(.*)$/s.exec(dataUrl || "");
             if (!m) return null;
@@ -546,7 +563,7 @@
         let editingProblemId = null;
 
         // ----------------------------------------------------------------
-        // 画像圧縮（OCR精度を優先してやや高めの解像度・画質で保持）
+        // 画像圧縮（OCR精度優先：長辺1600px / JPEG 0.85）
         // ----------------------------------------------------------------
         function compressImageForOcr(file) {
             return new Promise((resolve, reject) => {
@@ -718,7 +735,6 @@
         // 単元詳細（一問一答）
         // ----------------------------------------------------------------
         function naturalSortKey(p) {
-            // number文字列から先頭の数字を拾って並び替えの目安にする（例："基本例題1"→1, "WARMING UP③"→拾えなければorder頼み）
             const m = String(p.number || "").match(/\d+/);
             return m ? parseInt(m[0], 10) : 999999;
         }
@@ -813,7 +829,6 @@
             document.getElementById("quiz-answer-text").innerHTML = renderMathText(p.answer || "（解答なし）");
             document.getElementById("quiz-explanation-text").innerHTML = renderMathText(p.explanation || "（解説なし）");
 
-            // 📝 自分用メモ（この問題のぶんを復元。保存はしない）
             const scratchTa = document.getElementById("quiz-scratch-memo");
             scratchTa.value = scratchMemos[pid] || "";
             updateScratchMemoRecap(pid);
@@ -823,7 +838,6 @@
             document.getElementById("quiz-answer-block").classList.remove("open");
             document.getElementById("quiz-reveal-row").style.display = "flex";
 
-            // 🖼️ 図・元写真の表示
             document.getElementById("quiz-figure-badge").style.display = p.hasFigure ? "inline-flex" : "none";
             loadQuizFigures(pid, !!p.hasFigure);
 
@@ -833,8 +847,6 @@
             typesetMath([document.getElementById("quiz-active-area")]);
         }
 
-        // 📝 自分用メモ（一問一答内だけのその場メモ・DB保存なし）
-        // 入力するたびに更新し、答え・解説と一緒に見比べられるようリキャップ欄にも反映する
         document.getElementById("quiz-scratch-memo").addEventListener("input", (e) => {
             const pid = currentQuizList[currentQuizIndex];
             if (!pid) return;
@@ -855,8 +867,6 @@
             }
         }
 
-        // 🖼️ 現在の問題に紐づく元写真を取得してギャラリーにセットする
-        //    hasFigure が true の場合は最初から開いた状態で表示する
         async function loadQuizFigures(problemId, autoOpen) {
             const toggleBtn = document.getElementById("quiz-figure-toggle-btn");
             const gallery = document.getElementById("quiz-figure-gallery");
@@ -870,11 +880,10 @@
                 try {
                     const snap = await get(ref(database, "users/" + currentUser.uid + "/refBookProblemImages/" + problemId));
                     if (snap.exists()) images = snap.val().images || [];
-                } catch (e) { /* 画像なしでも続行 */ }
+                } catch (e) { /* noop */ }
                 problemImagesCache[problemId] = images;
             }
 
-            // 表示中の問題が切り替わっていないか確認（非同期取得中の競合防止）
             if (currentQuizList[currentQuizIndex] !== problemId) return;
             if (images.length === 0) return;
 
@@ -927,7 +936,6 @@
             renderQuizCard();
         });
 
-        // 「わからなかった → 誤答ノートへ」
         document.getElementById("quiz-dunno-btn").addEventListener("click", async () => {
             const pid = currentQuizList[currentQuizIndex];
             await sendToMistakeNotebook(pid);
@@ -945,7 +953,7 @@
                 try {
                     const imgSnap = await get(ref(database, "users/" + currentUser.uid + "/refBookProblemImages/" + problemId));
                     if (imgSnap.exists()) images = imgSnap.val().images || [];
-                } catch (e) { /* 画像なしでも続行 */ }
+                } catch (e) { /* noop */ }
 
                 let thumb = null;
                 if (images.length > 0) {
@@ -993,7 +1001,7 @@
         // ----------------------------------------------------------------
         // 編集モーダル
         // ----------------------------------------------------------------
-        let editAnswerGeneratedFlag = false; // 現在編集中の解答が「AIが作成したもの」かどうか
+        let editAnswerGeneratedFlag = false;
 
         async function openEditModal(problemId) {
             const p = problemsCache[problemId];
@@ -1007,7 +1015,6 @@
             editAnswerGeneratedFlag = !!p.answerGenerated;
             document.getElementById("edit-modal").style.display = "flex";
 
-            // 登録済みの元写真をプレビュー表示（あれば）
             const previewRow = document.getElementById("edit-figure-preview-row");
             const previewStrip = document.getElementById("edit-figure-preview");
             previewRow.style.display = "none";
@@ -1018,7 +1025,7 @@
                 try {
                     const snap = await get(ref(database, "users/" + currentUser.uid + "/refBookProblemImages/" + problemId));
                     if (snap.exists()) images = snap.val().images || [];
-                } catch (e) { /* 画像なしでも続行 */ }
+                } catch (e) { /* noop */ }
                 problemImagesCache[problemId] = images;
             }
             if (images.length > 0 && editingProblemId === problemId) {
@@ -1041,7 +1048,6 @@
             if (e.target.id === "edit-modal") document.getElementById("edit-modal").style.display = "none";
         });
 
-        // 🤖 登録済みの問題に対して、後からAIに解答・解説を作らせる
         const REFBOOK_ANSWER_SCHEMA = {
             type: "OBJECT",
             properties: {
@@ -1088,7 +1094,6 @@
             }
         });
 
-        // 解答・解説を手動で編集したら「AI作成」フラグを外す
         ["edit-answer-input", "edit-explanation-input"].forEach(id => {
             document.getElementById(id).addEventListener("input", () => { editAnswerGeneratedFlag = false; });
         });
@@ -1127,7 +1132,7 @@
         });
 
         // ----------------------------------------------------------------
-        // 登録モーダル
+        // 📸 登録モーダル & 🗂️ リクエスト枠UI
         // ----------------------------------------------------------------
         function renderUnitSelectOptions() {
             const select = document.getElementById("register-unit-select");
@@ -1154,10 +1159,10 @@
         }
 
         function resetRegisterModal() {
-            pendingImages = [];
-            groupsDirty = false;
+            chunkGroups = [{ id: "chunk_1", images: [] }];
+            nextChunkId = 2;
             pendingExtracted = [];
-            document.getElementById("register-photo-preview").innerHTML = "";
+            renderChunkGroups();
             document.getElementById("extracted-items-container").innerHTML = "";
             document.getElementById("save-extracted-btn").style.display = "none";
             document.getElementById("unit-new-row").style.display = "none";
@@ -1191,118 +1196,96 @@
             showToast("単元を作成しました。", "info");
         });
 
-        document.getElementById("register-image-trigger-btn").addEventListener("click", () => {
-            document.getElementById("register-image-input").click();
-        });
-        document.getElementById("register-image-input").addEventListener("change", async (e) => {
-            const files = Array.from(e.target.files || []);
-            for (const file of files) {
-                try {
-                    const img = await compressImageForOcr(file);
-                    if (groupsDirty) {
-                        // 手動編集済みの場合、既存の最後のリクエストに空きがあればそこへ、無ければ新しいリクエストへ
-                        const size = REFBOOK_EXTRACT_CHUNK_SIZE;
-                        const lastGroup = pendingImages.length ? Math.max(...pendingImages.map(im => im.group)) : 1;
-                        const lastGroupCount = pendingImages.filter(im => im.group === lastGroup).length;
-                        img.group = (pendingImages.length === 0 || lastGroupCount < size) ? lastGroup : lastGroup + 1;
-                    }
-                    pendingImages.push(img);
-                }
-                catch (err) { console.error("画像読み込み失敗:", err); }
-            }
-            renderPendingImagePreview();
-            e.target.value = "";
-        });
+        // 🗂️ リクエスト枠のレンダリング
+        function renderChunkGroups() {
+            const container = document.getElementById("chunk-groups-container");
+            if (!container) return;
 
-        // 選択順の位置ベースでREFBOOK_EXTRACT_CHUNK_SIZE枚ずつのリクエストに自動振り分けする。
-        // 最後の1枚だけ余る場合は、問題と解答が引き裂かれないよう直前のリクエストに吸収する。
-        function autoAssignGroups(images) {
-            const size = REFBOOK_EXTRACT_CHUNK_SIZE;
-            images.forEach((img, i) => { img.group = Math.floor(i / size) + 1; });
-            const maxGroup = images.length ? images[images.length - 1].group : 0;
-            if (maxGroup > 1 && images.filter(img => img.group === maxGroup).length === 1) {
-                images.filter(img => img.group === maxGroup)[0].group = maxGroup - 1;
-            }
-        }
+            container.innerHTML = chunkGroups.map((group, gIdx) => {
+                const count = group.images.length;
+                const countBadge = count > 0 ? `(${count} / 3枚 推奨)` : "(0枚・写真を追加してください)";
+                const canDelete = chunkGroups.length > 1;
 
-        // グループ番号の欠番（途中のグループが空になった等）を詰めて1,2,3...に振り直す
-        function compactGroups(images) {
-            const renumber = new Map();
-            let next = 1;
-            images.forEach(img => {
-                if (!renumber.has(img.group)) renumber.set(img.group, next++);
-                img.group = renumber.get(img.group);
-            });
-        }
-
-        function onGroupSelectChange(idx, newGroup) {
-            const size = REFBOOK_EXTRACT_CHUNK_SIZE;
-            const countInTarget = pendingImages.filter((img, j) => j !== idx && img.group === newGroup).length;
-            if (countInTarget >= size) {
-                showToast(`1リクエストにつき最大${size}枚までです。`, "error");
-                renderPendingImagePreview();
-                return;
-            }
-            pendingImages[idx].group = newGroup;
-            groupsDirty = true;
-            compactGroups(pendingImages);
-            renderPendingImagePreview();
-        }
-
-        function renderPendingImagePreview() {
-            if (!groupsDirty) autoAssignGroups(pendingImages);
-            compactGroups(pendingImages);
-
-            const container = document.getElementById("register-photo-preview");
-            const size = REFBOOK_EXTRACT_CHUNK_SIZE;
-            const showGrouping = pendingImages.length > size;
-            const groupCount = pendingImages.length ? Math.max(...pendingImages.map(img => img.group)) : 0;
-
-            const header = showGrouping ? `
-                <div class="rb-group-header">
-                    <span>🗂️ ${groupCount}件のリクエストに分割されます（枚数が多いと処理が遅くなるため）。写真ごとに送信先を変更できます。</span>
-                    <button type="button" id="reset-groups-btn" class="rb-mini-link-btn">自動振り分けに戻す</button>
-                </div>` : "";
-
-            container.innerHTML = header + pendingImages.map((img, i) => `
-                <div class="photo-thumb-wrap">
+                const thumbsHtml = group.images.map((img, iIdx) => `
                     <div class="photo-thumb">
-                        <img src="${img.dataUrl}" data-preview-idx="${i}" style="cursor: zoom-in;">
-                        <div class="photo-thumb-remove" data-remove-pending-img="${i}">×</div>
+                        <img src="${img.dataUrl}" data-preview-chunk="${gIdx}" data-preview-img="${iIdx}" style="cursor: zoom-in;">
+                        <div class="photo-thumb-remove" data-remove-chunk="${gIdx}" data-remove-img="${iIdx}" title="この写真を削除">×</div>
                     </div>
-                    ${showGrouping ? `
-                    <select class="photo-thumb-group-select" data-group-select="${i}">
-                        ${Array.from({ length: groupCount + 1 }, (_, gi) => gi + 1).map(g =>
-                            `<option value="${g}" ${img.group === g ? "selected" : ""}>リクエスト${g}</option>`
-                        ).join("")}
-                    </select>` : ""}
-                </div>
-            `).join("");
+                `).join("");
 
-            container.querySelectorAll("[data-remove-pending-img]").forEach(btn => {
-                btn.addEventListener("click", () => {
-                    pendingImages.splice(parseInt(btn.getAttribute("data-remove-pending-img"), 10), 1);
-                    renderPendingImagePreview();
-                });
-            });
-            container.querySelectorAll("[data-preview-idx]").forEach(imgEl => {
+                return `
+                    <div class="chunk-card" data-chunk-idx="${gIdx}">
+                        <div class="chunk-card-head">
+                            <div class="chunk-card-title">
+                                <span>🗂️ リクエスト #${gIdx + 1}</span>
+                                <span class="chunk-card-badge">${countBadge}</span>
+                            </div>
+                            ${canDelete ? `<button type="button" class="chunk-delete-btn" data-delete-chunk="${gIdx}">🗑 枠を削除</button>` : ""}
+                        </div>
+                        <div class="chunk-thumbs-row">
+                            ${thumbsHtml}
+                            <label class="chunk-add-photo-btn" title="このリクエスト枠に写真を追加">
+                                <span style="font-size: 1.1rem; line-height: 1;">＋</span>
+                                <span>写真追加</span>
+                                <input type="file" accept="image/*" multiple data-file-chunk="${gIdx}" style="display:none;">
+                            </label>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+
+            // 写真プレビュー（拡大）
+            container.querySelectorAll("[data-preview-chunk]").forEach(imgEl => {
                 imgEl.addEventListener("click", () => {
-                    openLightbox(pendingImages[parseInt(imgEl.getAttribute("data-preview-idx"), 10)].dataUrl);
+                    const gIdx = parseInt(imgEl.getAttribute("data-preview-chunk"), 10);
+                    const iIdx = parseInt(imgEl.getAttribute("data-preview-img"), 10);
+                    openLightbox(chunkGroups[gIdx].images[iIdx].dataUrl);
                 });
             });
-            container.querySelectorAll("[data-group-select]").forEach(sel => {
-                sel.addEventListener("change", () => {
-                    onGroupSelectChange(parseInt(sel.getAttribute("data-group-select"), 10), parseInt(sel.value, 10));
+
+            // 写真の個別削除
+            container.querySelectorAll("[data-remove-chunk]").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const gIdx = parseInt(btn.getAttribute("data-remove-chunk"), 10);
+                    const iIdx = parseInt(btn.getAttribute("data-remove-img"), 10);
+                    chunkGroups[gIdx].images.splice(iIdx, 1);
+                    renderChunkGroups();
                 });
             });
-            const resetBtn = document.getElementById("reset-groups-btn");
-            if (resetBtn) {
-                resetBtn.addEventListener("click", () => {
-                    groupsDirty = false;
-                    renderPendingImagePreview();
+
+            // リクエスト枠の削除
+            container.querySelectorAll("[data-delete-chunk]").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const gIdx = parseInt(btn.getAttribute("data-delete-chunk"), 10);
+                    chunkGroups.splice(gIdx, 1);
+                    renderChunkGroups();
                 });
-            }
+            });
+
+            // 写真ファイル選択ハンドラ
+            container.querySelectorAll("[data-file-chunk]").forEach(input => {
+                input.addEventListener("change", async (e) => {
+                    const gIdx = parseInt(input.getAttribute("data-file-chunk"), 10);
+                    const files = Array.from(e.target.files || []);
+                    for (const file of files) {
+                        try {
+                            const img = await compressImageForOcr(file);
+                            chunkGroups[gIdx].images.push(img);
+                        } catch (err) {
+                            console.error("画像読み込み失敗:", err);
+                        }
+                    }
+                    renderChunkGroups();
+                    e.target.value = "";
+                });
+            });
         }
+
+        // 「＋ 新しいリクエスト枠を追加」
+        document.getElementById("add-chunk-btn").addEventListener("click", () => {
+            chunkGroups.push({ id: "chunk_" + (nextChunkId++), images: [] });
+            renderChunkGroups();
+        });
 
         const REFBOOK_EXTRACT_SCHEMA = {
             type: "OBJECT",
@@ -1352,24 +1335,6 @@
 出力は指定のJSON構造のみとし、他の説明文は一切含めないこと。
 `.trim();
 
-        // 🩹【大量枚数タイムアウト対策】写真が多いほど1リクエストのpayloadと推論時間が増え、
-        //   登録キー数×モデル数ぶんの直列リトライと相まってタイムアウトしやすくなっていたため、
-        //   一定枚数を超えたら複数の小さなリクエストに分割して並列実行するように変更。
-        //   デフォルトは選択順に自動でグループ分けされるが、ページをまたぐ問題がある場合に
-        //   備えて写真ごとに送信先リクエストを手動で変更できる（renderPendingImagePreview参照）。
-        const REFBOOK_EXTRACT_CHUNK_SIZE = 3; // 1リクエストあたりの最大画像枚数
-
-        // 各画像の .group（renderPendingImagePreviewで自動 or 手動設定）に従ってリクエスト単位にまとめる
-        function buildChunksFromGroups(images) {
-            const map = new Map();
-            images.forEach(img => {
-                const g = img.group || 1;
-                if (!map.has(g)) map.set(g, []);
-                map.get(g).push(img);
-            });
-            return Array.from(map.keys()).sort((a, b) => a - b).map(g => map.get(g));
-        }
-
         function buildExtractParts(imageChunk, totalChunks) {
             const parts = [{ text: "このページに写っている問題をすべて指定のJSONで抽出してください。" }];
             imageChunk.forEach(img => {
@@ -1384,31 +1349,28 @@
             return parts;
         }
 
+        // ✨ AIで問題を読み取る（有効なリクエスト枠を並列実行）
         document.getElementById("run-extract-btn").addEventListener("click", async () => {
-            if (pendingImages.length === 0) {
-                showToast("写真を選択してください。", "error");
+            const validChunks = chunkGroups.map(g => g.images).filter(imgs => imgs.length > 0);
+            if (validChunks.length === 0) {
+                showToast("写真を1枚以上追加してください。", "error");
                 return;
             }
             const btn = document.getElementById("run-extract-btn");
             btn.disabled = true;
 
-            const chunks = buildChunksFromGroups(pendingImages);
-            btn.textContent = chunks.length > 1
-                ? `Gemini Visionが読み取り中...（${chunks.length}件に分割して並列処理）`
+            btn.textContent = validChunks.length > 1
+                ? `Gemini Visionが読み取り中...（${validChunks.length}件に分割して並列処理）`
                 : "Gemini Visionが読み取り中...";
 
             try {
-                // 🩹【並列リクエスト429対策】全チャンクが同時に「先頭キー」へ殺到しないよう、
-                //   チャンクごとに開始キーをずらす（keyOffset）。
-                //   登録キー数よりチャンク数が多い場合はキーが一巡して同じキーを再利用する
-                //   チャンクが出てくるので、その「2周目以降」の波だけ少し発火を遅らせる。
                 const effectiveKeyCount = Math.max(1, getEffectiveGeminiKeys("refbook_extract").length);
-                const CHUNK_STAGGER_MS = 400; // 同じキーを再利用する波を遅らせる間隔
+                const CHUNK_STAGGER_MS = 400;
 
                 const results = await Promise.allSettled(
-                    chunks.map((chunk, idx) => {
-                        const wave = Math.floor(idx / effectiveKeyCount); // 0=キーが被らない1周目、1以降=キー再利用
-                        const fire = () => callGeminiJSON(buildExtractParts(chunk, chunks.length), REFBOOK_EXTRACT_PROMPT, {
+                    validChunks.map((chunk, idx) => {
+                        const wave = Math.floor(idx / effectiveKeyCount);
+                        const fire = () => callGeminiJSON(buildExtractParts(chunk, validChunks.length), REFBOOK_EXTRACT_PROMPT, {
                             temperature: 0.2, responseSchema: REFBOOK_EXTRACT_SCHEMA, featureId: "refbook_extract",
                             keyOffset: idx
                         });
@@ -1455,7 +1417,7 @@
                     renderExtractedItems();
                     document.getElementById("save-extracted-btn").style.display = "inline-flex";
                     const partialNote = failedCount > 0
-                        ? `（${chunks.length}件中${failedCount}件は読み取りに失敗しました。不足分は写真を分けて再登録してください）`
+                        ? `（${validChunks.length}件中${failedCount}件は読み取りに失敗しました。不足分は写真を分けて再登録してください）`
                         : "";
                     showToast(`${pendingExtracted.length}問読み取りました。内容を確認して登録してください。${partialNote}`, failedCount > 0 ? "error" : "info", failedCount > 0 ? 8000 : undefined);
                 }
@@ -1468,10 +1430,6 @@
             }
         });
 
-        // 🩹【並び順の手直し用】問題番号文字列（"基本例題1"「WARMING UP①」等）から
-        //   先頭に現れる数字を拾って自然順ソートするための簡易ヘルパー。
-        //   丸数字(①〜⑳)も数字として扱えるよう先に変換してから拾う。
-        //   数字が見つからない場合は末尾に回す（元の順序内での相対位置は安定ソートで維持される）。
         function circledToDigit(str) {
             return String(str || "").replace(/[\u2460-\u2473]/g, ch => String(ch.codePointAt(0) - 0x2460 + 1));
         }
@@ -1480,7 +1438,6 @@
             return m ? parseInt(m[0], 10) : Number.POSITIVE_INFINITY;
         }
         function sortExtractedByNumber(items) {
-            // Array#sortは安定ソートなので、番号が同じ/無い項目同士は元の順序のまま保たれる
             return [...items].sort((a, b) => extractLeadingNumber(a.number) - extractLeadingNumber(b.number));
         }
 
@@ -1490,8 +1447,6 @@
                 container.innerHTML = "";
                 return;
             }
-            // 🩹【並び順の手直し】並列チャンク処理そのものは写真の順番どおりにマージされるが、
-            //   AIの読み取り結果自体が前後することもあるため、登録前にここで手直しできるようにする。
             const toolbar = `
                 <div class="extracted-items-toolbar">
                     <button type="button" class="tactile-btn tactile-btn-secondary" id="sort-extracted-btn" style="padding:0.5rem 1rem; font-size:0.78rem;">🔢 問題番号順に並び替え</button>
@@ -1544,7 +1499,7 @@
                     const eventName = fieldEl.type === "checkbox" ? "change" : "input";
                     fieldEl.addEventListener(eventName, () => {
                         pendingExtracted[idx][field] = fieldEl.type === "checkbox" ? fieldEl.checked : fieldEl.value;
-                        if (field === "answer") pendingExtracted[idx].answerGenerated = false; // 手動修正したらAI作成フラグは外す
+                        if (field === "answer") pendingExtracted[idx].answerGenerated = false;
                     });
                 });
                 itemEl.querySelectorAll("[data-move]").forEach(moveBtn => {
@@ -1581,7 +1536,7 @@
             btn.textContent = "登録中...";
 
             try {
-                const imagesToStore = pendingImages.map(img => img.dataUrl);
+                const imagesToStore = chunkGroups.flatMap(g => g.images).map(img => img.dataUrl);
                 let i = 0;
                 for (const item of toSave) {
                     const newId = "RB_" + Date.now() + "_" + (i++);
