@@ -81,6 +81,97 @@
         }
         .count-btn.active { background: var(--accent-cyan); color: #000; border-color: var(--accent-cyan); box-shadow: 0 0 10px rgba(0,243,255,0.3); }
         .setup-hint { font-size: 0.75rem; color: var(--text-muted); }
+
+        /* ===== モード切り替えトグル ===== */
+        .mode-toggle-group {
+            display: flex;
+            gap: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+        .mode-toggle-btn {
+            flex: 1;
+            padding: 0.8rem 1rem;
+            background: #0a0a12;
+            color: var(--text-bright-muted);
+            border: none;
+            font-size: 0.9rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 200ms ease;
+            text-align: center;
+            letter-spacing: 0.3px;
+        }
+        .mode-toggle-btn:first-child { border-right: 1px solid var(--border-color); }
+        .mode-toggle-btn.active {
+            background: rgba(0, 243, 255, 0.12);
+            color: var(--accent-cyan);
+            box-shadow: inset 0 0 16px rgba(0,243,255,0.08);
+        }
+        .mode-toggle-btn[data-mode="registered"].active {
+            background: rgba(255, 245, 0, 0.1);
+            color: var(--accent-yellow);
+            box-shadow: inset 0 0 16px rgba(255,245,0,0.08);
+        }
+
+        /* ===== 登録済みモード用UI ===== */
+        .registered-mode-section { display: none; flex-direction: column; gap: 1rem; }
+        .registered-mode-section.visible { display: flex; }
+
+        .subject-tab-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .reg-subject-btn {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-bright-muted);
+            border: 1px solid #22222a;
+            padding: 0.45rem 0.9rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.1, 0.8, 0.2, 1);
+        }
+        .reg-subject-btn:hover {
+            background: rgba(255, 245, 0, 0.08);
+            border-color: var(--accent-yellow);
+            color: #fff;
+        }
+        .reg-subject-btn.active {
+            background: var(--accent-yellow) !important;
+            color: #000 !important;
+            font-weight: 900;
+            box-shadow: 0 0 12px rgba(255, 245, 0, 0.25);
+            border-color: var(--accent-yellow) !important;
+        }
+
+        .reg-field-select {
+            width: 100%;
+            background: #0a0a12;
+            color: var(--accent-yellow);
+            border: 1px solid rgba(255, 245, 0, 0.4);
+            padding: 0.7rem 1rem;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 800;
+            cursor: pointer;
+            outline: none;
+            box-shadow: 0 0 8px rgba(255, 245, 0, 0.1);
+        }
+
+        .reg-stats-badge {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.03);
+            border: 1px dashed rgba(255,255,255,0.08);
+            text-align: center;
+        }
+        .reg-stats-badge strong { color: var(--accent-yellow); }
     </style>
 </head>
 <body>
@@ -110,26 +201,65 @@
         <div id="sprint-setup-zone" class="squircle-tile setup-card">
             <div>
                 <span style="font-weight: 900; letter-spacing: -1px; color: var(--accent-cyan); font-size: 1.3rem;">🎯 CUSTOM SPRINT</span>
-                <p style="color: var(--text-muted); margin-top: 0.4rem; font-size: 0.85rem;">分野・難易度・問題数を指定して、AIにその場でタイムアタック問題を作らせます。（数学）</p>
+                <p style="color: var(--text-muted); margin-top: 0.4rem; font-size: 0.85rem;" id="setup-desc">分野・難易度・問題数を指定して、AIにその場でタイムアタック問題を作らせます。（数学）</p>
             </div>
 
+            <!-- ① モード切り替えトグル -->
             <div>
-                <div class="setup-label">📝 分野・単元（空欄なら数学全範囲からランダム）</div>
-                <input type="text" id="field-input" class="setup-input" placeholder="例：三角関数、ベクトル、数列、確率 など">
-                <div class="setup-hint">カンマ区切りで複数指定してもOK（例：三角関数, 図形と方程式）</div>
+                <div class="setup-label">⚡ 出題モード</div>
+                <div class="mode-toggle-group" id="mode-toggle-group">
+                    <button type="button" class="mode-toggle-btn active" data-mode="ai" id="btn-mode-ai">🤖 AIに新規生成させる</button>
+                    <button type="button" class="mode-toggle-btn" data-mode="registered" id="btn-mode-registered">📚 登録済みの誤答から出題</button>
+                </div>
             </div>
 
-            <div>
-                <div class="setup-label">🎚️ 難易度</div>
-                <select id="level-select" class="setup-select">
-                    <option value="教科書レベル（基礎の基礎から）">教科書レベル（基礎の基礎から）</option>
-                    <option value="定期テストレベル">定期テストレベル</option>
-                    <option value="入試基礎レベル">入試基礎レベル</option>
-                    <option value="入試標準〜応用レベル" selected>入試標準〜応用レベル</option>
-                    <option value="最難関大学レベル（超ハイレベル・かなり難しめ）">最難関大学レベル（超ハイレベル・かなり難しめ）</option>
-                </select>
+            <!-- ② AIモード専用フォーム -->
+            <div id="ai-mode-section">
+                <div style="display: flex; flex-direction: column; gap: 1.2rem;">
+                    <div>
+                        <div class="setup-label">📝 分野・単元（空欄なら数学全範囲からランダム）</div>
+                        <input type="text" id="field-input" class="setup-input" placeholder="例：三角関数、ベクトル、数列、確率 など">
+                        <div class="setup-hint">カンマ区切りで複数指定してもOK（例：三角関数, 図形と方程式）</div>
+                    </div>
+
+                    <div>
+                        <div class="setup-label">🎚️ 難易度</div>
+                        <select id="level-select" class="setup-select">
+                            <option value="教科書レベル（基礎の基礎から）">教科書レベル（基礎の基礎から）</option>
+                            <option value="定期テストレベル">定期テストレベル</option>
+                            <option value="入試基礎レベル">入試基礎レベル</option>
+                            <option value="入試標準〜応用レベル" selected>入試標準〜応用レベル</option>
+                            <option value="最難関大学レベル（超ハイレベル・かなり難しめ）">最難関大学レベル（超ハイレベル・かなり難しめ）</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
+            <!-- ③ 登録済みモード専用フォーム -->
+            <div id="registered-mode-section" class="registered-mode-section">
+                <!-- 教科タブ -->
+                <div>
+                    <div class="setup-label">📚 教科</div>
+                    <div class="subject-tab-group" id="reg-subject-tab-group">
+                        <button type="button" class="reg-subject-btn active" data-subject="ALL">✨ すべて</button>
+                    </div>
+                </div>
+
+                <!-- 分類プルダウン -->
+                <div id="reg-field-row" style="display: none;">
+                    <div class="setup-label">🎯 分類（単元）</div>
+                    <select class="reg-field-select" id="reg-field-select">
+                        <option value="ALL">✨ すべての分類</option>
+                    </select>
+                </div>
+
+                <!-- マッチ件数バッジ -->
+                <div class="reg-stats-badge" id="reg-stats-badge">
+                    📋 問題を読み込み中...
+                </div>
+            </div>
+
+            <!-- ④ 問題数（共通） -->
             <div>
                 <div class="setup-label">🔢 問題数</div>
                 <div class="count-btn-group" id="count-btn-group">
@@ -209,7 +339,7 @@
 
         const { initializeApp } = await import(fbBase + "firebase-app.js");
         const { getAuth, onAuthStateChanged } = await import(fbBase + "firebase-auth.js");
-        const { getDatabase, ref, set } = await import(fbBase + "firebase-database.js");
+        const { getDatabase, ref, set, get, update } = await import(fbBase + "firebase-database.js");
 
         // Firebase設定
         const firebaseConfig = {
@@ -228,27 +358,38 @@
 
         // 🔑【複数キー対応】index.html/problem.htmlと共通の管理UIを注入（未登録なら自動で開く）
         initApiKeyManager({ needGemini: true });
-        // ✨ GEMINI_MODEL_FALLBACK_LIST / buildGeminiUrl / stripCodeFence / fixJsonEscapes / extractJsonArray は
-        //    api-key-manager.js から共通インポート（重複定義の解消）
 
+        // ==========================================================================
+        // 🗂 状態変数
+        // ==========================================================================
         let selectedQuestions = [];
         let currentQuestionIndex = 0;
         let loginUid = null;
         let startTime = 0;
         let timerInterval = null;
 
+        // 現在のモード: "ai" | "registered"
+        let currentMode = "ai";
+
+        // 登録済みモード用
+        let registeredProblemsSnapshot = {}; // { id: problemObj, ... }
+        let regSelectedSubject = "ALL";
+        let regSelectedField = "ALL";
+
         // 直近実行した条件（同じ条件でもう一周・作り直し用）
-        let lastCondition = { fieldText: "", levelText: "", count: 10 };
+        let lastCondition = { mode: "ai", fieldText: "", levelText: "", count: 10, subject: "ALL", field: "ALL" };
 
         // ==========================================================================
-        // 💾【セッション永続化】別画面に行って戻ってきても続きから再開できるようにする
+        // 💾【セッション永続化】AIモードのみ。登録済みモードはリロード後セットアップに戻る
         // ==========================================================================
         const SESSION_STORAGE_KEY = "RE_MIND_CUSTOM_SPRINT_SESSION";
 
         function saveSession() {
+            if (currentMode !== "ai") return; // 登録済みモードは保存しない
             try {
                 const payload = {
                     finished: false,
+                    mode: "ai",
                     questions: selectedQuestions,
                     currentQuestionIndex: currentQuestionIndex,
                     lastCondition: lastCondition,
@@ -262,9 +403,11 @@
         }
 
         function saveFinishedSession(finalTimeText) {
+            if (currentMode !== "ai") return;
             try {
                 const payload = {
                     finished: true,
+                    mode: "ai",
                     lastCondition: lastCondition,
                     finalTime: finalTimeText
                 };
@@ -288,20 +431,20 @@
             }
         }
 
-        // ページ表示時に、前回の続き（未完了 or 直後の結果画面）があれば復元する
+        // ページ表示時に、前回の続き（AIモード・未完了 or 直後の結果画面）があれば復元する
         function restoreSessionIfAny() {
             const session = loadSession();
-            if (!session) return false;
+            if (!session || session.mode !== "ai") return false;
 
             if (session.finished) {
                 lastCondition = session.lastCondition || lastCondition;
+                currentMode = "ai";
                 document.getElementById("sprint-setup-zone").style.display = "none";
                 document.getElementById("sprint-header").style.display = "none";
                 document.getElementById("sprint-play-zone").style.display = "none";
                 document.getElementById("sprint-result-zone").style.display = "flex";
                 document.getElementById("final-time-display").textContent = session.finalTime || "00:00.00";
-                const fieldLabel = lastCondition.fieldText || "数学全範囲";
-                document.getElementById("result-summary-text").textContent = `「${fieldLabel}」×「${lastCondition.levelText}」×${lastCondition.count}問をすべてクリアしました。`;
+                document.getElementById("result-summary-text").textContent = buildResultSummary(lastCondition);
                 return true;
             }
 
@@ -309,6 +452,7 @@
                 selectedQuestions = session.questions;
                 currentQuestionIndex = session.currentQuestionIndex;
                 lastCondition = session.lastCondition || lastCondition;
+                currentMode = "ai";
                 startTime = Date.now() - (session.elapsedMs || 0);
 
                 document.getElementById("sprint-setup-zone").style.display = "none";
@@ -336,10 +480,129 @@
 
         // タブを閉じる／別ページへ移動する直前にも、途中経過を確実に保存する
         window.addEventListener("pagehide", () => {
-            if (document.getElementById("sprint-play-zone").style.display !== "none") {
+            if (currentMode === "ai" && document.getElementById("sprint-play-zone").style.display !== "none") {
                 saveSession();
             }
         });
+
+        // ==========================================================================
+        // 🎛 モード切り替えUI
+        // ==========================================================================
+        function switchMode(mode) {
+            currentMode = mode;
+            const aiSection = document.getElementById("ai-mode-section");
+            const regSection = document.getElementById("registered-mode-section");
+            const descEl = document.getElementById("setup-desc");
+            const btnAi = document.getElementById("btn-mode-ai");
+            const btnReg = document.getElementById("btn-mode-registered");
+
+            if (mode === "ai") {
+                btnAi.classList.add("active");
+                btnReg.classList.remove("active");
+                aiSection.style.display = "block";
+                regSection.classList.remove("visible");
+                descEl.textContent = "分野・難易度・問題数を指定して、AIにその場でタイムアタック問題を作らせます。（数学）";
+            } else {
+                btnReg.classList.add("active");
+                btnAi.classList.remove("active");
+                aiSection.style.display = "none";
+                regSection.classList.add("visible");
+                descEl.textContent = "LOLZに登録してある誤答問題からランダムで出題します。教科・分類で絞り込めます。";
+                buildRegisteredModeUI();
+            }
+        }
+
+        document.getElementById("btn-mode-ai").addEventListener("click", () => switchMode("ai"));
+        document.getElementById("btn-mode-registered").addEventListener("click", () => switchMode("registered"));
+
+        // ==========================================================================
+        // 📚 登録済みモード：Firebaseから問題を読み込み、教科タブ・分類DDを生成
+        // ==========================================================================
+        async function loadRegisteredProblems() {
+            if (!loginUid) return;
+            try {
+                const snap = await get(ref(database, `users/${loginUid}/problems`));
+                registeredProblemsSnapshot = snap.val() || {};
+            } catch (e) {
+                console.error("登録済み問題の読み込みに失敗:", e);
+                registeredProblemsSnapshot = {};
+            }
+            if (currentMode === "registered") buildRegisteredModeUI();
+        }
+
+        function buildRegisteredModeUI() {
+            const problems = Object.values(registeredProblemsSnapshot);
+
+            // subjectMap の構築（index.html と同じロジック）
+            const subjectMap = {}; // { "数学II": Set(["三角関数", ...]) }
+            problems.forEach(p => {
+                const sub = p.subject || "未分類";
+                const fld = p.field || "未分類";
+                if (!subjectMap[sub]) subjectMap[sub] = new Set();
+                subjectMap[sub].add(fld);
+            });
+
+            // 教科タブ生成
+            const tabGroup = document.getElementById("reg-subject-tab-group");
+            let tabHtml = `<button type="button" class="reg-subject-btn ${regSelectedSubject === 'ALL' ? 'active' : ''}" data-subject="ALL">✨ すべて</button>`;
+            Object.keys(subjectMap).sort().forEach(sub => {
+                const active = regSelectedSubject === sub ? 'active' : '';
+                tabHtml += `<button type="button" class="reg-subject-btn ${active}" data-subject="${sub}">${sub}</button>`;
+            });
+            tabGroup.innerHTML = tabHtml;
+
+            // 教科タブのクリックイベント
+            tabGroup.querySelectorAll(".reg-subject-btn").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    regSelectedSubject = btn.getAttribute("data-subject");
+                    regSelectedField = "ALL";
+                    buildRegisteredModeUI();
+                });
+            });
+
+            // 分類プルダウン生成
+            const fieldRow = document.getElementById("reg-field-row");
+            const fieldSelect = document.getElementById("reg-field-select");
+
+            if (regSelectedSubject !== "ALL" && subjectMap[regSelectedSubject]) {
+                fieldRow.style.display = "block";
+                let optHtml = `<option value="ALL">✨ ${regSelectedSubject} の全分類</option>`;
+                [...subjectMap[regSelectedSubject]].sort().forEach(fld => {
+                    const selected = regSelectedField === fld ? 'selected' : '';
+                    optHtml += `<option value="${fld}" ${selected}>${fld}</option>`;
+                });
+                fieldSelect.innerHTML = optHtml;
+                fieldSelect.onchange = (e) => {
+                    regSelectedField = e.target.value;
+                    updateRegStatsBadge();
+                };
+            } else {
+                fieldRow.style.display = "none";
+                regSelectedField = "ALL";
+            }
+
+            updateRegStatsBadge();
+        }
+
+        function getFilteredRegisteredProblems() {
+            return Object.values(registeredProblemsSnapshot).filter(p => {
+                const sub = p.subject || "未分類";
+                const fld = p.field || "未分類";
+                if (regSelectedSubject !== "ALL" && sub !== regSelectedSubject) return false;
+                if (regSelectedField !== "ALL" && fld !== regSelectedField) return false;
+                return true;
+            });
+        }
+
+        function updateRegStatsBadge() {
+            const badge = document.getElementById("reg-stats-badge");
+            const count = getFilteredRegisteredProblems().length;
+            if (count === 0) {
+                badge.innerHTML = `⚠️ この絞り込み条件に合う問題が <strong>0件</strong> です`;
+            } else {
+                badge.innerHTML = `📋 絞り込み結果: <strong>${count}件</strong> の問題が対象`;
+            }
+        }
 
         // ==========================================================================
         // 🎛【セットアップ画面の操作】
@@ -355,26 +618,40 @@
         });
 
         document.getElementById("btn-start-custom-sprint").addEventListener("click", () => {
-            const fieldText = document.getElementById("field-input").value.trim();
-            const levelText = document.getElementById("level-select").value;
-            startCustomSprint(fieldText, levelText, selectedCount);
+            if (currentMode === "ai") {
+                const fieldText = document.getElementById("field-input").value.trim();
+                const levelText = document.getElementById("level-select").value;
+                startAiSprint(fieldText, levelText, selectedCount);
+            } else {
+                startRegisteredSprint(selectedCount);
+            }
         });
 
         document.getElementById("btn-retry-same-condition").addEventListener("click", () => {
-            startCustomSprint(lastCondition.fieldText, lastCondition.levelText, lastCondition.count);
+            if (lastCondition.mode === "registered") {
+                // 登録済みモードは DB を再読みしてシャッフルし直す
+                regSelectedSubject = lastCondition.subject;
+                regSelectedField = lastCondition.field;
+                startRegisteredSprint(lastCondition.count);
+            } else {
+                startAiSprint(lastCondition.fieldText, lastCondition.levelText, lastCondition.count);
+            }
         });
 
         document.getElementById("btn-new-condition").addEventListener("click", () => {
             document.getElementById("sprint-result-zone").style.display = "none";
             document.getElementById("sprint-setup-zone").style.display = "flex";
+            // 直前のモードに合わせて表示を戻す
+            switchMode(lastCondition.mode || "ai");
         });
 
         // ==========================================================================
-        // 🛠【関数定義群】
+        // 🛠 AIモード：スプリント開始
         // ==========================================================================
-        function startCustomSprint(fieldText, levelText, count) {
-            lastCondition = { fieldText, levelText, count };
+        function startAiSprint(fieldText, levelText, count) {
+            lastCondition = { mode: "ai", fieldText, levelText, count };
             clearSession();
+            currentMode = "ai";
 
             document.getElementById("sprint-setup-zone").style.display = "none";
             document.getElementById("sprint-result-zone").style.display = "none";
@@ -392,7 +669,58 @@
             generateCustomSprintWithAI(fieldText, levelText, count);
         }
 
-        // 🔒【新設】カスタムスプリント生成の「JSON配列」構造をAPI側で強制するためのスキーマ
+        // ==========================================================================
+        // 📚 登録済みモード：スプリント開始
+        // ==========================================================================
+        function startRegisteredSprint(count) {
+            const filtered = getFilteredRegisteredProblems();
+
+            if (filtered.length === 0) {
+                showToast("この絞り込み条件に合う問題が0件です。教科・分類を変えてみてください。", "error", 4000);
+                return;
+            }
+
+            // シャッフル（Fisher-Yates）
+            const shuffled = [...filtered];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+
+            const actual = Math.min(count, shuffled.length);
+            if (actual < count) {
+                showToast(`絞り込み結果が${shuffled.length}件のため、最大${actual}問でスプリントを開始します。`, "info", 4000);
+            }
+
+            selectedQuestions = shuffled.slice(0, actual);
+            currentMode = "registered";
+            lastCondition = {
+                mode: "registered",
+                subject: regSelectedSubject,
+                field: regSelectedField,
+                count: actual
+            };
+
+            document.getElementById("sprint-setup-zone").style.display = "none";
+            document.getElementById("sprint-result-zone").style.display = "none";
+            document.getElementById("sprint-header").style.display = "flex";
+            document.getElementById("sprint-play-zone").style.display = "flex";
+
+            currentQuestionIndex = 0;
+            clearInterval(timerInterval);
+            document.getElementById("sprint-timer").textContent = "00:00.00";
+            document.getElementById("sprint-reveal-zone").style.display = "none";
+            document.getElementById("btn-reveal-ans").style.display = "block";
+
+            // ボタンラベルを登録済みモード用に変更
+            document.getElementById("btn-sprint-wrong").textContent = "❌ ミスった（記録を更新）";
+
+            startSprintTimer();
+        }
+
+        // ==========================================================================
+        // 🔒 カスタムスプリント生成の「JSON配列」構造をAPI側で強制するためのスキーマ
+        // ==========================================================================
         const CUSTOM_SPRINT_RESPONSE_SCHEMA = {
             type: "ARRAY",
             items: {
@@ -453,7 +781,6 @@ ${levelText}
                     throw new Error("GeminiのAPIキーがブラウザに設定されていません。右下の🔑ボタンから登録してください。");
                 }
 
-                // ✨ モデル×キーの二重フォールバックループは api-key-manager.js の callGeminiJSON に共通化済み
                 const aiQuestions = await callGeminiJSON(
                     [{ text: systemPrompt }],
                     "あなたは優秀なAI数学教師です。指定されたJSONフォーマットの配列のみを厳密に返してください。",
@@ -505,7 +832,7 @@ selectedQuestions = shuffled.slice(0, count).map((q, idx) => ({
             startTime = Date.now();
             timerInterval = setInterval(updateTimer, 10);
             renderQuestion();
-            saveSession();
+            if (currentMode === "ai") saveSession();
         }
 
         function updateTimer() {
@@ -523,8 +850,6 @@ selectedQuestions = shuffled.slice(0, count).map((q, idx) => ({
         }
 
         // 🧠【移植】insights.html/problem.htmlと共通の数式正規化＆穴埋め枠の修復処理。
-        //    AI生成の問題文で $...$ の外に \fbox{ア} 等が取り残されて生テキスト表示に
-        //    なってしまう不具合の対策。
         function normalizeMathSyntax(str) {
             if (!str) return "";
             let s = String(str);
@@ -573,16 +898,81 @@ selectedQuestions = shuffled.slice(0, count).map((q, idx) => ({
             document.getElementById("sprint-progress").textContent = `Q. ${currentQuestionIndex + 1} / ${selectedQuestions.length}`;
 
             const q = selectedQuestions[currentQuestionIndex];
-            document.getElementById("problem-meta").textContent = `${q.subject} // ${q.field} // AI生成`;
+
+            // モードに応じたメタ表示
+            const modeLabel = currentMode === "registered" ? "登録済み誤答" : "AI生成";
+            document.getElementById("problem-meta").textContent = `${q.subject || "?"} // ${q.field || "?"} // ${modeLabel}`;
 
             document.getElementById("problem-title-display").innerHTML = normalizeMathSyntax(q.title);
-            document.getElementById("sprint-answer-display").innerHTML = normalizeMathSyntax(q.answer);
+            document.getElementById("sprint-answer-display").innerHTML = normalizeMathSyntax(q.answer || q.answerFormula || "");
 
-            let cleanSteps = normalizeMathSyntax(q.steps || "");
+            let stepsRaw = q.steps || "";
+            // 登録済み問題は answerFormula に解説が入っている場合があるので fallback
+            if (!stepsRaw && q.answerFormula) {
+                stepsRaw = q.answerFormula;
+            }
+            let cleanSteps = normalizeMathSyntax(stepsRaw);
             cleanSteps = cleanSteps.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
             document.getElementById("sprint-steps-display").innerHTML = cleanSteps;
 
             forceTriggerMathJax();
+        }
+
+        // ==========================================================================
+        // ❌ ミスった：AIモード → Firebase に新規 set / 登録済みモード → update
+        // ==========================================================================
+        async function handleWrong() {
+            if (!loginUid) return;
+            const q = selectedQuestions[currentQuestionIndex];
+
+            if (currentMode === "registered") {
+                // 登録済みモード：既存レコードの errorCount+1、lastAttemptAt、lastResult を更新
+                const nowIso = new Date().toISOString();
+                const currentErrorCount = typeof q.errorCount === "number" ? q.errorCount : 0;
+                try {
+                    await update(ref(database, `users/${loginUid}/problems/${q.id}`), {
+                        errorCount: currentErrorCount + 1,
+                        lastAttemptAt: nowIso,
+                        lastResult: false
+                    });
+                    // ローカルのスナップショットにも反映
+                    if (registeredProblemsSnapshot[q.id]) {
+                        registeredProblemsSnapshot[q.id].errorCount = currentErrorCount + 1;
+                        registeredProblemsSnapshot[q.id].lastAttemptAt = nowIso;
+                        registeredProblemsSnapshot[q.id].lastResult = false;
+                    }
+                    showToast(`❌ ミス記録しました（誤答数: ${currentErrorCount + 1}回）`, "error", 2000);
+                } catch (e) {
+                    console.error("誤答カウント更新エラー:", e);
+                    showToast("クラウドへの更新に失敗しました。", "error");
+                }
+                nextQuestion();
+            } else {
+                // AIモード：従来通り Firebase に新規登録
+                await sendToMainRemindList();
+            }
+        }
+
+        // ✅ 解けた：AIモード → DB更新なし / 登録済みモード → lastResult:true を記録
+        async function handleCorrect() {
+            if (currentMode === "registered" && loginUid) {
+                const q = selectedQuestions[currentQuestionIndex];
+                const nowIso = new Date().toISOString();
+                try {
+                    await update(ref(database, `users/${loginUid}/problems/${q.id}`), {
+                        lastResult: true,
+                        lastAttemptAt: nowIso
+                    });
+                    // ローカルのスナップショットにも反映
+                    if (registeredProblemsSnapshot[q.id]) {
+                        registeredProblemsSnapshot[q.id].lastResult = true;
+                        registeredProblemsSnapshot[q.id].lastAttemptAt = nowIso;
+                    }
+                } catch (e) {
+                    console.error("解けた記録の更新エラー:", e);
+                }
+            }
+            nextQuestion();
         }
 
        async function sendToMainRemindList() {
@@ -621,10 +1011,21 @@ selectedQuestions = shuffled.slice(0, count).map((q, idx) => ({
 
         function nextQuestion() {
             currentQuestionIndex++;
-            if (currentQuestionIndex < selectedQuestions.length) {
+            if (currentMode === "ai" && currentQuestionIndex < selectedQuestions.length) {
                 saveSession();
             }
             renderQuestion();
+        }
+
+        function buildResultSummary(cond) {
+            if (cond.mode === "registered") {
+                const subLabel = cond.subject === "ALL" ? "すべての教科" : cond.subject;
+                const fldLabel = cond.field === "ALL" ? "すべての分類" : cond.field;
+                return `「${subLabel}」×「${fldLabel}」から${cond.count}問をすべてクリアしました。`;
+            } else {
+                const fieldLabel = cond.fieldText || "数学全範囲";
+                return `「${fieldLabel}」×「${cond.levelText}」×${cond.count}問をすべてクリアしました。`;
+            }
         }
 
         function finishSprint() {
@@ -634,11 +1035,13 @@ selectedQuestions = shuffled.slice(0, count).map((q, idx) => ({
             document.getElementById("sprint-header").style.display = "none";
             document.getElementById("sprint-result-zone").style.display = "flex";
             document.getElementById("final-time-display").textContent = finalTime;
+            document.getElementById("result-summary-text").textContent = buildResultSummary(lastCondition);
 
-            const fieldLabel = lastCondition.fieldText || "数学全範囲";
-            document.getElementById("result-summary-text").textContent = `「${fieldLabel}」×「${lastCondition.levelText}」×${lastCondition.count}問をすべてクリアしました。`;
+            // AIモードのみセッション保存
+            if (currentMode === "ai") saveFinishedSession(finalTime);
 
-            saveFinishedSession(finalTime);
+            // ボタンラベルを元に戻す
+            document.getElementById("btn-sprint-wrong").textContent = "❌ ミスった（LOLZへ送る）";
         }
 
 
@@ -651,8 +1054,8 @@ selectedQuestions = shuffled.slice(0, count).map((q, idx) => ({
             forceTriggerMathJax();
         });
 
-        document.getElementById("btn-sprint-correct").addEventListener("click", nextQuestion);
-        document.getElementById("btn-sprint-wrong").addEventListener("click", sendToMainRemindList);
+        document.getElementById("btn-sprint-correct").addEventListener("click", handleCorrect);
+        document.getElementById("btn-sprint-wrong").addEventListener("click", handleWrong);
 
 
         // ==========================================================================
@@ -661,6 +1064,8 @@ selectedQuestions = shuffled.slice(0, count).map((q, idx) => ({
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 loginUid = user.uid;
+                // 登録済み問題を事前読み込み（UIが表示される前に済ませておく）
+                loadRegisteredProblems();
                 restoreSessionIfAny();
             } else {
                 location.href = "index.html";
