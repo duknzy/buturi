@@ -99,13 +99,13 @@ export default function App() {
       if (user) {
         setIsSyncing(true);
         // Subscribe to real-time todos from Firebase Cloud
-        unsubscribeTodos = subscribeToCloudTodos(user.uid, (cloudTodos) => {
+        unsubscribeTodos = subscribeToCloudTodos(user.uid, (cloudTodos, exists) => {
           setIsSyncing(false);
-          if (cloudTodos && cloudTodos.length > 0) {
-            setTodos(cloudTodos);
-            saveTodos(cloudTodos);
+          if (exists) {
+            setTodos(cloudTodos || []);
+            saveTodos(cloudTodos || []);
           } else {
-            // If cloud is empty, upload local todos if any exist
+            // Node does not exist yet on cloud (first time sync). Upload local todos if any.
             const localTodos = loadTodos();
             if (localTodos && localTodos.length > 0) {
               saveTodosToCloud(user.uid, localTodos);

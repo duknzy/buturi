@@ -64,7 +64,9 @@ export async function saveTodosToCloud(uid: string, todos: TodoItem[]): Promise<
   if (!uid) return;
   try {
     const todosRef = ref(database, `users/${uid}/todos`);
-    await set(todosRef, todos);
+    // Firebase Realtime Database rejects `undefined` values. Sanitize by serializing.
+    const sanitized = JSON.parse(JSON.stringify(todos));
+    await set(todosRef, sanitized);
   } catch (error) {
     console.error('Failed to save todos to Firebase:', error);
     throw error;
@@ -95,21 +97,21 @@ export async function loadTodosFromCloud(uid: string): Promise<TodoItem[] | null
 // Real-time Subscribe to Todos in Cloud
 export function subscribeToCloudTodos(
   uid: string,
-  callback: (todos: TodoItem[]) => void
+  callback: (todos: TodoItem[], exists: boolean) => void
 ): Unsubscribe {
   const todosRef = ref(database, `users/${uid}/todos`);
   return onValue(todosRef, (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.val();
       if (Array.isArray(data)) {
-        callback(data);
+        callback(data, true);
       } else if (typeof data === 'object' && data !== null) {
-        callback(Object.values(data) as TodoItem[]);
+        callback(Object.values(data) as TodoItem[], true);
       } else {
-        callback([]);
+        callback([], true);
       }
     } else {
-      callback([]);
+      callback([], false);
     }
   }, (error) => {
     console.error('Realtime Todos listener error:', error);
