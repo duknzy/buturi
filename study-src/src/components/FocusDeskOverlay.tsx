@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TaskItem, AmbientSoundType } from '../types';
+import { TaskItem, AmbientSoundType, TodoItem } from '../types';
 import { SUBJECT_METAS } from '../constants/subjects';
 import { audioSynth } from '../services/audio';
 import {
@@ -11,20 +11,28 @@ import {
   Pause,
   RotateCcw,
   Sparkles,
+  CheckCircle2,
+  Circle,
+  ListTodo,
 } from 'lucide-react';
 
 interface FocusDeskOverlayProps {
   currentTime?: Date;
   tasks: TaskItem[];
+  todos?: TodoItem[];
+  onToggleTodo?: (id: string) => void;
   onClose: () => void;
 }
 
 export const FocusDeskOverlay: React.FC<FocusDeskOverlayProps> = ({
   currentTime = new Date(),
   tasks,
+  todos = [],
+  onToggleTodo,
   onClose,
 }) => {
   const [ambientSound, setAmbientSound] = useState<AmbientSoundType>(audioSynth.getCurrentType());
+  const [showDeskTodos, setShowDeskTodos] = useState<boolean>(true);
   
   // Embedded quick stopwatch on desk
   const [deskSwSeconds, setDeskSwSeconds] = useState<number>(0);
@@ -167,6 +175,69 @@ export const FocusDeskOverlay: React.FC<FocusDeskOverlayProps> = ({
         ) : (
           <div className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">
             CURRENTLY_STANDBY // ALL_CLEAR
+          </div>
+        )}
+
+        {/* Quick To-Do Checklist in Focus Desk Mode */}
+        {todos.length > 0 && (
+          <div className="w-full max-w-2xl bg-slate-900/80 border border-slate-800/90 rounded-xl p-3 sm:p-4 backdrop-blur-md shadow-2xl space-y-2 mt-2">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 text-xs font-mono">
+              <div className="flex items-center gap-2 text-slate-300">
+                <ListTodo className="w-4 h-4 text-emerald-400" />
+                <span className="font-bold uppercase tracking-wider">FOCUS_TODO_CHECKLIST</span>
+                <span className="text-[10px] text-slate-400">
+                  ({todos.filter((t) => t.done).length}/{todos.length} 完了)
+                </span>
+              </div>
+              <button
+                onClick={() => setShowDeskTodos(!showDeskTodos)}
+                className="text-[11px] text-slate-400 hover:text-slate-200"
+              >
+                {showDeskTodos ? '▲ 閉じる' : '▼ 展開'}
+              </button>
+            </div>
+
+            {showDeskTodos && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1 text-left">
+                {todos.map((todo) => {
+                  const subjectMeta = todo.subject ? SUBJECT_METAS[todo.subject] : null;
+                  return (
+                    <div
+                      key={todo.id}
+                      onClick={() => onToggleTodo && onToggleTodo(todo.id)}
+                      className={`flex items-center gap-2 p-2 rounded-lg border transition-all cursor-pointer ${
+                        todo.done
+                          ? 'bg-slate-950/40 border-slate-800 text-slate-500 line-through'
+                          : 'bg-slate-950/80 border-slate-700/80 hover:border-emerald-500/50 text-slate-200 hover:bg-slate-900'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        className="text-slate-500 hover:text-emerald-400 focus:outline-none flex-shrink-0"
+                      >
+                        {todo.done ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 fill-emerald-500/20" />
+                        ) : (
+                          <Circle className="w-4 h-4 hover:stroke-emerald-400" />
+                        )}
+                      </button>
+                      <span className="text-xs font-sans truncate flex-1 font-medium">{todo.text}</span>
+                      {subjectMeta && (
+                        <span
+                          className="text-[9px] font-mono px-1 py-0.2 rounded border flex-shrink-0"
+                          style={{
+                            borderColor: `${subjectMeta.color}40`,
+                            color: subjectMeta.color,
+                          }}
+                        >
+                          {subjectMeta.name}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>

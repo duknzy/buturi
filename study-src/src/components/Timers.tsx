@@ -2,17 +2,24 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { audioSynth } from '../services/audio';
 import confetti from 'canvas-confetti';
 import { Play, Pause, RotateCcw, ArrowDownToLine, Bell, Timer, Flame, Award } from 'lucide-react';
-import { SubjectKey, MacroTask } from '../types';
+import { SubjectKey, MacroTask, TodoItem } from '../types';
 import { STUDY_SUBJECT_KEYS, SUBJECT_METAS } from '../constants/subjects';
 
 interface TimersProps {
   onCommitTimerResult: (subject: SubjectKey, durationMinutes: number, taskName: string, startTimeStr?: string) => void;
   macroTasks?: MacroTask[];
+  todos?: TodoItem[];
+  selectedTodoForTimer?: TodoItem | null;
 }
 
 type PomodoroMode = 'work' | 'shortBreak' | 'longBreak';
 
-export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks = [] }) => {
+export const Timers: React.FC<TimersProps> = ({
+  onCommitTimerResult,
+  macroTasks = [],
+  todos = [],
+  selectedTodoForTimer = null,
+}) => {
   const [activeTab, setActiveTab] = useState<'pomo' | 'stopwatch' | 'countdown'>('pomo');
 
   // --- Pomodoro State ---
@@ -42,6 +49,20 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
   const [cdIsRunning, setCdIsRunning] = useState<boolean>(false);
   const [cdTaskTitle, setCdTaskTitle] = useState<string>('');
   const [cdSubject, setCdSubject] = useState<SubjectKey>('chem');
+
+  // Auto-fill when a todo item is passed from outside
+  useEffect(() => {
+    if (selectedTodoForTimer) {
+      const title = selectedTodoForTimer.text;
+      const sub = selectedTodoForTimer.subject || 'math';
+      setSelectedSubject(sub);
+      setPomoTaskTitle(title);
+      setSwSubject(sub);
+      setSwTaskTitle(title);
+      setCdSubject(sub);
+      setCdTaskTitle(title);
+    }
+  }, [selectedTodoForTimer]);
 
   // Refs for intervals
   const pomoTimerRef = useRef<number | null>(null);
@@ -328,20 +349,46 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
               </div>
             </div>
 
-            {/* Quick textbook buttons */}
-            {currentPomoBooks.length > 0 && (
+            {/* Quick textbook & todo buttons */}
+            {(currentPomoBooks.length > 0 || todos.filter((t) => !t.done).length > 0) && (
               <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                <span className="text-[11px] text-slate-500 font-mono whitespace-nowrap">登録教材:</span>
-                {currentPomoBooks.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setPomoTaskTitle(t.category)}
-                    className="px-2 py-1 rounded bg-slate-950 hover:bg-blue-950 border border-slate-800 hover:border-blue-500/50 text-xs text-slate-300 hover:text-blue-300 transition-all font-sans whitespace-nowrap"
-                  >
-                    {t.category}
-                  </button>
-                ))}
+                {todos.filter((t) => !t.done).length > 0 && (
+                  <>
+                    <span className="text-[11px] text-emerald-400 font-mono whitespace-nowrap">やる事To-Do:</span>
+                    {todos
+                      .filter((t) => !t.done)
+                      .slice(0, 4)
+                      .map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => {
+                            setPomoTaskTitle(t.text);
+                            if (t.subject) setSelectedSubject(t.subject);
+                          }}
+                          className="px-2 py-0.5 rounded bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-700/50 text-[11px] text-emerald-300 hover:text-emerald-200 transition-all font-sans whitespace-nowrap truncate max-w-[140px]"
+                          title={t.text}
+                        >
+                          ✓ {t.text}
+                        </button>
+                      ))}
+                  </>
+                )}
+                {currentPomoBooks.length > 0 && (
+                  <>
+                    <span className="text-[11px] text-slate-500 font-mono whitespace-nowrap">教材:</span>
+                    {currentPomoBooks.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setPomoTaskTitle(t.category)}
+                        className="px-2 py-0.5 rounded bg-slate-950 hover:bg-blue-950 border border-slate-800 hover:border-blue-500/50 text-[11px] text-slate-300 hover:text-blue-300 transition-all font-sans whitespace-nowrap"
+                      >
+                        {t.category}
+                      </button>
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -427,20 +474,46 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
               </div>
             </div>
 
-            {/* Quick textbook buttons */}
-            {currentSwBooks.length > 0 && (
+            {/* Quick textbook & todo buttons */}
+            {(currentSwBooks.length > 0 || todos.filter((t) => !t.done).length > 0) && (
               <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                <span className="text-[11px] text-slate-500 font-mono whitespace-nowrap">登録教材:</span>
-                {currentSwBooks.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setSwTaskTitle(t.category)}
-                    className="px-2 py-1 rounded bg-slate-950 hover:bg-blue-950 border border-slate-800 hover:border-blue-500/50 text-xs text-slate-300 hover:text-blue-300 transition-all font-sans whitespace-nowrap"
-                  >
-                    {t.category}
-                  </button>
-                ))}
+                {todos.filter((t) => !t.done).length > 0 && (
+                  <>
+                    <span className="text-[11px] text-emerald-400 font-mono whitespace-nowrap">やる事To-Do:</span>
+                    {todos
+                      .filter((t) => !t.done)
+                      .slice(0, 4)
+                      .map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => {
+                            setSwTaskTitle(t.text);
+                            if (t.subject) setSwSubject(t.subject);
+                          }}
+                          className="px-2 py-0.5 rounded bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-700/50 text-[11px] text-emerald-300 hover:text-emerald-200 transition-all font-sans whitespace-nowrap truncate max-w-[140px]"
+                          title={t.text}
+                        >
+                          ✓ {t.text}
+                        </button>
+                      ))}
+                  </>
+                )}
+                {currentSwBooks.length > 0 && (
+                  <>
+                    <span className="text-[11px] text-slate-500 font-mono whitespace-nowrap">教材:</span>
+                    {currentSwBooks.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setSwTaskTitle(t.category)}
+                        className="px-2 py-0.5 rounded bg-slate-950 hover:bg-blue-950 border border-slate-800 hover:border-blue-500/50 text-[11px] text-slate-300 hover:text-blue-300 transition-all font-sans whitespace-nowrap"
+                      >
+                        {t.category}
+                      </button>
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </div>

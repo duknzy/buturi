@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { ViewTab, AmbientSoundType, UserProfile, MacroPlan } from '../types';
+import { ViewTab, AmbientSoundType, UserProfile, MacroPlan, TodoItem } from '../types';
 import { audioSynth } from '../services/audio';
+import { User as FirebaseUser } from 'firebase/auth';
 import {
   Activity,
   BarChart3,
@@ -14,6 +15,9 @@ import {
   Radio,
   Target,
   Sparkles,
+  ListTodo,
+  Cloud,
+  LogOut,
 } from 'lucide-react';
 
 interface GlobalNavProps {
@@ -24,6 +28,11 @@ interface GlobalNavProps {
   userProfile: UserProfile;
   macroPlan: MacroPlan;
   currentTime?: Date;
+  todos?: TodoItem[];
+  currentUser?: FirebaseUser | null;
+  isSyncing?: boolean;
+  onLoginWithGoogle?: () => void;
+  onLogout?: () => void;
 }
 
 export const GlobalNav: React.FC<GlobalNavProps> = ({
@@ -34,10 +43,17 @@ export const GlobalNav: React.FC<GlobalNavProps> = ({
   userProfile,
   macroPlan,
   currentTime = new Date(),
+  todos = [],
+  currentUser = null,
+  isSyncing = false,
+  onLoginWithGoogle,
+  onLogout,
 }) => {
   const [ambientSound, setAmbientSound] = useState<AmbientSoundType>('none');
   const [volume, setVolume] = useState<number>(0.5);
   const [showAudioMenu, setShowAudioMenu] = useState<boolean>(false);
+
+  const activeTodoCount = todos.filter((t) => !t.done).length;
 
   const handleSoundSelect = (type: AmbientSoundType) => {
     if (ambientSound === type) {
@@ -171,8 +187,29 @@ export const GlobalNav: React.FC<GlobalNavProps> = ({
           </button>
         </nav>
 
-        {/* Right Tools HUD: SYSTEM_TIME, Exam, Ambient BGM, Desk Mode */}
+        {/* Right Tools HUD: SYSTEM_TIME, Cloud/To-Do, Exam, Ambient BGM, Desk Mode */}
         <div className="hidden lg:flex items-center gap-2.5 flex-shrink-0">
+          {/* Active Todo & Cloud Pill */}
+          <div
+            onClick={() => {
+              if (currentTab !== 'cockpit') onTabChange('cockpit');
+            }}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-mono font-bold cursor-pointer transition-all ${
+              activeTodoCount > 0
+                ? 'bg-blue-950/60 border-blue-600/60 text-blue-300 hover:bg-blue-900/60'
+                : 'bg-emerald-950/40 border-emerald-700/50 text-emerald-400'
+            }`}
+            title="To-Do残タスク数 (クリックでコックピットへ)"
+          >
+            <ListTodo className="w-3.5 h-3.5" />
+            <span>TODO: {activeTodoCount > 0 ? `${activeTodoCount}件 残り` : 'ALL DONE!'}</span>
+            {currentUser ? (
+              <span className="text-[10px] text-emerald-400 font-bold ml-1">☁️ 同期中</span>
+            ) : (
+              <span className="text-[10px] text-slate-400 ml-1">💾 ローカル</span>
+            )}
+          </div>
+
           {/* Live System Time */}
           <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-md border border-slate-700 text-xs whitespace-nowrap flex-shrink-0">
             <span className="font-bold text-slate-500 uppercase font-mono">SYSTEM_TIME:</span>

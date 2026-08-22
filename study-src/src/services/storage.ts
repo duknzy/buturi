@@ -301,11 +301,65 @@ export function getMockPaddockDrivers(): PaddockUserStatus[] {
   return [];
 }
 
+export function getDefaultSampleTodos(): TodoItem[] {
+  const today = getTodayDateStr();
+  return [
+    {
+      id: 'todo_sample_1',
+      text: '数学：微積分 典型例題演習 3問',
+      done: false,
+      priority: 'high',
+      subject: 'math',
+      tag: '演習',
+      createdAt: new Date().toISOString(),
+      dueDate: today,
+      estimatedMinutes: 60,
+    },
+    {
+      id: 'todo_sample_2',
+      text: '物理：電磁気・コンデンサー回路の総復習',
+      done: false,
+      priority: 'high',
+      subject: 'physics',
+      tag: '重要',
+      createdAt: new Date().toISOString(),
+      dueDate: today,
+      estimatedMinutes: 45,
+    },
+    {
+      id: 'todo_sample_3',
+      text: '化学：有機化学 構造決定問題 1題',
+      done: false,
+      priority: 'medium',
+      subject: 'chem',
+      tag: '日課',
+      createdAt: new Date().toISOString(),
+      dueDate: today,
+      estimatedMinutes: 40,
+    },
+    {
+      id: 'todo_sample_4',
+      text: '英語：長文読解 精読 & 単語チェック',
+      done: false,
+      priority: 'medium',
+      subject: 'eng',
+      tag: '基礎',
+      createdAt: new Date().toISOString(),
+      dueDate: today,
+      estimatedMinutes: 30,
+    },
+  ];
+}
+
 export function loadTodos(): TodoItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.TODOS);
-    if (raw) {
+    if (raw !== null) {
       return JSON.parse(raw);
+    } else {
+      const defaults = getDefaultSampleTodos();
+      saveTodos(defaults);
+      return defaults;
     }
   } catch (e) {
     console.error('Failed to load todos', e);
@@ -320,3 +374,4 @@ export function saveTodos(todos: TodoItem[]): void {
     console.error('Failed to save todos', e);
   }
 }
+

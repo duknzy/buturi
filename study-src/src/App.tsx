@@ -8,11 +8,14 @@ import {
   SubjectKey,
   PaddockUserStatus,
   MacroTask,
+  TodoItem,
 } from './types';
 import {
   getTodayDateStr,
   loadTasksForDate,
   saveTasksForDate,
+  loadTodos,
+  saveTodos,
   loadMacroPlan,
   saveMacroPlan,
   loadUserProfile,
@@ -29,6 +32,7 @@ import { GlobalNav } from './components/GlobalNav';
 import { ClockCanvas } from './components/ClockCanvas';
 import { Timers } from './components/Timers';
 import { TimelineSection } from './components/TimelineSection';
+import { TodoListSection } from './components/TodoListSection';
 import { MilestonesAndMacro } from './components/MilestonesAndMacro';
 import { AnalysisView } from './components/AnalysisView';
 import { GarageView } from './components/GarageView';
@@ -36,6 +40,14 @@ import { FocusDeskOverlay } from './components/FocusDeskOverlay';
 import { ProfileModal } from './components/ProfileModal';
 import { OnboardingModal } from './components/OnboardingModal';
 import { TextbookManagerModal } from './components/TextbookManagerModal';
+import { User } from 'firebase/auth';
+import {
+  onUserAuthStateChanged,
+  loginWithGoogle,
+  logoutUser,
+  saveTodosToCloud,
+  subscribeToCloudTodos,
+} from './services/firebase';
 import { SUBJECT_METAS } from './constants/subjects';
 import { audioSynth } from './services/audio';
 
@@ -49,6 +61,14 @@ export default function App() {
   // Date and Task State
   const [currentDateStr, setCurrentDateStr] = useState<string>(getTodayDateStr());
   const [tasks, setTasks] = useState<TaskItem[]>(() => loadTasksForDate(getTodayDateStr()));
+
+  // To-Do State & Active selection for Timer
+  const [todos, setTodos] = useState<TodoItem[]>(() => loadTodos());
+  const [selectedTodoForTimer, setSelectedTodoForTimer] = useState<TodoItem | null>(null);
+
+  // Firebase Auth & Cloud Sync State
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
   // Macro Plan, Profile, Logs, Paddock
   const [macroPlan, setMacroPlan] = useState<MacroPlan>(() => loadMacroPlan());
@@ -68,6 +88,43 @@ export default function App() {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Firebase Auth & Realtime Cloud Todo Listener
+  useEffect(() => {
+    let unsubscribeTodos: (() => void) | null = null;
+
+    const unsubscribeAuth = onUserAuthStateChanged((user) => {
+      setCurrentUser(user);
+      if (user) {
+        setIsSyncing(true);
+        // Subscribe to real-time todos from Firebase Cloud
+        unsubscribeTodos = subscribeToCloudTodos(user.uid, (cloudTodos) => {
+          setIsSyncing(false);
+          if (cloudTodos && cloudTodos.length > 0) {
+            setTodos(cloudTodos);
+            saveTodos(cloudTodos);
+          } else {
+            // If cloud is empty, upload local todos if any exist
+            const localTodos = loadTodos();
+            if (localTodos && localTodos.length > 0) {
+              saveTodosToCloud(user.uid, localTodos);
+            }
+          }
+        });
+      } else {
+        if (unsubscribeTodos) {
+          unsubscribeTodos();
+          unsubscribeTodos = null;
+        }
+        setIsSyncing(false);
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeTodos) unsubscribeTodos();
+    };
   }, []);
 
   // Keyboard shortcut listener ('F' for desk mode, 'Esc' for closing overlay)
@@ -102,6 +159,70 @@ export default function App() {
       .reduce((acc, t) => acc + t.duration, 0);
 
     // calculate diff or update
+  };
+
+  // Update To-Do items and persist (LocalStorage + Firebase Cloud)
+  const handleUpdateTodos = (updatedTodos: TodoItem[]) => {
+    setTodos(updatedTodos);
+    saveTodos(updatedTodos);
+    if (currentUser) {
+      setIsSyncing(true);
+      saveTodosToCloud(currentUser.uid, updatedTodos)
+        .catch((err) => console.error('Cloud save failed:', err))
+        .finally(() => setIsSyncing(false));
+    }
+  };
+
+  // Google Login / Logout Handlers
+  const handleLoginWithGoogle = async () => {
+    try {
+      setIsSyncing(true);
+      const user = await loginWithGoogle();
+      if (user) {
+        audioSynth.playChime();
+      }
+    } catch (err) {
+      alert('Googleログインに失敗しました: ' + (err as Error).message);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (window.confirm('ログアウトしますか？')) {
+      await logoutUser();
+      audioSynth.playTick();
+    }
+  };
+
+  // Select To-Do to focus in Timer
+  const handleSelectTodoForTimer = (todo: TodoItem) => {
+    setSelectedTodoForTimer(todo);
+    const timerElem = document.getElementById('telemetry-timers-card');
+    if (timerElem) {
+      timerElem.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  // Add To-Do item directly to today's 24h schedule
+  const handleAddTodoToTimeline = (todo: TodoItem, startTime: string, durationMinutes: number) => {
+    const newTask: TaskItem = {
+      id: `task_from_todo_${Date.now()}`,
+      time: startTime,
+      duration: durationMinutes,
+      subject: todo.subject || 'math',
+      task: todo.text,
+      done: false,
+      order: tasks.length,
+    };
+
+    const updatedTasks = [...tasks, newTask].sort((a, b) => {
+      const [h1, m1] = a.time.split(':').map(Number);
+      const [h2, m2] = b.time.split(':').map(Number);
+      return h1 * 60 + m1 - (h2 * 60 + m2);
+    });
+
+    handleUpdateTasks(updatedTasks);
   };
 
   // Update Macro Plan
@@ -263,6 +384,11 @@ export default function App() {
         userProfile={userProfile}
         macroPlan={macroPlan}
         currentTime={currentTime}
+        todos={todos}
+        currentUser={currentUser}
+        isSyncing={isSyncing}
+        onLoginWithGoogle={handleLoginWithGoogle}
+        onLogout={handleLogout}
       />
 
       {/* Main View Container */}
@@ -296,13 +422,17 @@ export default function App() {
               </div>
 
               {/* Multi-Timer Suite (Pomodoro, Stopwatch, Countdown) */}
-              <Timers
-                onCommitTimerResult={handleCommitTimerResult}
-                macroTasks={macroPlan.macroTasks}
-              />
+              <div id="telemetry-timers-card">
+                <Timers
+                  onCommitTimerResult={handleCommitTimerResult}
+                  macroTasks={macroPlan.macroTasks}
+                  todos={todos}
+                  selectedTodoForTimer={selectedTodoForTimer}
+                />
+              </div>
             </div>
 
-            {/* Right Column: Timeline Schedule & Milestones & Macro Tasks (7 cols) */}
+            {/* Right Column: Timeline Schedule & To-Do Action Matrix & Milestones (7 cols) */}
             <div className="lg:col-span-7 space-y-4">
               <TimelineSection
                 currentDateStr={currentDateStr}
@@ -312,6 +442,18 @@ export default function App() {
                 onDeployTemplate={handleDeployTemplate}
                 phase1Config={macroPlan.templates.phase1}
                 phase2Config={macroPlan.templates.phase2}
+              />
+
+              {/* To-Do Action Matrix (with Firebase Cloud Sync) */}
+              <TodoListSection
+                todos={todos}
+                onUpdateTodos={handleUpdateTodos}
+                onSelectTodoForTimer={handleSelectTodoForTimer}
+                onAddTodoToTimeline={handleAddTodoToTimeline}
+                currentUser={currentUser}
+                isSyncing={isSyncing}
+                onLoginWithGoogle={handleLoginWithGoogle}
+                onLogout={handleLogout}
               />
 
               <MilestonesAndMacro
@@ -348,6 +490,19 @@ export default function App() {
         <FocusDeskOverlay
           currentTime={currentTime}
           tasks={tasks}
+          todos={todos}
+          onToggleTodo={(id) => {
+            const updated = todos.map((t) => {
+              if (t.id === id) {
+                const nextDone = !t.done;
+                if (nextDone) audioSynth.playChime();
+                else audioSynth.playTick();
+                return { ...t, done: nextDone };
+              }
+              return t;
+            });
+            handleUpdateTodos(updated);
+          }}
           onClose={() => setShowDeskOverlay(false)}
         />
       )}
@@ -362,6 +517,9 @@ export default function App() {
             setShowProfileModal(false);
             setShowOnboarding(true);
           }}
+          currentUser={currentUser}
+          onLoginWithGoogle={handleLoginWithGoogle}
+          onLogout={handleLogout}
         />
       )}
 

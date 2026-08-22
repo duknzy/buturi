@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { User, Target, Save, X } from 'lucide-react';
+import { User, Target, Save, X, Cloud, LogIn, LogOut } from 'lucide-react';
+import { User as FirebaseUser } from 'firebase/auth';
 import { audioSynth } from '../services/audio';
 
 interface ProfileModalProps {
@@ -8,6 +9,9 @@ interface ProfileModalProps {
   onSaveProfile: (profile: UserProfile) => void;
   onClose: () => void;
   onRelaunchOnboarding?: () => void;
+  currentUser?: FirebaseUser | null;
+  onLoginWithGoogle?: () => void;
+  onLogout?: () => void;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
@@ -15,6 +19,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   onSaveProfile,
   onClose,
   onRelaunchOnboarding,
+  currentUser = null,
+  onLoginWithGoogle,
+  onLogout,
 }) => {
   const [name, setName] = useState<string>(userProfile.name || 'Flora');
   const [target, setTarget] = useState<string>(userProfile.target);
@@ -126,6 +133,47 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 />
               </div>
             </div>
+          </div>
+
+          {/* Cloud Account Sync Status */}
+          <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 flex items-center justify-between text-xs font-mono">
+            <div className="flex items-center gap-2">
+              <Cloud className={`w-4 h-4 ${currentUser ? 'text-emerald-400' : 'text-slate-500'}`} />
+              <div>
+                <div className="font-bold text-slate-200">
+                  {currentUser ? 'FIREBASE_CLOUD: ONLINE' : 'FIREBASE_CLOUD: LOCAL_MODE'}
+                </div>
+                <div className="text-[10px] text-slate-400">
+                  {currentUser
+                    ? `${currentUser.displayName || ''} (${currentUser.email || currentUser.uid})`
+                    : '未ログイン (To-Doはブラウザのローカルに保存されます)'}
+                </div>
+              </div>
+            </div>
+
+            {currentUser ? (
+              onLogout && (
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="px-2.5 py-1 rounded bg-slate-900 hover:bg-rose-950/40 border border-slate-700 hover:border-rose-700 text-slate-300 hover:text-rose-400 text-[10px] flex items-center gap-1"
+                >
+                  <LogOut className="w-3 h-3" />
+                  <span>ログアウト</span>
+                </button>
+              )
+            ) : (
+              onLoginWithGoogle && (
+                <button
+                  type="button"
+                  onClick={onLoginWithGoogle}
+                  className="px-2.5 py-1 rounded bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500 text-blue-300 text-[10px] font-bold flex items-center gap-1"
+                >
+                  <LogIn className="w-3 h-3" />
+                  <span>Googleログイン</span>
+                </button>
+              )
+            )}
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t border-slate-800">

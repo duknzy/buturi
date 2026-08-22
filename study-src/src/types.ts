@@ -124,7 +124,10 @@ export interface TodoItem {
   text: string;
   done: boolean;
   priority: TodoPriority;
+  subject?: SubjectKey;
   tag?: string; // e.g. '数学', '生活', 'その他'
   createdAt: string; // ISO timestamp
   dueDate?: string; // YYYY-MM-DD
+  estimatedMinutes?: number;
 }
+
