@@ -65,6 +65,36 @@
 
         .mjx-chtml { margin: 0.5rem 0 !important; padding-left: 2px; }
 
+        /* 🖼️ 図・写真ビューア */
+        .mini-badge-figure {
+            background: rgba(255, 245, 0, 0.14); color: var(--accent-yellow); border: 1px solid rgba(255, 245, 0, 0.35);
+            font-size: 0.72rem; font-weight: 800; padding: 0.25rem 0.6rem; border-radius: 8px;
+        }
+        .figure-toggle-btn {
+            font-size: 0.85rem; padding: 0.55rem 1rem; border: 1px solid rgba(255, 245, 0, 0.4);
+            color: var(--accent-yellow); background: rgba(255, 245, 0, 0.05); border-radius: 10px;
+            cursor: pointer; transition: all 150ms ease; display: inline-flex; align-items: center; gap: 0.4rem;
+            font-weight: 800; font-family: inherit; width: fit-content; margin-bottom: 0.8rem;
+        }
+        .figure-toggle-btn:hover { background: rgba(255, 245, 0, 0.15); border-color: var(--accent-yellow); color: #fff; }
+        .figure-gallery {
+            display: none; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 1rem;
+            padding: 0.9rem; border: 1px dashed rgba(255, 245, 0, 0.35); border-radius: 14px; background: rgba(0,0,0,0.3);
+        }
+        .figure-gallery.open { display: flex; }
+        .figure-gallery img {
+            height: 160px; max-width: 100%; border-radius: 8px; border: 1px solid #22222a; cursor: zoom-in;
+            transition: transform 150ms ease; object-fit: contain; background: #000;
+        }
+        .figure-gallery img:hover { transform: scale(1.02); }
+
+        .lightbox-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 20000;
+            display: none; align-items: center; justify-content: center; padding: 2rem; cursor: zoom-out;
+        }
+        .lightbox-overlay.open { display: flex; }
+        .lightbox-overlay img { max-width: 100%; max-height: 100%; border-radius: 6px; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+
         /* ===== セットアップフォーム ===== */
         .setup-card { padding: 2rem; display: flex; flex-direction: column; gap: 1.2rem; }
         .setup-label { font-size: 0.85rem; color: var(--text-muted); font-weight: 800; display: flex; align-items: center; gap: 0.4rem; }
@@ -286,11 +316,15 @@
         </header>
 
         <main id="sprint-play-zone" class="squircle-tile problem-card" style="display:none;">
-            <div style="display: flex; gap: 0.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
                 <span class="badge badge-math" id="problem-meta">AI // SYNAPSES</span>
+                <span class="mini-badge mini-badge-figure" id="sprint-figure-badge" style="display:none;">🖼️ 図・写真あり</span>
             </div>
 
             <div class="sprint-title" id="problem-title-display">🤖 指定条件でAIが問題を生成しています。少々お待ちください（約5〜10秒）...</div>
+
+            <button type="button" class="figure-toggle-btn" id="sprint-figure-toggle-btn" style="display:none;">🖼️ 元の写真・図を見る（図・表を確認）</button>
+            <div class="figure-gallery" id="sprint-figure-gallery"></div>
 
             <div class="control-panel" id="action-trigger-zone">
                 <button type="button" class="tactile-btn btn-action" id="btn-reveal-ans" style="background:#111; color:#fff; border:1px solid #333; display:none;">👁 答えを確認する</button>
@@ -319,6 +353,11 @@
                 <button type="button" class="tactile-btn" onclick="location.href='index.html'" style="padding: 1rem 2rem; background: var(--accent-cyan); box-shadow: 4px 4px 0px #008b94;">ダッシュボードに戻る</button>
             </div>
         </div>
+    </div>
+
+    <!-- 🔍 画像拡大表示用ライトボックス -->
+    <div class="lightbox-overlay" id="sprint-lightbox-overlay">
+        <img id="sprint-lightbox-img" src="" alt="拡大画像">
     </div>
 
 
@@ -902,6 +941,9 @@ selectedQuestions = shuffled.slice(0, count).map((q, idx) => ({
 
             document.getElementById("problem-title-display").innerHTML = normalizeMathSyntax(q.title);
 
+            // 🖼️ 図・写真の読み込みと表示
+            loadQuestionFigures(q);
+
             let stepsRaw = q.steps || "";
             // 登録済み問題は answerFormula に解説が入っている場合があるので fallback
             if (!stepsRaw && q.answerFormula) {
@@ -915,6 +957,84 @@ selectedQuestions = shuffled.slice(0, count).map((q, idx) => ({
 
             forceTriggerMathJax();
         }
+
+        // 🖼️ 登録済み問題の写真・図を取得＆ギャラリー描画
+        let problemImagesCache = {}; // problemId -> [dataUrl, ...]
+
+        async function loadQuestionFigures(q) {
+            const badge = document.getElementById("sprint-figure-badge");
+            const toggleBtn = document.getElementById("sprint-figure-toggle-btn");
+            const gallery = document.getElementById("sprint-figure-gallery");
+            if (badge) badge.style.display = "none";
+            if (toggleBtn) toggleBtn.style.display = "none";
+            if (gallery) {
+                gallery.classList.remove("open");
+                gallery.innerHTML = "";
+            }
+
+            if (!q || !loginUid) return;
+
+            let images = [];
+            if (Array.isArray(q.images) && q.images.length > 0) {
+                images = q.images;
+            } else if (q.imageData) {
+                images = [q.imageData];
+            } else {
+                const pid = q.id;
+                if (!pid) return;
+
+                if (problemImagesCache[pid] !== undefined) {
+                    images = problemImagesCache[pid];
+                } else {
+                    try {
+                        const snap = await get(ref(database, `users/${loginUid}/problemImages/${pid}`));
+                        if (snap.exists() && snap.val()?.images) {
+                            images = snap.val().images || [];
+                        } else if (q.sourceRefBookProblemId) {
+                            const refSnap = await get(ref(database, `users/${loginUid}/refBookProblemImages/${q.sourceRefBookProblemId}`));
+                            if (refSnap.exists() && refSnap.val()?.images) {
+                                images = refSnap.val().images || [];
+                            }
+                        }
+                    } catch (e) {
+                        console.error("画像読み込み失敗:", e);
+                    }
+                    problemImagesCache[pid] = images;
+                }
+            }
+
+            if (!images || images.length === 0) return;
+
+            // 非同期取得中に別の問題に進んでいないかチェック
+            if (selectedQuestions[currentQuestionIndex]?.id !== q.id) return;
+
+            if (badge) badge.style.display = "inline-flex";
+            if (toggleBtn) {
+                toggleBtn.style.display = "inline-flex";
+                toggleBtn.textContent = images.length > 1 ? `🖼️ 元の写真・図を見る（${images.length}枚）` : "🖼️ 元の写真・図を見る（図・表を確認）";
+            }
+            if (gallery) {
+                gallery.innerHTML = images.map(src => `<img src="${src}" loading="lazy" title="クリックで全画面拡大">`).join("");
+                gallery.querySelectorAll("img").forEach(img => {
+                    img.addEventListener("click", () => openSprintLightbox(img.src));
+                });
+            }
+        }
+
+        function openSprintLightbox(src) {
+            const overlay = document.getElementById("sprint-lightbox-overlay");
+            const img = document.getElementById("sprint-lightbox-img");
+            if (img) img.src = src;
+            if (overlay) overlay.classList.add("open");
+        }
+
+        document.getElementById("sprint-lightbox-overlay")?.addEventListener("click", () => {
+            document.getElementById("sprint-lightbox-overlay")?.classList.remove("open");
+        });
+
+        document.getElementById("sprint-figure-toggle-btn")?.addEventListener("click", () => {
+            document.getElementById("sprint-figure-gallery")?.classList.toggle("open");
+        });
 
         // ==========================================================================
         // ❌ ミスった：AIモード → Firebase に新規 set / 登録済みモード → update
