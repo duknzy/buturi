@@ -1,0 +1,6 @@
+{
+  "name": "StudyClock 24H Telemetry Pro",
+  "description": "24時間固定文字盤テレメトリー、ポモドーロ＆ストップウォッチ、環境音BGM、大計画・マイルストーン、学習時間記録・分析アプリ",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
