@@ -79,18 +79,18 @@ export const TextbookManagerModal: React.FC<TextbookManagerModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in font-mono">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-slate-200">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-slate-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-slate-800 bg-slate-950/60">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-800 bg-slate-950/60">
+          <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
               <BookOpen className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-xs sm:text-sm text-slate-100 uppercase tracking-wider font-mono">
+              <h3 className="font-bold text-sm sm:text-base text-slate-100 uppercase tracking-wider font-mono whitespace-nowrap">
                 TEXTBOOK_REGISTRATION // 教材・参考書マネージャー
               </h3>
-              <p className="text-[10px] text-slate-400 font-sans">
+              <p className="text-xs text-slate-400 font-sans mt-0.5">
                 科目ごとに使用する参考書や問題集を登録し、目標を設定します
               </p>
             </div>
@@ -105,7 +105,7 @@ export const TextbookManagerModal: React.FC<TextbookManagerModalProps> = ({
         </div>
 
         {/* Subject Filter Tabs */}
-        <div className="flex items-center gap-1.5 px-4 sm:px-5 py-2.5 bg-slate-950 border-b border-slate-800 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-2 px-5 py-2.5 bg-slate-950 border-b border-slate-800 overflow-x-auto no-scrollbar">
           {STUDY_SUBJECT_KEYS.map((k) => {
             const sm = SUBJECT_METAS[k];
             const isSelected = selectedSubject === k;
@@ -115,7 +115,7 @@ export const TextbookManagerModal: React.FC<TextbookManagerModalProps> = ({
               <button
                 key={k}
                 onClick={() => setSelectedSubject(k)}
-                className={`px-3 py-1 rounded-lg text-[11px] font-bold uppercase whitespace-nowrap transition-all flex items-center gap-1.5 font-sans ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase whitespace-nowrap transition-all flex items-center gap-1.5 font-sans ${
                   isSelected
                     ? 'bg-blue-600 text-white shadow-md'
                     : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
@@ -124,7 +124,7 @@ export const TextbookManagerModal: React.FC<TextbookManagerModalProps> = ({
                 <span>{sm.name}</span>
                 {count > 0 && (
                   <span
-                    className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono ${
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
                       isSelected ? 'bg-blue-800 text-blue-100' : 'bg-slate-800 text-slate-400'
                     }`}
                   >
@@ -137,7 +137,7 @@ export const TextbookManagerModal: React.FC<TextbookManagerModalProps> = ({
         </div>
 
         {/* Body Content */}
-        <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
+        <div className="p-5 overflow-y-auto space-y-4 flex-1">
           {/* Quick Suggestions for Selected Subject */}
           {suggestions.length > 0 && (
             <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 space-y-2">

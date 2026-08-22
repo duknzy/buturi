@@ -196,58 +196,58 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
   const currentCdBooks = macroTasks.filter((t) => t.subject === cdSubject);
 
   return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-3.5 shadow-lg text-slate-200">
+    <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 shadow-lg text-slate-200">
       {/* Sub Tabs */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
-        <div className="flex items-center gap-1 bg-slate-950 p-0.5 rounded border border-slate-800 font-mono">
+      <div className="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-3.5">
+        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 font-mono">
           <button
             onClick={() => setActiveTab('pomo')}
-            className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-all ${
+            className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all whitespace-nowrap ${
               activeTab === 'pomo' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Flame className="w-3 h-3 text-amber-400" />
+            <Flame className="w-3.5 h-3.5 text-amber-400" />
             <span>POMODORO</span>
           </button>
 
           <button
             onClick={() => setActiveTab('stopwatch')}
-            className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-all ${
+            className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all whitespace-nowrap ${
               activeTab === 'stopwatch' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Timer className="w-3 h-3 text-blue-300" />
+            <Timer className="w-3.5 h-3.5 text-blue-300" />
             <span>STOPWATCH</span>
           </button>
 
           <button
             onClick={() => setActiveTab('countdown')}
-            className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-all ${
+            className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all whitespace-nowrap ${
               activeTab === 'countdown' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Bell className="w-3 h-3 text-indigo-300" />
+            <Bell className="w-3.5 h-3.5 text-indigo-300" />
             <span>EXAM_CD</span>
           </button>
         </div>
 
-        <span className="text-[10px] font-mono text-blue-400 font-bold uppercase tracking-wider hidden sm:inline-block">
+        <span className="text-xs font-mono text-blue-400 font-bold uppercase tracking-wider hidden sm:inline-block whitespace-nowrap">
           TELEMETRY_TIMERS
         </span>
       </div>
 
       {/* --- POMODORO VIEW --- */}
       {activeTab === 'pomo' && (
-        <div className="space-y-3">
+        <div className="space-y-3.5">
           <div className="flex items-center justify-between font-mono">
-            <div className="flex gap-1">
+            <div className="flex gap-1.5">
               <button
                 onClick={() => {
                   setPomoMode('work');
                   setPomoSecondsLeft(pomoDurations.work);
                   setPomoIsRunning(false);
                 }}
-                className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all ${
+                className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-all whitespace-nowrap ${
                   pomoMode === 'work'
                     ? 'bg-blue-950 border-blue-500 text-blue-300'
                     : 'bg-slate-900 border-slate-800 text-slate-400'
@@ -261,7 +261,7 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
                   setPomoSecondsLeft(pomoDurations.shortBreak);
                   setPomoIsRunning(false);
                 }}
-                className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all ${
+                className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-all whitespace-nowrap ${
                   pomoMode === 'shortBreak'
                     ? 'bg-emerald-950 border-emerald-500 text-emerald-300'
                     : 'bg-slate-900 border-slate-800 text-slate-400'
@@ -275,7 +275,7 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
                   setPomoSecondsLeft(pomoDurations.longBreak);
                   setPomoIsRunning(false);
                 }}
-                className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all ${
+                className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-all whitespace-nowrap ${
                   pomoMode === 'longBreak'
                     ? 'bg-purple-950 border-purple-500 text-purple-300'
                     : 'bg-slate-900 border-slate-800 text-slate-400'
@@ -285,30 +285,30 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
               </button>
             </div>
 
-            <div className="flex items-center gap-1 text-[10px] text-blue-400 font-bold uppercase tracking-wider">
-              <Award className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-1.5 text-xs text-blue-400 font-bold uppercase tracking-wider whitespace-nowrap">
+              <Award className="w-4 h-4" />
               <span>CYCLE #{pomoCycleCount}</span>
             </div>
           </div>
 
           {/* Big Digit Display */}
-          <div className="text-center py-1 bg-slate-950/80 rounded border border-slate-800/80">
-            <div className="text-4xl sm:text-5xl font-mono font-black tracking-tight text-white drop-shadow-sm">
+          <div className="text-center py-2.5 bg-slate-950/80 rounded-lg border border-slate-800/80">
+            <div className="text-5xl sm:text-6xl font-mono font-black tracking-tight text-white drop-shadow-sm">
               {formatTime(pomoSecondsLeft)}
             </div>
-            <div className="text-[10px] font-mono font-bold uppercase text-blue-400/80 tracking-widest mt-0.5">
+            <div className="text-xs font-mono font-bold uppercase text-blue-400/80 tracking-widest mt-1">
               {pomoMode === 'work' ? 'FOCUS PHASE ACTIVE' : 'RECOVERY / COOL-DOWN'}
             </div>
           </div>
 
           {/* Subject & Task selection */}
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div className="sm:col-span-1">
                 <select
                   value={selectedSubject}
                   onChange={(e) => setSelectedSubject(e.target.value as SubjectKey)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-[11px] text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-md px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
                 >
                   {STUDY_SUBJECT_KEYS.map((k) => (
                     <option key={k} value={k}>
@@ -323,21 +323,21 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
                   value={pomoTaskTitle}
                   onChange={(e) => setPomoTaskTitle(e.target.value)}
                   placeholder={`タスク・教材名 (例: ${currentPomoBooks[0]?.category || '例題演習'})`}
-                  className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-[11px] text-slate-200 focus:outline-none focus:border-blue-500 font-sans"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-md px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-sans"
                 />
               </div>
             </div>
 
             {/* Quick textbook buttons */}
             {currentPomoBooks.length > 0 && (
-              <div className="flex items-center gap-1 flex-wrap pt-0.5">
-                <span className="text-[9px] text-slate-500 font-mono">登録教材:</span>
+              <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                <span className="text-[11px] text-slate-500 font-mono whitespace-nowrap">登録教材:</span>
                 {currentPomoBooks.map((t) => (
                   <button
                     key={t.id}
                     type="button"
                     onClick={() => setPomoTaskTitle(t.category)}
-                    className="px-1.5 py-0.5 rounded bg-slate-950 hover:bg-blue-950 border border-slate-800 hover:border-blue-500/50 text-[10px] text-slate-300 hover:text-blue-300 transition-all font-sans"
+                    className="px-2 py-1 rounded bg-slate-950 hover:bg-blue-950 border border-slate-800 hover:border-blue-500/50 text-xs text-slate-300 hover:text-blue-300 transition-all font-sans whitespace-nowrap"
                   >
                     {t.category}
                   </button>
@@ -347,16 +347,16 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
           </div>
 
           {/* Control Buttons */}
-          <div className="flex items-center gap-1.5 pt-0.5">
+          <div className="flex items-center gap-2 pt-1">
             <button
               onClick={() => setPomoIsRunning(!pomoIsRunning)}
-              className={`flex-1 py-2 rounded font-mono font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all uppercase tracking-wider ${
+              className={`flex-1 py-2.5 rounded-md font-mono font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all uppercase tracking-wider whitespace-nowrap ${
                 pomoIsRunning
                   ? 'bg-amber-600 hover:bg-amber-500 text-white'
                   : 'bg-blue-600 hover:bg-blue-500 text-white'
               }`}
             >
-              {pomoIsRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+              {pomoIsRunning ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
               <span>{pomoIsRunning ? 'PAUSE' : 'START_FOCUS'}</span>
             </button>
 
@@ -366,17 +366,17 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
                 setPomoSecondsLeft(pomoDurations[pomoMode]);
               }}
               title="タイマーリセット"
-              className="p-2 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300"
+              className="p-2.5 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-4 h-4" />
             </button>
 
             <button
               onClick={commitPomodoro}
-              className="px-2.5 py-2 rounded bg-blue-950 border border-blue-500/50 text-blue-300 text-[10px] font-mono font-bold uppercase flex items-center gap-1 transition-all hover:bg-blue-900"
+              className="px-3.5 py-2.5 rounded-md bg-blue-950 border border-blue-500/50 text-blue-300 text-xs font-mono font-bold uppercase flex items-center gap-1.5 transition-all hover:bg-blue-900 whitespace-nowrap"
               title="この25分をタイムライン／ログに即記録"
             >
-              <ArrowDownToLine className="w-3.5 h-3.5 text-blue-400" />
+              <ArrowDownToLine className="w-4 h-4 text-blue-400" />
               <span>COMMIT_25M</span>
             </button>
           </div>
@@ -385,29 +385,29 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
 
       {/* --- STOPWATCH VIEW --- */}
       {activeTab === 'stopwatch' && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+        <div className="space-y-3.5">
+          <div className="flex items-center justify-between text-xs font-mono text-slate-400">
             <span>START: <strong className="text-blue-400">{swStartTimeStr || '--:--'}</strong></span>
             <span className="uppercase text-slate-500">PRECISION_TIMER</span>
           </div>
 
-          <div className="text-center py-1 bg-slate-950/80 rounded border border-slate-800/80">
-            <div className="text-4xl sm:text-5xl font-mono font-black tracking-tight text-white drop-shadow-sm">
+          <div className="text-center py-2.5 bg-slate-950/80 rounded-lg border border-slate-800/80">
+            <div className="text-5xl sm:text-6xl font-mono font-black tracking-tight text-white drop-shadow-sm">
               {formatHourMinSec(swSeconds)}
             </div>
-            <div className="text-[10px] font-mono font-bold uppercase text-blue-400/80 tracking-widest mt-0.5">
+            <div className="text-xs font-mono font-bold uppercase text-blue-400/80 tracking-widest mt-1">
               {swIsRunning ? '⚡ LOGGING_ACTIVE' : 'STANDBY'}
             </div>
           </div>
 
           {/* Form parameters */}
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div className="sm:col-span-1">
                 <select
                   value={swSubject}
                   onChange={(e) => setSwSubject(e.target.value as SubjectKey)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-[11px] text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-md px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
                 >
                   {STUDY_SUBJECT_KEYS.map((k) => (
                     <option key={k} value={k}>
@@ -422,21 +422,21 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
                   value={swTaskTitle}
                   onChange={(e) => setSwTaskTitle(e.target.value)}
                   placeholder={`演習内容 (例: ${currentSwBooks[0]?.category || '問題演習'})`}
-                  className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-[11px] text-slate-200 focus:outline-none focus:border-blue-500 font-sans"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-md px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-sans"
                 />
               </div>
             </div>
 
             {/* Quick textbook buttons */}
             {currentSwBooks.length > 0 && (
-              <div className="flex items-center gap-1 flex-wrap pt-0.5">
-                <span className="text-[9px] text-slate-500 font-mono">登録教材:</span>
+              <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                <span className="text-[11px] text-slate-500 font-mono whitespace-nowrap">登録教材:</span>
                 {currentSwBooks.map((t) => (
                   <button
                     key={t.id}
                     type="button"
                     onClick={() => setSwTaskTitle(t.category)}
-                    className="px-1.5 py-0.5 rounded bg-slate-950 hover:bg-blue-950 border border-slate-800 hover:border-blue-500/50 text-[10px] text-slate-300 hover:text-blue-300 transition-all font-sans"
+                    className="px-2 py-1 rounded bg-slate-950 hover:bg-blue-950 border border-slate-800 hover:border-blue-500/50 text-xs text-slate-300 hover:text-blue-300 transition-all font-sans whitespace-nowrap"
                   >
                     {t.category}
                   </button>
@@ -446,38 +446,38 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
           </div>
 
           {/* Controls */}
-          <div className="flex items-center gap-1.5 pt-0.5">
+          <div className="flex items-center gap-2 pt-1">
             <button
               onClick={toggleStopwatch}
-              className={`flex-1 py-2 rounded font-mono font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all uppercase tracking-wider ${
+              className={`flex-1 py-2.5 rounded-md font-mono font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all uppercase tracking-wider whitespace-nowrap ${
                 swIsRunning
                   ? 'bg-amber-600 hover:bg-amber-500 text-white'
                   : 'bg-blue-600 hover:bg-blue-500 text-white'
               }`}
             >
-              {swIsRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+              {swIsRunning ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
               <span>{swIsRunning ? 'STOP' : 'START_STOPWATCH'}</span>
             </button>
 
             <button
               onClick={resetStopwatch}
               title="リセット"
-              className="p-2 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300"
+              className="p-2.5 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-4 h-4" />
             </button>
 
             <button
               onClick={commitStopwatch}
               disabled={swSeconds < 60}
-              className={`px-2.5 py-2 rounded border text-[10px] font-mono font-bold uppercase flex items-center gap-1 transition-all ${
+              className={`px-3.5 py-2.5 rounded-md border text-xs font-mono font-bold uppercase flex items-center gap-1.5 transition-all whitespace-nowrap ${
                 swSeconds >= 60
                   ? 'bg-blue-950 hover:bg-blue-900 border-blue-500/50 text-blue-300'
                   : 'bg-slate-900 border-slate-800 text-slate-600 cursor-not-allowed'
               }`}
               title="現在の計測結果を記録"
             >
-              <ArrowDownToLine className="w-3.5 h-3.5" />
+              <ArrowDownToLine className="w-4 h-4" />
               <span>COMMIT_LOG</span>
             </button>
           </div>
@@ -486,9 +486,9 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
 
       {/* --- COUNTDOWN VIEW --- */}
       {activeTab === 'countdown' && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
-            <div className="flex gap-1">
+        <div className="space-y-3.5">
+          <div className="flex items-center justify-between text-xs font-mono text-slate-400">
+            <div className="flex gap-1.5">
               {[15, 30, 60, 90, 120].map((m) => (
                 <button
                   key={m}
@@ -497,7 +497,7 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
                     setCdSecondsLeft(m * 60);
                     setCdIsRunning(false);
                   }}
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border transition-all ${
+                  className={`px-2 py-1 rounded-md text-xs font-mono font-bold border transition-all whitespace-nowrap ${
                     cdInitialMinutes === m
                       ? 'bg-blue-950 border-blue-400 text-blue-300'
                       : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
@@ -507,25 +507,25 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
                 </button>
               ))}
             </div>
-            <span className="uppercase text-slate-500">EXAM_SIMULATION</span>
+            <span className="uppercase text-slate-500 whitespace-nowrap">EXAM_SIMULATION</span>
           </div>
 
-          <div className="text-center py-1 bg-slate-950/80 rounded border border-slate-800/80">
-            <div className="text-4xl sm:text-5xl font-mono font-black tracking-tight text-white drop-shadow-sm">
+          <div className="text-center py-2.5 bg-slate-950/80 rounded-lg border border-slate-800/80">
+            <div className="text-5xl sm:text-6xl font-mono font-black tracking-tight text-white drop-shadow-sm">
               {formatTime(cdSecondsLeft)}
             </div>
-            <div className="text-[10px] font-mono font-bold uppercase text-blue-400/80 tracking-widest mt-0.5">
+            <div className="text-xs font-mono font-bold uppercase text-blue-400/80 tracking-widest mt-1">
               {cdIsRunning ? 'EXAM TIMER RUNNING' : 'STANDBY'}
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div className="sm:col-span-1">
                 <select
                   value={cdSubject}
                   onChange={(e) => setCdSubject(e.target.value as SubjectKey)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-[11px] text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-md px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
                 >
                   {STUDY_SUBJECT_KEYS.map((k) => (
                     <option key={k} value={k}>
@@ -540,21 +540,21 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
                   value={cdTaskTitle}
                   onChange={(e) => setCdTaskTitle(e.target.value)}
                   placeholder={`演習名 (例: ${currentCdBooks[0]?.category || '共通テスト模試'})`}
-                  className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-[11px] text-slate-200 focus:outline-none focus:border-blue-500 font-sans"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-md px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-sans"
                 />
               </div>
             </div>
 
             {/* Quick textbook buttons */}
             {currentCdBooks.length > 0 && (
-              <div className="flex items-center gap-1 flex-wrap pt-0.5">
-                <span className="text-[9px] text-slate-500 font-mono">登録教材:</span>
+              <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                <span className="text-[11px] text-slate-500 font-mono whitespace-nowrap">登録教材:</span>
                 {currentCdBooks.map((t) => (
                   <button
                     key={t.id}
                     type="button"
                     onClick={() => setCdTaskTitle(t.category)}
-                    className="px-1.5 py-0.5 rounded bg-slate-950 hover:bg-blue-950 border border-slate-800 hover:border-blue-500/50 text-[10px] text-slate-300 hover:text-blue-300 transition-all font-sans"
+                    className="px-2 py-1 rounded bg-slate-950 hover:bg-blue-950 border border-slate-800 hover:border-blue-500/50 text-xs text-slate-300 hover:text-blue-300 transition-all font-sans whitespace-nowrap"
                   >
                     {t.category}
                   </button>
@@ -563,16 +563,16 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 pt-0.5">
+          <div className="flex items-center gap-2 pt-1">
             <button
               onClick={() => setCdIsRunning(!cdIsRunning)}
-              className={`flex-1 py-2 rounded font-mono font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all uppercase tracking-wider ${
+              className={`flex-1 py-2.5 rounded-md font-mono font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all uppercase tracking-wider whitespace-nowrap ${
                 cdIsRunning
                   ? 'bg-amber-600 hover:bg-amber-500 text-white'
                   : 'bg-blue-600 hover:bg-blue-500 text-white'
               }`}
             >
-              {cdIsRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+              {cdIsRunning ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
               <span>{cdIsRunning ? 'PAUSE' : 'START_EXAM'}</span>
             </button>
 
@@ -582,16 +582,16 @@ export const Timers: React.FC<TimersProps> = ({ onCommitTimerResult, macroTasks 
                 setCdSecondsLeft(cdInitialMinutes * 60);
               }}
               title="リセット"
-              className="p-2 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300"
+              className="p-2.5 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-4 h-4" />
             </button>
 
             <button
               onClick={commitCountdown}
-              className="px-2.5 py-2 rounded bg-blue-950 hover:bg-blue-900 border border-blue-500/50 text-blue-300 text-[10px] font-mono font-bold uppercase flex items-center gap-1 transition-all"
+              className="px-3.5 py-2.5 rounded-md bg-blue-950 hover:bg-blue-900 border border-blue-500/50 text-blue-300 text-xs font-mono font-bold uppercase flex items-center gap-1.5 transition-all whitespace-nowrap"
             >
-              <ArrowDownToLine className="w-3.5 h-3.5" />
+              <ArrowDownToLine className="w-4 h-4" />
               <span>COMMIT_{cdInitialMinutes}M</span>
             </button>
           </div>

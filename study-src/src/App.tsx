@@ -266,22 +266,22 @@ export default function App() {
       />
 
       {/* Main View Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-4 space-y-3">
+      <main className="flex-1 max-w-[1720px] w-full mx-auto p-3 sm:p-5 space-y-4">
         {/* --- 1. COCKPIT VIEW --- */}
         {currentTab === 'cockpit' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
             {/* Left Column: 24h Clock Telemetry & Timers (5 cols) */}
-            <div className="lg:col-span-5 space-y-3">
+            <div className="lg:col-span-5 space-y-4">
               {/* 24-Hour Dial Card */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-3.5 shadow-lg">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2 font-mono">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                    <h3 className="font-bold text-xs text-slate-100 uppercase tracking-wider">
+              <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 shadow-lg">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-2.5 font-mono">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                    <h3 className="font-bold text-xs sm:text-sm text-slate-100 uppercase tracking-wider">
                       24H_TRUE_CLOCK_TELEMETRY
                     </h3>
                   </div>
-                  <span className="text-[10px] font-mono text-blue-400 font-bold">
+                  <span className="text-xs font-mono text-blue-400 font-bold">
                     DIAL: 00:00 - 24:00
                   </span>
                 </div>
@@ -303,7 +303,7 @@ export default function App() {
             </div>
 
             {/* Right Column: Timeline Schedule & Milestones & Macro Tasks (7 cols) */}
-            <div className="lg:col-span-7 space-y-3">
+            <div className="lg:col-span-7 space-y-4">
               <TimelineSection
                 currentDateStr={currentDateStr}
                 tasks={tasks}

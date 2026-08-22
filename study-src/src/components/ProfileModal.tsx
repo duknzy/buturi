@@ -16,7 +16,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   onClose,
   onRelaunchOnboarding,
 }) => {
-  const [name, setName] = useState<string>(userProfile.name);
+  const [name, setName] = useState<string>(userProfile.name || 'Flora');
   const [target, setTarget] = useState<string>(userProfile.target);
   const [mathGoal, setMathGoal] = useState<string>(userProfile.goals?.math || '');
   const [physGoal, setPhysGoal] = useState<string>(userProfile.goals?.physics || '');
@@ -26,7 +26,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSaveProfile({
-      name: name.trim() || 'Driver',
+      name: name.trim() || 'Flora',
       target: target.trim(),
       goals: {
         math: mathGoal.trim(),
@@ -41,9 +41,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in font-mono">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl p-4 sm:p-5 w-full max-w-lg shadow-2xl space-y-3 text-slate-200">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-          <h3 className="font-bold text-xs uppercase tracking-wider text-blue-400 flex items-center gap-1.5 font-mono">
+      <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 sm:p-6 w-full max-w-xl shadow-2xl space-y-4 text-slate-200">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+          <h3 className="font-bold text-xs sm:text-sm uppercase tracking-wider text-blue-400 flex items-center gap-2 font-mono whitespace-nowrap">
             <User className="w-4 h-4" /> DRIVER_PROFILE // TARGET_CONFIGURATION
           </h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-200">
@@ -51,16 +51,16 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+        <form onSubmit={handleSubmit} className="space-y-3.5 text-xs sm:text-sm">
           <div>
-            <label className="text-slate-400 block mb-1 text-[10px] uppercase font-bold">DRIVER_NAME / CALLSIGN</label>
+            <label className="text-slate-400 block mb-1 text-xs uppercase font-bold">DRIVER_NAME / CALLSIGN</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例: Koki / 佐藤"
+              placeholder="例: Flora"
               required
-              className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-slate-200 font-sans text-xs"
+              className="w-full bg-slate-950 border border-slate-700 rounded-md p-2 text-slate-200 font-sans text-xs sm:text-sm"
             />
           </div>
 

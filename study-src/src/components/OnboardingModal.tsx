@@ -34,7 +34,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const [step, setStep] = useState<number>(1);
 
   // Step 1: User Profile
-  const [name, setName] = useState<string>(initialProfile.name || '');
+  const [name, setName] = useState<string>(initialProfile.name || 'Flora');
   const [targetUniversity, setTargetUniversity] = useState<string>(initialProfile.target || '');
 
   // Step 2: Season Macro Goals
@@ -102,7 +102,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
   const handleFinish = () => {
     const finalProfile: UserProfile = {
-      name: name.trim() || 'Driver',
+      name: name.trim() || 'Flora',
       target: targetUniversity.trim() || '志望校現役合格',
       goals: {},
     };
@@ -128,7 +128,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     };
 
     audioSynth.playChime();
-    confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
+    });
     onComplete(finalProfile, finalPlan);
   };
 
@@ -138,21 +142,21 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/90 backdrop-blur-lg animate-fade-in font-mono">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] text-slate-200">
+      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] text-slate-200">
         {/* Top Branding Banner */}
-        <div className="px-5 py-3.5 bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 border-b border-slate-800 flex items-center justify-between">
+        <div className="px-5 py-4 bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
             <div>
-              <h2 className="font-black text-xs sm:text-sm tracking-widest text-blue-400 font-mono">
+              <h2 className="font-black text-sm sm:text-base tracking-wider text-blue-400 font-mono">
                 STUDYCLOCK // INITIAL SYSTEM SETUP
               </h2>
-              <p className="text-[10px] text-slate-400 font-sans">
+              <p className="text-xs text-slate-400 font-sans mt-0.5">
                 テレメトリ初期設定ウィザード（後からいつでも変更できます）
               </p>
             </div>
           </div>
-          <span className="text-[10px] font-bold text-slate-400 bg-slate-950 px-2 py-1 rounded border border-slate-800">
+          <span className="text-xs font-bold text-slate-300 bg-slate-950 px-2.5 py-1 rounded-md border border-slate-800">
             STEP {step} / 3
           </span>
         </div>

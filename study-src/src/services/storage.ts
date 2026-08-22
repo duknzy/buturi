@@ -61,7 +61,7 @@ export const DEFAULT_MACRO_PLAN: MacroPlan = {
 };
 
 export const DEFAULT_USER_PROFILE: UserProfile = {
-  name: '',
+  name: 'Flora',
   target: '',
   goals: {},
 };
@@ -189,8 +189,8 @@ export function loadUserProfile(): UserProfile {
     const raw = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed.name === 'Telemetry Driver') {
-        return DEFAULT_USER_PROFILE;
+      if (!parsed.name || parsed.name === 'Telemetry Driver' || parsed.name === 'Driver') {
+        parsed.name = 'Flora';
       }
       return parsed;
     }

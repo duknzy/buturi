@@ -230,7 +230,7 @@ export const ClockCanvas: React.FC<ClockCanvasProps> = ({ tasks, currentTime = n
         const rect = container.getBoundingClientRect();
         if (rect.width === 0) return;
         const dpr = window.devicePixelRatio || 1;
-        const displaySize = Math.floor(Math.min(rect.width, 380));
+        const displaySize = Math.floor(Math.min(rect.width, 460));
 
         const targetPhysicalSize = displaySize * dpr;
         if (canvas.width !== targetPhysicalSize || canvas.height !== targetPhysicalSize) {
@@ -328,7 +328,7 @@ export const ClockCanvas: React.FC<ClockCanvasProps> = ({ tasks, currentTime = n
   return (
     <div
       ref={containerRef}
-      className="relative flex flex-col items-center justify-center w-full max-w-sm mx-auto select-none"
+      className="relative flex flex-col items-center justify-center w-full max-w-md xl:max-w-lg mx-auto select-none"
     >
       <canvas
         ref={canvasRef}
