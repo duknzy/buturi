@@ -110,9 +110,6 @@
 
             <div class="reveal-zone" id="sprint-reveal-zone">
                 <hr style="border: 0; border-top: 1px dashed #22222a; margin-bottom: 0.5rem;">
-                <div style="font-size:0.8rem; color:var(--text-muted); font-weight:800; margin-bottom:0.2rem;">CORRECT ANSWER</div>
-                <div class="model-answer-text" id="sprint-answer-display" style="font-size:1.3rem; color:var(--accent-cyan); font-weight:900; margin-bottom:1rem;">---</div>
-                
                 <div style="font-size:0.8rem; color:var(--text-muted); font-weight:800; margin-bottom:0.2rem;">STEPS</div>
                 <div class="model-answer-text" id="sprint-steps-display" style="font-size:1rem; white-space:pre-wrap; line-height:1.6; color:var(--text-bright-muted); margin-bottom:1rem;">---</div>
                 
@@ -493,9 +490,14 @@ startSprintTimer();
             document.getElementById("problem-meta").textContent = `${q.subject} // ${q.field} // AI生成`;
             
             document.getElementById("problem-title-display").innerHTML = normalizeMathSyntax(q.title);
-            document.getElementById("sprint-answer-display").innerHTML = normalizeMathSyntax(q.answer);
             
-            let cleanSteps = normalizeMathSyntax(q.steps || "");
+            let stepsRaw = q.steps || "";
+            if (!stepsRaw && q.answerFormula) {
+                stepsRaw = q.answerFormula;
+            } else if (!stepsRaw && q.answer) {
+                stepsRaw = q.answer;
+            }
+            let cleanSteps = normalizeMathSyntax(stepsRaw);
             cleanSteps = cleanSteps.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
             document.getElementById("sprint-steps-display").innerHTML = cleanSteps;
 

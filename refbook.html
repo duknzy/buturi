@@ -363,10 +363,10 @@
                             <div class="scratch-memo-recap-label">📝 自分が書いたメモ</div>
                             <div class="scratch-memo-recap-text" id="quiz-scratch-memo-recap-text"></div>
                         </div>
-                        <div class="quiz-answer-label">✅ ANSWER</div>
+                        <div class="quiz-answer-label" id="quiz-answer-label">✅ ANSWER</div>
                         <div class="ai-answer-note" id="quiz-answer-ai-note" style="display:none;">🤖 この解答・解説はAIが作成したものです（参考書に印刷がなかったため）。念のため内容を確認してください。</div>
                         <div class="quiz-answer-text tex2jax_process" id="quiz-answer-text"></div>
-                        <div class="quiz-answer-label">📝 EXPLANATION</div>
+                        <div class="quiz-answer-label" id="quiz-explanation-label">📝 EXPLANATION</div>
                         <div class="quiz-explanation-text tex2jax_process" id="quiz-explanation-text"></div>
 
                         <div class="quiz-judge-row">
@@ -826,8 +826,23 @@
 
             document.getElementById("quiz-card-badge").textContent = `${p.type || "問題"} ${p.number || ""}`.trim();
             document.getElementById("quiz-question-text").innerHTML = renderMathText(p.question || "（問題文なし）");
-            document.getElementById("quiz-answer-text").innerHTML = renderMathText(p.answer || "（解答なし）");
-            document.getElementById("quiz-explanation-text").innerHTML = renderMathText(p.explanation || "（解説なし）");
+
+            const ans = (p.answer || "").trim();
+            const exp = (p.explanation || "").trim();
+            const isDuplicate = ans && exp && ans === exp;
+
+            const ansLabel = document.getElementById("quiz-answer-label");
+            const ansText = document.getElementById("quiz-answer-text");
+            if (isDuplicate || !ans) {
+                if (ansLabel) ansLabel.style.display = "none";
+                ansText.style.display = "none";
+                ansText.innerHTML = "";
+            } else {
+                if (ansLabel) ansLabel.style.display = "block";
+                ansText.style.display = "block";
+                ansText.innerHTML = renderMathText(ans);
+            }
+            document.getElementById("quiz-explanation-text").innerHTML = renderMathText(exp || (isDuplicate ? ans : "（解説なし）"));
 
             const scratchTa = document.getElementById("quiz-scratch-memo");
             scratchTa.value = scratchMemos[pid] || "";
