@@ -137,22 +137,22 @@ export const GarageView: React.FC<GarageViewProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-3 font-mono">
+    <div className="max-w-[1720px] w-full mx-auto space-y-4 font-mono">
       {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-900/60 border border-slate-800 rounded-xl p-3.5 shadow-lg text-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/60 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-lg text-slate-200">
         <div>
-          <h2 className="font-bold text-xs uppercase tracking-wider text-amber-400 flex items-center gap-1.5 font-mono">
-            <Sliders className="w-4 h-4 text-amber-400" />
+          <h2 className="font-bold text-sm sm:text-base uppercase tracking-wider text-amber-400 flex items-center gap-2 font-mono">
+            <Sliders className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
             GARAGE // 24H_ALLOCATION_TUNER
           </h2>
-          <p className="text-[10px] text-slate-400 font-sans mt-0.5">
+          <p className="text-xs text-slate-400 font-sans mt-0.5">
             1日1440分(24時間)完全整合型配分設計 ＆ シーズン大計画設定
           </p>
         </div>
 
         <button
           onClick={handleSaveAll}
-          className="px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] uppercase flex items-center gap-1.5 shadow-sm transition-all self-start sm:self-auto"
+          className="px-3.5 py-1.5 rounded-md bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs uppercase flex items-center gap-1.5 shadow-sm transition-all self-start sm:self-auto whitespace-nowrap"
         >
           <Save className="w-3.5 h-3.5" />
           <span>SAVE_CONFIGURATION</span>

@@ -78,8 +78,8 @@ export const GlobalNav: React.FC<GlobalNavProps> = ({
           <div className="flex items-center gap-3.5 flex-shrink-0">
             <div className="flex items-center gap-2 flex-shrink-0">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.7)] flex-shrink-0" />
-              <h1 className="font-black text-xs sm:text-sm tracking-wider text-blue-400 font-mono whitespace-nowrap">
-                STUDYCLOCK // TELEMETRY PRO
+              <h1 className="font-black text-sm sm:text-base tracking-wider text-blue-400 font-mono whitespace-nowrap">
+                Flora
               </h1>
             </div>
             
@@ -124,12 +124,15 @@ export const GlobalNav: React.FC<GlobalNavProps> = ({
         </div>
 
         {/* Tab Navigation Hub */}
-        <nav className="flex items-center gap-1 p-1 bg-slate-900/90 rounded-lg border border-slate-800 shadow-inner w-full sm:w-auto justify-center flex-shrink-0">
+        <nav className="flex items-center gap-1.5 p-1 bg-slate-900/90 rounded-lg border border-slate-800 shadow-inner w-full sm:w-auto justify-center flex-shrink-0">
           <button
-            onClick={() => onTabChange('cockpit')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase font-mono transition-all whitespace-nowrap ${
+            onClick={() => {
+              audioSynth.playTick();
+              onTabChange('cockpit');
+            }}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase font-mono transition-all whitespace-nowrap cursor-pointer ${
               currentTab === 'cockpit'
-                ? 'bg-blue-600 text-white shadow-sm'
+                ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
@@ -138,10 +141,13 @@ export const GlobalNav: React.FC<GlobalNavProps> = ({
           </button>
 
           <button
-            onClick={() => onTabChange('analysis')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase font-mono transition-all whitespace-nowrap ${
+            onClick={() => {
+              audioSynth.playTick();
+              onTabChange('analysis');
+            }}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase font-mono transition-all whitespace-nowrap cursor-pointer ${
               currentTab === 'analysis'
-                ? 'bg-blue-600 text-white shadow-sm'
+                ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
@@ -150,10 +156,13 @@ export const GlobalNav: React.FC<GlobalNavProps> = ({
           </button>
 
           <button
-            onClick={() => onTabChange('garage')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase font-mono transition-all whitespace-nowrap ${
+            onClick={() => {
+              audioSynth.playTick();
+              onTabChange('garage');
+            }}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase font-mono transition-all whitespace-nowrap cursor-pointer ${
               currentTab === 'garage'
-                ? 'bg-blue-600 text-white shadow-sm'
+                ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
