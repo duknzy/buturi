@@ -536,7 +536,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                     className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-blue-400"
                     title="編集"
                   >
-                    <Edit3 className="w-3.5 h-3.5" />
+                    <Edit2 className="w-3.5 h-3.5" />
                   </button>
 
                   <button
