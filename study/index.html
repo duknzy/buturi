@@ -40,22 +40,25 @@
         .tab-active { border-color: #3b82f6; color: #3b82f6; font-weight: 900; }
 
         /* GLOBAL CYBER HUD NAVIGATION */
+        .global-cyber-nav-wrapper {
+            position: relative;
+            z-index: 100; /* ヘッダーより確実に前面に配置 */
+        }
         .global-cyber-nav {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: rgba(15, 23, 42, 0.92);
+            background: rgba(15, 23, 42, 0.95);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(59, 130, 246, 0.25);
+            border: 1px solid rgba(59, 130, 246, 0.3);
             border-radius: 16px;
             padding: 0.6rem 1.2rem;
             margin: 1rem auto;
             max-width: 1200px;
             gap: 0.8rem;
             flex-wrap: wrap;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-            z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
         }
         .nav-brand {
             font-family: monospace;
@@ -115,7 +118,7 @@
 <!-- ========================================== -->
 <!-- 0. GLOBAL CYBER HUD NAV & UTILITY -->
 <!-- ========================================== -->
-<div class="px-4">
+<div class="px-4 global-cyber-nav-wrapper">
     <nav class="global-cyber-nav">
       <div class="nav-brand">STUDYCLOCK // 24H TELEMETRY</div>
       
@@ -130,24 +133,26 @@
       </div>
 
       <!-- オーディオ ＆ 卓上時計クイックコントロール -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 relative">
         <!-- 環境音プレイヤー -->
         <div class="relative">
           <button id="btn-ambient-toggle" class="nav-btn text-amber-300 border-amber-500/30">
             <i data-lucide="headphones" class="w-3.5 h-3.5"></i>
             <span id="ambient-current-label">BGM: OFF</span>
           </button>
-          <div id="ambient-panel" class="hidden absolute right-0 mt-2 w-56 p-3 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-50 text-white">
+          
+          <!-- BGMポップオーバー（最前面 z-[9999] に設定） -->
+          <div id="ambient-panel" class="hidden absolute right-0 mt-3 w-60 p-4 rounded-2xl bg-slate-900/98 border border-slate-700 shadow-2xl z-[9999] text-white">
             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">集中BGM（合成音源）</p>
-            <div class="grid grid-cols-2 gap-1.5 mb-2.5">
-              <button onclick="setAmbient('none')" class="ambient-btn py-1 px-2 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-left" data-sound="none">OFF</button>
-              <button onclick="setAmbient('rain')" class="ambient-btn py-1 px-2 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-left flex items-center gap-1" data-sound="rain">🌧️ 雨の音</button>
-              <button onclick="setAmbient('fire')" class="ambient-btn py-1 px-2 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-left flex items-center gap-1" data-sound="fire">🔥 焚き火</button>
-              <button onclick="setAmbient('white')" class="ambient-btn py-1 px-2 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-left flex items-center gap-1" data-sound="white">💨 ノイズ</button>
+            <div class="grid grid-cols-2 gap-2 mb-3">
+              <button onclick="setAmbient('none')" class="ambient-btn py-1.5 px-2 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-left" data-sound="none">OFF</button>
+              <button onclick="setAmbient('rain')" class="ambient-btn py-1.5 px-2 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-left flex items-center gap-1" data-sound="rain">🌧️ 雨の音</button>
+              <button onclick="setAmbient('fire')" class="ambient-btn py-1.5 px-2 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-left flex items-center gap-1" data-sound="fire">🔥 焚き火</button>
+              <button onclick="setAmbient('white')" class="ambient-btn py-1.5 px-2 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-left flex items-center gap-1" data-sound="white">💨 ノイズ</button>
             </div>
-            <div class="flex items-center gap-2">
-              <i data-lucide="volume-2" class="w-3.5 h-3.5 text-slate-400"></i>
-              <input type="range" id="ambient-volume" min="0" max="1" step="0.05" value="0.5" class="w-full h-1 bg-slate-700 rounded cursor-pointer">
+            <div class="flex items-center gap-2 pt-1 border-t border-slate-800">
+              <i data-lucide="volume-2" class="w-4 h-4 text-slate-400"></i>
+              <input type="range" id="ambient-volume" min="0" max="1" step="0.05" value="0.5" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
             </div>
           </div>
         </div>
@@ -238,7 +243,7 @@
 <!-- ========================================== -->
 <div id="main-dashboard" class="hidden-screen">
     <!-- HEADER -->
-    <header class="bg-white border-b border-borderLight sticky top-0 z-40 shadow-xs">
+    <header class="bg-white border-b border-borderLight sticky top-0 z-30 shadow-xs">
         <div class="max-w-6xl mx-auto px-4 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-3">
             <div>
                 <div class="flex items-center gap-2">
@@ -393,21 +398,66 @@
                 </div>
             </section>
 
-            <!-- MILESTONES & PADDOCK -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <section class="bg-white p-6 rounded-3xl border border-borderLight shadow-sm space-y-4">
-                    <h3 class="text-sm font-bold text-textMain border-b pb-2 flex items-center justify-between">
-                        <span>🚩 マイルストーン・チェックポイント</span>
-                    </h3>
+            <!-- ==================== NEW: 3カラム（ToDoリスト / マイルストーン / Paddock） ==================== -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- 1. 新設: デイリー ToDoリスト -->
+                <section class="bg-white p-5 rounded-3xl border border-borderLight shadow-sm space-y-3 flex flex-col">
+                    <div class="border-b pb-2 flex justify-between items-center">
+                        <h3 class="text-sm font-bold text-textMain flex items-center gap-1.5">
+                            <i data-lucide="check-square" class="w-4 h-4 text-emerald-500"></i>
+                            <span>📋 デイリー ToDoリスト</span>
+                        </h3>
+                        <span class="text-[10px] text-textSub font-bold" id="todo-count-badge">0/0 完了</span>
+                    </div>
+
+                    <!-- ToDo入力フォーム -->
+                    <div class="space-y-2">
+                        <div class="flex gap-1.5 text-xs">
+                            <select id="todo-subject-select" class="p-1.5 rounded-xl border bg-baseBg font-bold text-textMain text-[11px] shrink-0">
+                                <option value="math">📘 数学</option>
+                                <option value="physics">📙 物理</option>
+                                <option value="chem">📗 化学</option>
+                                <option value="eng">🍇 英語</option>
+                                <option value="kobun">🪶 古文</option>
+                                <option value="jp">📖 現代文</option>
+                                <option value="soc">🌏 地歴・公民</option>
+                                <option value="info">☕ その他</option>
+                            </select>
+                            <input type="text" id="todo-input-text" placeholder="今日のやること..." class="flex-1 p-1.5 rounded-xl border bg-baseBg text-xs" onkeydown="if(event.key==='Enter') addTodo()">
+                            <button onclick="addTodo()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition shrink-0">追加</button>
+                        </div>
+                    </div>
+
+                    <!-- ToDoアイテム一覧 -->
+                    <div id="dailyTodoList" class="space-y-2 overflow-y-auto max-h-72 pr-1 flex-1">
+                        <!-- JS動的生成 -->
+                    </div>
+                </section>
+
+                <!-- 2. 保持: マイルストーン・チェックポイント -->
+                <section class="bg-white p-5 rounded-3xl border border-borderLight shadow-sm space-y-3">
+                    <div class="border-b pb-2 flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-textMain flex items-center gap-1.5">
+                            <i data-lucide="flag" class="w-4 h-4 text-accentOrange"></i>
+                            <span>🚩 マイルストーン</span>
+                        </h3>
+                    </div>
                     <div id="cockpitMilestoneList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
                 </section>
-                <section class="bg-white p-6 rounded-3xl border border-borderLight shadow-sm space-y-4">
-                    <h3 class="text-sm font-bold text-textMain border-b pb-2 flex items-center justify-between">
-                        <span>🏁 Paddock (他ドライバーのライブ進捗)</span>
+
+                <!-- 3. 保持: Paddock ライブ進捗共有 -->
+                <section class="bg-white p-5 rounded-3xl border border-borderLight shadow-sm space-y-3">
+                    <div class="border-b pb-2 flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-textMain flex items-center gap-1.5">
+                            <i data-lucide="users" class="w-4 h-4 text-accentBlue"></i>
+                            <span>🏁 Paddock (他ドライバー)</span>
+                        </h3>
                         <span class="text-[10px] text-emerald-500 font-bold flex items-center gap-1">● Live</span>
-                    </h3>
+                    </div>
                     <div id="paddockContainer" class="grid grid-cols-1 gap-2.5 max-h-72 overflow-y-auto pr-1"></div>
                 </section>
+
             </div>
 
             <!-- MACRO TASK STRATEGY BOARD -->
@@ -664,7 +714,6 @@
 
     let currentUser = null;
 
-    // 今日の日付 (YYYY-MM-DD) を自動取得
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -673,9 +722,9 @@
 
     let burndownChart = null;
     let currentDayTasks = [];
+    let currentDayTodos = [];
     let macroPlanData = {};
 
-    // 科目メタデータ
     const subjectMeta = {
         sleep: { name: '睡眠', color: '#64748b', bg: 'bg-slate-100', text: 'text-slate-500' },
         life: { name: '生活・ピット', color: '#94a3b8', bg: 'bg-slate-50', text: 'text-slate-400' },
@@ -690,7 +739,6 @@
         info: { name: '自由枠・その他', color: '#edeaf2', bg: 'bg-slate-50', text: 'text-slate-500' }
     };
 
-    // 勉強集計対象科目
     const studySubjectKeys = ['math', 'physics', 'chem', 'eng', 'kobun', 'jp', 'soc'];
 
     const defaultMacroPlan = {
@@ -955,7 +1003,10 @@
                 : "px-3 py-1.5 border-b-2 border-transparent text-xs font-bold text-textSub";
         });
 
-        if (viewName === 'cockpit') renderTimeline();
+        if (viewName === 'cockpit') {
+            renderTimeline();
+            renderTodos();
+        }
         if (viewName === 'garage') syncGarageForm();
     };
 
@@ -1064,9 +1115,17 @@
         currentSelectedDate = document.getElementById('currentDateInput').value;
         if (!currentUser) return;
         const planDoc = await getDoc(doc(db, `users/${currentUser.uid}/dailyPlans/${currentSelectedDate}`));
-        currentDayTasks = planDoc.exists() ? (planDoc.data().tasks || []) : [];
+        if (planDoc.exists()) {
+            const data = planDoc.data();
+            currentDayTasks = data.tasks || [];
+            currentDayTodos = data.todos || [];
+        } else {
+            currentDayTasks = [];
+            currentDayTodos = [];
+        }
         ensureTaskOrder();
         renderTimeline();
+        renderTodos();
     };
 
     function ensureTaskOrder() {
@@ -1132,7 +1191,6 @@
         update24hChartAndStats(currentDayTasks);
     }
 
-    // ドラッグ＆ドロップ並び替え
     let dragSourceTaskId = null;
 
     function handleDragStart(e, id) {
@@ -1163,7 +1221,7 @@
         dragSourceTaskId = null;
 
         renderTimeline();
-        await setDoc(doc(db, `users/${currentUser.uid}/dailyPlans/${currentSelectedDate}`), { tasks: currentDayTasks });
+        await saveDailyData();
     }
 
     window.toggleTask = async (id) => {
@@ -1179,7 +1237,7 @@
         });
 
         renderTimeline();
-        await setDoc(doc(db, `users/${currentUser.uid}/dailyPlans/${currentSelectedDate}`), { tasks: currentDayTasks });
+        await saveDailyData();
 
         if (deltaMinutes !== 0) {
             macroPlanData.completedHours = Math.max(0, parseFloat(macroPlanData.completedHours || 0) + (deltaMinutes / 60));
@@ -1293,8 +1351,88 @@
 
         ensureTaskOrder();
         renderTimeline();
-        await setDoc(doc(db, `users/${currentUser.uid}/dailyPlans/${currentSelectedDate}`), { tasks: currentDayTasks });
+        await saveDailyData();
     };
+
+    /* ==========================================================================
+       新設: デイリー ToDoリスト CRUD & タイムライン連動
+       ========================================================================== */
+    function renderTodos() {
+        const container = document.getElementById('dailyTodoList');
+        container.innerHTML = '';
+
+        let doneCount = 0;
+        currentDayTodos.forEach(todo => {
+            if (todo.done) doneCount++;
+            const meta = subjectMeta[todo.subject] || subjectMeta.info;
+            
+            const item = document.createElement('div');
+            item.className = `flex items-center justify-between p-2 rounded-2xl bg-baseBg border border-borderLight text-xs gap-2 ${todo.done ? 'opacity-40' : ''}`;
+            item.innerHTML = `
+                <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <input type="checkbox" ${todo.done ? 'checked' : ''} onclick="toggleTodo(${todo.id})" class="w-4 h-4 rounded text-emerald-600 cursor-pointer shrink-0">
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${meta.bg} ${meta.text}">${meta.name}</span>
+                    <span class="font-medium text-textMain truncate ${todo.done ? 'line-through' : ''}">${todo.title}</span>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                    <button onclick="sendTodoToTimeline(${todo.id})" class="p-1 text-accentBlue hover:text-blue-700 font-bold" title="タイムライン入力フォームにセット">⏱️</button>
+                    <button onclick="deleteTodo(${todo.id})" class="p-1 text-gray-300 hover:text-red-500 font-bold">×</button>
+                </div>
+            `;
+            container.appendChild(item);
+        });
+
+        document.getElementById('todo-count-badge').innerText = `${doneCount}/${currentDayTodos.length} 完了`;
+        if (currentDayTodos.length === 0) {
+            container.innerHTML = `<p class="text-[11px] text-textSub text-center py-4 italic">今日のやること・ToDoを追加しましょう！</p>`;
+        }
+    }
+
+    window.addTodo = async () => {
+        const input = document.getElementById('todo-input-text');
+        const title = input.value.trim();
+        const subject = document.getElementById('todo-subject-select').value;
+        if (!title) return;
+
+        currentDayTodos.push({
+            id: Date.now(),
+            subject: subject,
+            title: title,
+            done: false
+        });
+
+        input.value = '';
+        renderTodos();
+        await saveDailyData();
+    };
+
+    window.toggleTodo = async (id) => {
+        currentDayTodos = currentDayTodos.map(t => t.id === id ? { ...t, done: !t.done } : t);
+        renderTodos();
+        await saveDailyData();
+    };
+
+    window.deleteTodo = async (id) => {
+        currentDayTodos = currentDayTodos.filter(t => t.id !== id);
+        renderTodos();
+        await saveDailyData();
+    };
+
+    window.sendTodoToTimeline = (id) => {
+        const todo = currentDayTodos.find(t => t.id === id);
+        if (!todo) return;
+        document.getElementById('inputSubject').value = todo.subject;
+        document.getElementById('inputTask').value = todo.title;
+        document.getElementById('inputTime').focus();
+    };
+
+    async function saveDailyData() {
+        if (!currentUser) return;
+        await setDoc(doc(db, `users/${currentUser.uid}/dailyPlans/${currentSelectedDate}`), {
+            tasks: currentDayTasks,
+            todos: currentDayTodos
+        });
+    }
 
     /* ==========================================================================
        ストップウォッチ機能
@@ -1499,7 +1637,7 @@
         renderTimeline();
         document.getElementById('inputEndTime').value = '';
         document.getElementById('inputTask').value = '';
-        await setDoc(doc(db, `users/${currentUser.uid}/dailyPlans/${currentSelectedDate}`), { tasks: currentDayTasks });
+        await saveDailyData();
     };
 
     window.deleteTask = async (id) => {
@@ -1512,7 +1650,7 @@
         }
         currentDayTasks = currentDayTasks.filter(t => t.id !== id);
         renderTimeline();
-        await setDoc(doc(db, `users/${currentUser.uid}/dailyPlans/${currentSelectedDate}`), { tasks: currentDayTasks });
+        await saveDailyData();
     };
 
     /* ==========================================================================
@@ -1939,7 +2077,7 @@
             if (deskClock) deskClock.innerText = `現在時刻: ${timeStr}`;
         }, 1000);
 
-        // 環境音ポップオーバー開閉
+        // BGMパネルの開閉
         const ambientToggleBtn = document.getElementById('btn-ambient-toggle');
         const ambientPanel = document.getElementById('ambient-panel');
         ambientToggleBtn.addEventListener('click', (e) => {
@@ -1958,7 +2096,7 @@
             }
         });
 
-        // 卓上置き時計（全画面オーバーレイ）
+        // 卓上置き時計
         const deskOverlay = document.getElementById('desk-clock-overlay');
         document.getElementById('btn-fullscreen-desk').addEventListener('click', () => {
             deskOverlay.classList.remove('hidden-screen');
