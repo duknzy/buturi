@@ -6,6 +6,7 @@ import {
   PaddockUserStatus,
   StudySessionLog,
   TaskItem,
+  TodoItem,
   UserProfile,
 } from '../types';
 
@@ -15,6 +16,7 @@ const STORAGE_KEYS = {
   USER_PROFILE: 'studyclock_user_profile',
   SESSION_LOGS: 'studyclock_session_logs',
   PADDOCK_STATUSES: 'studyclock_paddock_statuses',
+  TODOS: 'studyclock_todos',
 };
 
 export const DEFAULT_PHASE1_TEMPLATE: DayTemplateConfig = {
@@ -297,4 +299,24 @@ export function exportSessionLogsToCSV(logs: StudySessionLog[]): void {
 
 export function getMockPaddockDrivers(): PaddockUserStatus[] {
   return [];
+}
+
+export function loadTodos(): TodoItem[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.TODOS);
+    if (raw) {
+      return JSON.parse(raw);
+    }
+  } catch (e) {
+    console.error('Failed to load todos', e);
+  }
+  return [];
+}
+
+export function saveTodos(todos: TodoItem[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.TODOS, JSON.stringify(todos));
+  } catch (e) {
+    console.error('Failed to save todos', e);
+  }
 }

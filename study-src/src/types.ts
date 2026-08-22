@@ -116,3 +116,15 @@ export interface PaddockUserStatus {
 export type ViewTab = 'cockpit' | 'analysis' | 'garage';
 export type AmbientSoundType = 'none' | 'rain' | 'fire' | 'white';
 export type DailyScheduleTemplate = 'phase1' | 'phase2';
+
+export type TodoPriority = 'high' | 'medium' | 'low';
+
+export interface TodoItem {
+  id: string;
+  text: string;
+  done: boolean;
+  priority: TodoPriority;
+  tag?: string; // e.g. '数学', '生活', 'その他'
+  createdAt: string; // ISO timestamp
+  dueDate?: string; // YYYY-MM-DD
+}
